@@ -1,0 +1,30 @@
+[package]
+name = "verifier"
+version = "0.1.0"
+authors = ["Automata Team"]
+edition = "2021"
+license = "Apache-2.0"
+
+[features]
+default = ["std"]
+std = ["glog/std", "eth_types/std", "serde/std", "crypto/std", "base/std", "eth_client/std", "solidity/std", "serde_json/std", "evm_executor/std"]
+tstd = ["sgxlib/tstd", "glog/tstd", "eth_types/tstd", "serde/tstd", "crypto/tstd", "base/tstd", "eth_client/tstd", "solidity/tstd", "serde_json/tstd", "evm_executor/tstd", "sgxlib-ra/tstd"]
+sgx = ["sgxlib-ra", "sgxlib-ra/sgx"]
+
+[dependencies]
+sgxlib = { git = "https://github.com/automata-network/sgxlib", default-features = false }
+glog = { git = "https://github.com/automata-network/glog-rs", default-features = false }
+eth_types = { git = "https://github.com/automata-network/eth-types-rs", default-features = false }
+eth_client = { path = "../eth_client", default-features = false }
+jsonrpc = { git = "https://github.com/automata-network/jsonrpc-rs", default-features = false }
+solidity = { path = "../solidity", default-features = false }
+base = { git = "https://github.com/automata-network/base-rs", default-features = false }
+crypto = { git = "https://github.com/automata-network/crypto-rs", default-features = false }
+evm_executor = { path = "../evm_executor", default-features = false }
+sgxlib-ra = { path = "../sgxlib-ra", default-features = false, optional = true }
+
+serde = { git = "https://github.com/automata-network/sgxlib-thirdparty", default-features = false }
+serde_json = { git = "https://github.com/automata-network/sgxlib-thirdparty", default-features = false }
+
+rlp = { version = "0.5", default-features = false }
+rlp-derive = { version = "0.1" }

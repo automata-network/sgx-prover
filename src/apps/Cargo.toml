@@ -1,0 +1,21 @@
+[package]
+name = "apps"
+version = "0.1.0"
+authors = ["Automata Team"]
+edition = "2021"
+license = "Apache-2.0"
+
+[features]
+default = ["std"]
+
+std = ["serde_json/std", "glog/std", "ctrlc"]
+tstd = ["sgxlib/tstd", "sgxlib/types", "serde_json/tstd", "glog/tstd"]
+
+[dependencies]
+sgxlib = { git = "https://github.com/automata-network/sgxlib", default-features = false }
+glog = { git = "https://github.com/automata-network/glog-rs", default-features = false }
+
+serde_json = { git = "https://github.com/automata-network/sgxlib-thirdparty", default-features = false }
+
+getargs = { version = "0.5.0", default-features = false }
+ctrlc = { optional = true, version = "=3.1.7", features = ["termination"] }

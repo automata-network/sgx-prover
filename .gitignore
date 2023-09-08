@@ -1,0 +1,8 @@
+target/
+.vscode
+bin/sgx/target/
+verifier/node_modules
+verifier/artifacts
+verifier/cache
+verifier/typechain-types
+config/

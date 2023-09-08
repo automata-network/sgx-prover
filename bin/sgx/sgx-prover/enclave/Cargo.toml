@@ -1,0 +1,33 @@
+[package]
+name = "sgx-prover-enclave"
+version = "0.1.0"
+authors = [ "Automata Authors" ]
+edition = "2018"
+
+[package.metadata.enclave]
+edl = "geode_enclave.edl"
+config = "geode_enclave.config.xml"
+linker-script = "geode_enclave.lds"
+
+[features]
+default = []
+
+[dependencies]
+sgxlib = { git = "https://github.com/automata-network/sgxlib", default-features = false, features = ["tstd", "types", "trts"] }
+apps = { path = "../../../../src/apps", default-features = false, features = ["tstd"] }
+app-prover = { path = "../../../../src/apps/prover", default-features = false, features = ["tstd", "sgx"] }
+
+glog = { git = "https://github.com/automata-network/glog-rs", default-features = false, features = ["tstd"] }
+
+serde = { git = "https://github.com/automata-network/sgxlib-thirdparty", default-features = false, features = ["tstd"] }
+serde_json = { git = "https://github.com/automata-network/sgxlib-thirdparty", default-features = false, features = ["tstd"] }
+
+lazy_static = { version = "1.4.0", default-features = false, features = ["spin_no_std"] }
+
+[lib]
+name = "sgx_prover_enclave"
+crate-type = [ "staticlib" ]
+
+[build-dependencies]
+ata-sgx-builder = { git = "https://github.com/automata-network/sgxlib"}
+

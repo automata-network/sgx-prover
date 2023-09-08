@@ -1,0 +1,35 @@
+[package]
+name = "app-prover"
+version = "0.1.0"
+authors = [ "Automata Authors" ]
+edition = "2021"
+
+[features]
+default = ["std"]
+
+std = ["glog/std", "apps/std", "eth_types/std", "jsonrpc/std", "serde/std", "serde_json/std", "base/std", "eth_client/std", "statedb/std", "procinfo", "net-http/std", "crypto/std", "verifier/std", "prover/std"]
+tstd = ["sgxlib/tstd", "glog/tstd", "apps/tstd", "eth_types/tstd", "jsonrpc/tstd", "serde/tstd", "serde_json/tstd", "base/tstd", "eth_client/tstd", "statedb/tstd", "net-http/tstd", "crypto/tstd", "verifier/tstd", "prover/tstd", "sgxlib-ra/tstd"]
+sgx = ["sgxlib-ra", "sgxlib-ra/sgx", "prover/sgx", "verifier/sgx"]
+
+[dependencies]
+apps = { path = "../", default-features = false }
+sgxlib = { git = "https://github.com/automata-network/sgxlib", default-features = false }
+glog = { git = "https://github.com/automata-network/glog-rs", default-features = false }
+eth_types = { git = "https://github.com/automata-network/eth-types-rs", default-features = false } 
+jsonrpc = { git = "https://github.com/automata-network/jsonrpc-rs", default-features = false }
+base = { git = "https://github.com/automata-network/base-rs", default-features = false }
+eth_client = { path = "../../common/eth_client", default-features = false }
+statedb = { path = "../../common/statedb", default-features = false }
+crypto = { git = "https://github.com/automata-network/crypto-rs", default-features = false }
+net-http = { git = "https://github.com/automata-network/net-http-rs", default-features = false }
+verifier = { path = "../../common/verifier", default-features = false }
+prover = { path = "../../common/prover", default-features = false }
+solidity = { path = "../../common/solidity", default-features = false }
+
+sgxlib-ra = { path = "../../common/sgxlib-ra", default-features = false, optional = true }
+
+serde = { git = "https://github.com/automata-network/sgxlib-thirdparty", default-features = false }
+serde_json = { git = "https://github.com/automata-network/sgxlib-thirdparty", default-features = false }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+procinfo = { optional = true, version = "0.4.2" }
