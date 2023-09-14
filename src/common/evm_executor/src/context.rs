@@ -1,5 +1,7 @@
 use super::PrecompileSet;
-use eth_types::{BlockHeader, PoolTx, SH160, SU256};
+use eth_types::{SH160, SU256};
+use scroll_types::PoolTx;
+use scroll_types::BlockHeader;
 
 #[derive(Debug, Clone)]
 pub struct Context<'a> {
@@ -9,4 +11,5 @@ pub struct Context<'a> {
     pub precompile: &'a PrecompileSet,
     pub tx: &'a PoolTx,
     pub header: &'a BlockHeader,
+    pub extra_fee: Option<SU256>,
 }

@@ -10,9 +10,9 @@ members = [
     "bin/std/attestor",
     "src/apps",
 
-    "src/common/sgxlib-ra",
     "src/common/eth_client",
     "src/common/evm_executor",
+    "src/common/zktrie",
 ]
 
 [patch.'https://github.com/apache/teaclave-sgx-sdk.git']

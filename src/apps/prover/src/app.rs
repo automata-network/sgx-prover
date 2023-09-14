@@ -4,7 +4,7 @@ use crate::{Args, Config, PublicApi};
 use apps::{Getter, Var, VarMutex};
 use base::{format::debug, trace::Alive};
 use eth_client::ExecutionClient;
-use eth_types::{BlockSelector, SH160};
+use eth_types::SH160;
 use jsonrpc::{MixRpcClient, RpcServer};
 use prover::Prover;
 use std::sync::Arc;
@@ -24,6 +24,12 @@ pub struct App {
 impl apps::App for App {
     fn run(&self, env: apps::AppEnv) -> Result<(), String> {
         self.args.set(Args::from_args(env.args));
+        #[cfg(feature = "std")]
+        assert!(
+            self.args.get(self).dummy_attestation_report,
+            "must enable --dummy_attestation_report on std mode"
+        );
+
         let cfg = self.cfg.get(self);
         let srv = self.srv.get(self);
 
@@ -45,44 +51,56 @@ impl apps::App for App {
             }
         });
 
-        let prover_status_monitor = base::thread::spawn("prover-status-monitor".into(), {
-            let verifier = self.verifier.get(self);
-            let signer = cfg.relay_account;
-            let prover_key = *prover.prvkey();
+        if !self.args.get(self).insecure {
+            let dummy_attestation_report = self.args.get(self).dummy_attestation_report;
+            let prover_status_monitor = base::thread::spawn("prover-status-monitor".into(), {
+                let verifier = self.verifier.get(self);
+                let signer = cfg.relay_account;
+                let prover_key = *prover.prvkey();
 
-            #[cfg(feature = "sgx")]
-            let spid = {
-                let mut buf = [0_u8; 16];
-                buf.copy_from_slice(&cfg.spid);
-                buf
-            };
+                #[cfg(feature = "sgx")]
+                let spid = {
+                    let mut buf = [0_u8; 16];
+                    buf.copy_from_slice(&cfg.spid);
+                    buf
+                };
 
-            #[cfg(feature = "sgx")]
-            let ias_server = sgxlib_ra::IasServer::new(&cfg.ias_apikey, true, None);
+                #[cfg(all(feature = "sgx", feature = "epid"))]
+                let ias_server = sgxlib_ra::IasServer::new(&cfg.ias_apikey, true, None);
 
-            move || {
-                verifier.monitor_attested(&signer, &prover_key, || -> Result<Vec<u8>, String> {
-                    // generate the report
-                    #[cfg(feature = "sgx")]
-                    {
-                        let acc = prover.pubkey().to_raw_bytes();
-                        let report =
-                            sgxlib_ra::self_attestation(&ias_server, acc, spid, env.enclave_id)
-                                .map_err(debug)?;
-                        return serde_json::to_vec(&report).map_err(debug);
-                    }
+                move || {
+                    verifier.monitor_attested(
+                        &signer,
+                        &prover_key,
+                        || -> Result<Vec<u8>, String> {
+                            if !dummy_attestation_report {
+                                // generate the report
+                                #[cfg(feature = "epid")]
+                                {
+                                    let acc = prover.pubkey().to_raw_bytes();
+                                    let report = sgxlib_ra::epid_report(
+                                        &ias_server,
+                                        acc,
+                                        spid,
+                                        env.enclave_id,
+                                    )
+                                    .map_err(debug)?;
+                                    return serde_json::to_vec(&report).map_err(debug);
+                                }
+                            }
 
-                    #[cfg(not(feature = "sgx"))]
-                    {
-                        let mut report = [0_u8; 5 << 10];
-                        crypto::read_rand(&mut report);
-                        Ok(report.into())
-                    }
-                });
-            }
-        });
+                            {
+                                let mut report = [0_u8; 5 << 10];
+                                crypto::read_rand(&mut report);
+                                Ok(report.into())
+                            }
+                        },
+                    );
+                }
+            });
 
-        prover_status_monitor.join().unwrap();
+            prover_status_monitor.join().unwrap();
+        }
         handle.join().unwrap();
 
         Ok(())
@@ -127,17 +145,13 @@ impl Getter<ExecutionClient> for App {
 
 impl Getter<Prover> for App {
     fn generate(&self) -> Prover {
-        let el = {
-            let cfg = self.cfg.get(self);
-            let mut mix = MixRpcClient::new(None);
-            mix.add_endpoint(&self.alive, &[cfg.verifier.endpoint.clone()])
-                .unwrap();
-            Arc::new(ExecutionClient::new(mix))
-        };
-        let chain_id = el.chain_id().unwrap();
+        let cfg = self.cfg.get(self);
         let prover_cfg = prover::Config {
-            chain_id: chain_id.into(),
+            l2_chain_id: cfg.l2_chain_id.into(),
         };
-        Prover::new(prover_cfg, el)
+        let mut mix = MixRpcClient::new(None);
+        mix.add_endpoint(&self.alive, &[cfg.verifier.endpoint.clone()])
+            .unwrap();
+        Prover::new(prover_cfg, Arc::new(ExecutionClient::new(mix)))
     }
 }

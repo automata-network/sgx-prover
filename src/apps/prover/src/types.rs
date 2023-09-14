@@ -1,8 +1,8 @@
 use std::prelude::v1::*;
 
 use apps::getargs::{Opt, Options};
-use crypto::Secp256k1PrivateKey;
-use eth_types::{HexBytes, SH256};
+use crypto::{Secp256k1PrivateKey, Secp256k1RecoverableSignature};
+use eth_types::{HexBytes, SH160, SH256, SU64};
 use prover::Pob;
 use serde::{Deserialize, Serialize};
 use solidity::EncodeArg;
@@ -12,6 +12,7 @@ pub struct Config {
     pub verifier: verifier::Config,
     pub server: ServerConfig,
     pub l2: String,
+    pub l2_chain_id: SU64,
 
     pub spid: HexBytes,
     pub ias_apikey: String,
@@ -27,7 +28,7 @@ pub struct ProveResult {
     pub tx_hash: SH256,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ExecutionReport {
     pub block_hash: SH256,
     pub state_hash: SH256,
@@ -35,6 +36,45 @@ pub struct ExecutionReport {
     pub new_state_root: SH256,
     pub withdrawal_root: SH256,
     pub signature: HexBytes, // 65bytes
+}
+
+impl ExecutionReport {
+    pub fn sign(
+        reports: &[ExecutionReport],
+        prvkey: &Secp256k1PrivateKey,
+    ) -> Option<ExecutionReport> {
+        if reports.len() < 1 {
+            return None;
+        }
+
+        let block_hash = crypto::keccak_encode(|hash| {
+            for report in reports {
+                hash(&report.block_hash.0);
+            }
+        })
+        .into();
+        let state_hash = crypto::keccak_encode(|hash| {
+            for report in reports {
+                hash(&report.state_hash.0);
+            }
+        })
+        .into();
+        let prev_state_root = reports.first().unwrap().prev_state_root;
+        let new_state_root = reports.last().unwrap().new_state_root;
+        let withdrawal_root = reports.last().unwrap().withdrawal_root;
+        let mut report = Self {
+            block_hash,
+            state_hash,
+            prev_state_root,
+            new_state_root,
+            withdrawal_root,
+            signature: vec![0_u8; 65].into(),
+        };
+        let data = report.encode();
+        let sig = prvkey.sign(&data);
+        report.signature = sig.to_array().to_vec().into();
+        Some(report)
+    }
 }
 
 impl Default for ExecutionReport {
@@ -62,10 +102,16 @@ impl ExecutionReport {
         encoder.encode()
     }
 
-    pub fn sign(&mut self, prvkey: &Secp256k1PrivateKey) {
-        let data = self.encode();
-        let sig = prvkey.sign(&data);
-        self.signature = sig.to_array().to_vec().into();
+    pub fn recover(&self) -> SH160 {
+        let mut tmp = self.clone();
+        tmp.signature = vec![0_u8; 65].into();
+        let data = tmp.encode();
+        let mut sig = [0_u8; 65];
+        sig.copy_from_slice(&self.signature);
+        let sig = Secp256k1RecoverableSignature::new(sig);
+        crypto::secp256k1_recover_pubkey(&sig, &data)
+            .eth_accountid()
+            .into()
     }
 }
 
@@ -81,6 +127,9 @@ pub struct Args {
     pub executable: String,
     pub port: u32,
     pub cfg: String,
+    // skip the attestation
+    pub insecure: bool,
+    pub dummy_attestation_report: bool,
 }
 
 impl Default for Args {
@@ -88,6 +137,8 @@ impl Default for Args {
         Self {
             executable: "".into(),
             port: 18232,
+            insecure: false,
+            dummy_attestation_report: false,
             cfg: "config/prover.json".into(),
         }
     }
@@ -106,6 +157,8 @@ impl Args {
                 Opt::Short('c') => {
                     out.cfg = opts.value().unwrap().parse().unwrap();
                 }
+                Opt::Long("insecure") => out.insecure = true,
+                Opt::Long("dummy_attestation_report") => out.dummy_attestation_report = true,
                 _ => continue,
             }
         }

@@ -21,7 +21,7 @@ solidity = { path = "../solidity", default-features = false }
 base = { git = "https://github.com/automata-network/base-rs", default-features = false }
 crypto = { git = "https://github.com/automata-network/crypto-rs", default-features = false }
 evm_executor = { path = "../evm_executor", default-features = false }
-sgxlib-ra = { path = "../sgxlib-ra", default-features = false, optional = true }
+sgxlib-ra = { git = "https://github.com/automata-network/sgxlib-ra", default-features = false, optional = true }
 
 serde = { git = "https://github.com/automata-network/sgxlib-thirdparty", default-features = false }
 serde_json = { git = "https://github.com/automata-network/sgxlib-thirdparty", default-features = false }

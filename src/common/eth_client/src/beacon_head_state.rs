@@ -4,7 +4,8 @@ use crate::{BeaconClient, BeaconSlot, HeadState};
 use base::channel::Boardcast;
 use base::thread::spawn;
 use base::trace::Alive;
-use eth_types::{BlockHeader, Withdrawal, SH256};
+use eth_types::{Withdrawal, SH256};
+use scroll_types::BlockHeader;
 
 use std::sync::{mpsc, Arc};
 use std::thread::JoinHandle;

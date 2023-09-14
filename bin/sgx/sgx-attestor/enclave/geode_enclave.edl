@@ -50,7 +50,7 @@ enclave {
     		size_t msg_in_size,
     		[in, size=msg_in_size] uint8_t *msg_in,
 			size_t msg_out_size,
-			[out, size=4096] uint8_t *msg_out
+			[out, size=25600] uint8_t *msg_out
 		) allow (sgx_ra_get_ga, sgx_ra_proc_msg2_trusted, sgx_ra_get_msg3_trusted);
 	};
 };

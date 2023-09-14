@@ -23,7 +23,7 @@ pub struct Executor<'a, D: StateDB> {
 
 impl<'a, D: StateDB> Executor<'a, D> {
     pub fn new(ctx: Context<'a>, state_db: &'a mut D) -> Self {
-        let gas_price = ctx.tx.tx.gas_price(Some(ctx.header.base_fee_per_gas));
+        let gas_price = ctx.tx.tx.gas_price(ctx.header.base_fee_per_gas);
         Self {
             ctx,
             state_db,
@@ -74,24 +74,25 @@ impl<'a, D: StateDB> Executor<'a, D> {
         let mut base_fee = self.ctx.header.base_fee_per_gas;
         let gas_fee_cap = tx.max_fee_per_gas();
 
-        self.check_nonce(true, dry_run)?;
-
-        if &base_fee > gas_fee_cap {
-            if dry_run {
-                // adjust the base_fee so we can run this tx
-                base_fee = SU256::zero();
-            } else {
-                return Err(ExecuteError::InsufficientBaseFee {
-                    tx_hash: self.ctx.tx.hash,
-                    block_base_fee_gwei: parse_ether(&base_fee, 9),
-                    base_fee_gwei: parse_ether(&tx.effective_gas_tip(None).unwrap(), 9),
-                    block_number: self.ctx.header.number.as_u64(),
-                });
-            }
+        if tx.can_check_nonce() {
+            self.check_nonce(true, dry_run)?;
         }
 
-        glog::debug!(target: "access_list", "[#{}][{}] access_list = {:?}", self.ctx.tx.block, self.ctx.tx.result, self.ctx.tx.access_list);
-        self.state_db.prefetch(self.ctx.tx.access_list.iter())?;
+        if let Some(fee) = &base_fee {
+            if fee > gas_fee_cap {
+                if dry_run {
+                    // adjust the base_fee so we can run this tx
+                    base_fee = Some(SU256::zero());
+                } else {
+                    return Err(ExecuteError::InsufficientBaseFee {
+                        tx_hash: self.ctx.tx.hash,
+                        block_base_fee_gwei: parse_ether(fee, 9),
+                        base_fee_gwei: parse_ether(&tx.effective_gas_tip(None).unwrap(), 9),
+                        block_number: self.ctx.header.number.as_u64(),
+                    });
+                }
+            }
+        }
 
         let mut access_list = vec![];
         if let Some(al) = tx.access_list() {
@@ -102,14 +103,11 @@ impl<'a, D: StateDB> Executor<'a, D> {
                     tat.storage_keys.iter().map(|n| n.raw().clone()).collect(),
                 ));
             }
-            if al.len() > 0 && dry_run {
-                // only enable when dry_run, and its access_list is empty
-                self.state_db.prefetch(al.iter())?;
-            }
         }
-        // glog::info!("finish prefetch");
 
-        self.check_nonce(false, dry_run)?;
+        if tx.can_check_nonce() {
+            self.check_nonce(false, dry_run)?;
+        }
         self.buy_gas(dry_run)?;
 
         let mut result = ExecuteResult::default();
@@ -146,26 +144,34 @@ impl<'a, D: StateDB> Executor<'a, D> {
             self.refund_gas()?;
             return Err(ExecuteError::NotSupported);
         }
+        let mut used_gas = executor.used_gas();
+        if !tx.cost_gas() {
+            used_gas += 5600;
+        }
 
         if !dry_run {
             glog::debug!(
                 target: "execute_result",
-                "{}({:?}): reason: {:?}, gas_limit: {}+{}, elapsed: {:?}, du per gas: {:?}",
+                "{}({:?}): reason: {:?}(data: {:?}), gas: {}+{}, elapsed: {:?}, du per gas: {:?}",
                 if dry_run { "dry_run" } else { "apply" },
                 tx.hash().raw(),
-                reason,
+                reason, data,
                 // HexBytes::from(data).to_utf8(),
-                executor.used_gas(),
+                used_gas,
                 executor.gas(),
                 execute_instant.elapsed(),
-                execute_instant.elapsed() / (executor.used_gas() as u32),
+                execute_instant.elapsed() / (used_gas as u32),
             );
         }
 
         result.success = reason.is_succeed();
-        result.used_gas = executor.used_gas().into();
+        result.used_gas = used_gas.into();
         result.err = data.into();
-        self.gas -= executor.used_gas();
+        if self.gas < used_gas && !tx.cost_gas() {
+            self.gas = 0; // FIXME, over commit for l1 msg
+        } else {
+            self.gas -= used_gas;
+        }
 
         let (storages, logs) = executor.into_state().deconstruct();
 
@@ -258,23 +264,30 @@ impl<'a, D: StateDB> Executor<'a, D> {
         // panic!("tx: {:?}", self.tx.hash());
         let gas_tip_cap = tx.max_priority_fee_per_gas();
         let gas_fee_cap = tx.max_fee_per_gas();
-        if &base_fee > gas_fee_cap {
-            glog::info!(
-                "invalid tx: {:?}, base_fee:{:?}, gas_fee_cap:{:?}",
-                tx,
-                base_fee,
-                gas_fee_cap
-            )
+        if let Some(base_fee) = &base_fee {
+            if base_fee > gas_fee_cap {
+                glog::info!(
+                    "invalid tx: {:?}, base_fee:{:?}, gas_fee_cap:{:?}",
+                    tx,
+                    base_fee,
+                    gas_fee_cap
+                )
+            }
         }
-        let effective_tip = (*gas_tip_cap).min(*gas_fee_cap - base_fee);
-        let fee = SU256::from(result.used_gas) * effective_tip;
+        let effective_tip = (*gas_tip_cap).min(*gas_fee_cap - base_fee.unwrap_or(SU256::zero()));
         let miner = if dry_run {
             eth_types::zero_addr()
         } else {
             &self.ctx.header.miner
         };
-        self.state_db.add_balance(miner, &fee.clone().into())?;
-        self.refund_gas()?;
+
+        let extra_fee = self.ctx.extra_fee.unwrap_or(SU256::zero());
+        let fee = SU256::from(result.used_gas) * effective_tip + extra_fee;
+        if tx.cost_gas() {
+            self.refund_gas()?;
+        }
+
+        self.state_db.add_balance(miner, &fee)?;
         Ok(result)
     }
 
@@ -307,6 +320,9 @@ impl<'a, D: StateDB> Executor<'a, D> {
         // if let Some(gas_fee_cap) = self.tx.max_fee_per_gas() {
         let mut balance_check = gas * tx.max_fee_per_gas();
         balance_check = balance_check + tx.value();
+        let extra_fee = self.ctx.extra_fee.unwrap_or(SU256::default());
+        balance_check += extra_fee;
+
         // }
 
         let balance = self.state_db.get_balance(caller)?;
@@ -331,7 +347,10 @@ impl<'a, D: StateDB> Executor<'a, D> {
         self.gas += tx.gas().as_u64();
 
         self.initial_gas += tx.gas().as_u64();
-        self.state_db.sub_balance(caller, &mgval.into())?;
+        // glog::info!("buy gas: {:?} {:?} + {:?}(extra)", caller, mgval, extra_fee);
+        if tx.cost_gas() {
+            self.state_db.sub_balance(caller, &(extra_fee + mgval))?;
+        }
         Ok(())
     }
 
@@ -349,7 +368,12 @@ impl<'a, D: StateDB> Executor<'a, D> {
         };
         match nonce.cmp(&tx_nonce) {
             Ordering::Equal => Ok(()),
-            Ordering::Greater => return Err(ExecuteError::NonceTooLow),
+            Ordering::Greater => {
+                return Err(ExecuteError::NonceTooLow {
+                    got: tx_nonce,
+                    expect: nonce,
+                })
+            }
             Ordering::Less => {
                 if !dry_run {
                     return Err(ExecuteError::NonceTooHigh {
@@ -374,7 +398,10 @@ pub enum ExecuteError {
         block_number: u64,
     },
     ExecutePaymentTxFail(String),
-    NonceTooLow,
+    NonceTooLow {
+        expect: u64,
+        got: u64,
+    },
     NonceTooHigh {
         expect: u64,
         got: u64,

@@ -1,17 +1,17 @@
 use std::prelude::v1::*;
 
-use std::borrow::Cow;
 use std::fs::read_to_string;
-use std::sync::Arc;
 
 use apps::Getter;
 use base::trace::Alive;
-use crypto::{keccak_hash, Secp256k1PrivateKey};
+use crypto::Secp256k1PrivateKey;
 use eth_client::ExecutionClient;
-use eth_types::{BlockSelector, SH256, SU64};
+use eth_types::{HexBytes, SH160, SU64};
 use jsonrpc::{JsonrpcErrorObj, RpcArgs, RpcServer, RpcServerConfig};
-use prover::Prover;
-use statedb::{TrieMemStore, TrieNode, TrieStore};
+use prover::{Database, Prover};
+use scroll_types::BlockTrace;
+use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use crate::{App, ExecutionReport, ProveParams, ProveResult};
 
@@ -21,139 +21,93 @@ pub struct PublicApi {
     pub verifier: Arc<verifier::Client>,
     pub l2_el: Arc<ExecutionClient>,
     pub relay: Secp256k1PrivateKey,
+    pub insecure: bool,
 }
 
 impl PublicApi {
-    fn mock(&self, arg: RpcArgs<(SU64, SU64)>) -> Result<ProveResult, JsonrpcErrorObj> {
-        // mock transaction from a existing block
-        let mut blocks = Vec::new();
-        let start = arg.params.0.as_u64() - 1;
-        let end = arg.params.1.as_u64();
-        let mut prev_state_root = None;
-        let mut new_state_root = None;
-        for number in start..=end {
-            let blk = self
-                .l2_el
-                .get_block(BlockSelector::Number(number.into()))
-                .map_err(JsonrpcErrorObj::unknown)?;
-
-            if number == start {
-                prev_state_root = Some(blk.header.state_root);
-            } else {
-                if number == end {
-                    new_state_root = Some(blk.header.state_root);
-                }
-                blocks.push(blk);
-            }
+    fn mock(&self, arg: RpcArgs<(SU64, u64)>) -> Result<(), JsonrpcErrorObj> {
+        let start_blk = arg.params.0.as_u64();
+        for blk_no in start_blk..start_blk + arg.params.1 {
+            let new_arg = arg.map(|_| (blk_no.into(),));
+            self.mock_single(new_arg)?;
         }
-        let prev_state_root = prev_state_root.unwrap();
+        Ok(())
+    }
 
-        let pob = self.prover.generate_pob(prev_state_root, blocks).unwrap();
+    fn mock_single(&self, arg: RpcArgs<(SU64,)>) -> Result<(), JsonrpcErrorObj> {
+        glog::info!(
+            "===================================  {}  ===================================",
+            arg.params.0
+        );
 
-        glog::info!("pob: {:?}", pob);
+        let block_trace = self
+            .l2_el
+            .get_block_trace(arg.params.0.into())
+            .map_err(JsonrpcErrorObj::unknown)?;
+
+        let codes = self.fetch_codes(&block_trace)?;
+        let new_state_root = block_trace.storage_trace.root_after;
+        let withdrawal_root = block_trace.withdraw_trie_root.unwrap_or_default();
+        let pob = self.prover.generate_pob(block_trace, codes);
 
         let params = ProveParams {
             pob,
-            new_state_root: new_state_root.unwrap(),
-            withdrawal_root: SH256::default(),
+            withdrawal_root,
+            new_state_root,
         };
 
-        self.prove(RpcArgs {
-            path: arg.path,
-            method: arg.method,
-            params: (params,),
-            session: arg.session,
-        })
+        let result = self.prove(arg.map(|_| (params,)))?;
+        glog::info!("prove result: {:?}", result);
+
+        Ok(())
     }
 
-    fn prove(&self, arg: RpcArgs<(ProveParams,)>) -> Result<ProveResult, JsonrpcErrorObj> {
-        // let params = arg.params.0;
+    fn prove_and_submit(&self, arg: RpcArgs<(SU64, SU64)>) -> Result<ProveResult, JsonrpcErrorObj> {
+        if self.insecure {
+            return Err(JsonrpcErrorObj::client(
+                "not supported when insecure mode is enabled".into(),
+            ));
+        }
+
+        let (start_blk, end_blk) = arg.params;
         if !self.verifier.is_attested() {
             return Err(JsonrpcErrorObj::client("prover not attested".into()));
         }
 
-        let p = arg.params.0;
-
-        glog::info!("=================================================");
-        glog::info!(
-            "prev_state_root:{:?}, new_state_root:{:?}, withdrawal_root:{:?}",
-            p.pob.data.prev_state_root,
-            p.new_state_root,
-            p.withdrawal_root
-        );
-        let block_hash = p.pob.block_hash();
-        let state_hash = p.pob.state_hash();
-
-        for blk in &p.pob.blocks {
-            glog::info!(
-                "blk[{}]: {:?}, txn: {:?}",
-                blk.header.number,
-                blk.header.state_root,
-                blk.transactions.len(),
-            );
-        }
-
-        let current_state = self
+        let mut current_state = self
             .verifier
             .current_state()
             .map_err(JsonrpcErrorObj::unknown)?;
 
-        if !current_state.is_zero() && current_state != p.pob.data.prev_state_root {
-            return Err(JsonrpcErrorObj::client(format!(
-                "prev state mismatch: want {:?}, got: {:?}",
-                current_state, p.pob.data.prev_state_root
-            )));
+        let mut reports = Vec::new();
+        for blk_num in start_blk.as_u64()..=end_blk.as_u64() {
+            let block_trace = self
+                .l2_el
+                .get_block_trace(blk_num.into())
+                .map_err(JsonrpcErrorObj::unknown)?;
+            let extra_codes = self.fetch_codes(&block_trace)?;
+            let withdrawal_root = block_trace.withdraw_trie_root.unwrap_or_default();
+            let new_state_root = block_trace.storage_trace.root_after;
+            let old_state_root = block_trace.storage_trace.root_before;
+            if !current_state.is_zero() && current_state != old_state_root {
+                return Err(JsonrpcErrorObj::client(format!(
+                    "current_state_root({:?}) mismatch {:?}",
+                    current_state, old_state_root,
+                )));
+            }
+            let pob = self.prover.generate_pob(block_trace, extra_codes);
+            let prove_params = ProveParams {
+                pob,
+                withdrawal_root,
+                new_state_root,
+            };
+            let report = self.prove(arg.map(|_| (prove_params,)))?;
+            current_state = report.new_state_root;
+            reports.push(report);
         }
 
-        let mut store = TrieMemStore::new(102400);
-        for node in &p.pob.data.mpt_nodes {
-            let proofs = std::slice::from_ref(node);
-            let node = TrieNode::from_proofs(&store, proofs).unwrap();
-            store.add_nodes(node);
-        }
-        for code in p.pob.data.codes {
-            let mut hash = SH256::default();
-            hash.0 = keccak_hash(&code);
-            store.set_code(hash, Cow::Owned(code));
-        }
-        store.commit();
-
-        let mut prev_state_root = p.pob.data.prev_state_root;
-        for blk in p.pob.blocks {
-            let number = blk.header.number;
-            let result = self
-                .prover
-                .execute_block(
-                    prev_state_root,
-                    store.clone(),
-                    &p.pob.data.block_hashes,
-                    blk,
-                )
-                .map_err(|err| {
-                    JsonrpcErrorObj::client(format!("prove block: {} fail: {:?}", number, err))
-                })?;
-            prev_state_root = result.new_state_root;
-        }
-
-        if prev_state_root != p.new_state_root {
-            return Err(JsonrpcErrorObj::client(format!(
-                "state_root not match: local={:?}, input={:?}",
-                prev_state_root, p.new_state_root
-            )));
-        }
-
-        let mut report = ExecutionReport {
-            block_hash,
-            state_hash,
-            prev_state_root: p.pob.data.prev_state_root,
-            new_state_root: p.new_state_root,
-            withdrawal_root: p.withdrawal_root,
-            ..Default::default()
-        };
-        report.sign(self.prover.prvkey());
-
-        glog::info!("report: {:?}", report);
-        // return Err(JsonrpcErrorObj::client("reject".into()));
+        let report = ExecutionReport::sign(&reports, self.prover.prvkey())
+            .ok_or(JsonrpcErrorObj::client("report not found".into()))?;
 
         let tx_hash = self
             .verifier
@@ -161,6 +115,63 @@ impl PublicApi {
             .map_err(JsonrpcErrorObj::unknown)?;
 
         Ok(ProveResult { report, tx_hash })
+    }
+
+    fn prove(&self, arg: RpcArgs<(ProveParams,)>) -> Result<ExecutionReport, JsonrpcErrorObj> {
+        let params = arg.params.0;
+        let pob = params.pob;
+        let new_withdrawal_trie_root = params.withdrawal_root;
+        let new_state_root = params.new_state_root;
+
+        let prev_state_root = pob.data.prev_state_root;
+        let state_hash = pob.state_hash();
+        let block_hash = pob.block_hash();
+
+        let block_num = pob.block.header.number.as_u64();
+        let db = Database::new(102400);
+        let result = self
+            .prover
+            .execute_block(&db, pob)
+            .map_err(|err| JsonrpcErrorObj::client(format!("block execution fail: {:?}", err)))?;
+
+        if new_state_root != result.new_state_root {
+            return Err(JsonrpcErrorObj::client(format!(
+                "state not match[{}]: local: {:?} -> remote: {:?}",
+                block_num, result.new_state_root, new_state_root,
+            )));
+        }
+        if new_withdrawal_trie_root != result.withdrawal_root {
+            return Err(JsonrpcErrorObj::client(format!(
+                "withdrawal not match[{}]: local: {:?} -> remote: {:?}",
+                block_num, result.withdrawal_root, new_withdrawal_trie_root,
+            )));
+        }
+
+        let report = ExecutionReport {
+            block_hash,
+            state_hash,
+            prev_state_root,
+            new_state_root: result.new_state_root,
+            withdrawal_root: result.withdrawal_root,
+            ..Default::default()
+        };
+
+        return Ok(report);
+    }
+
+    fn fetch_codes(&self, block_trace: &BlockTrace) -> Result<Vec<HexBytes>, JsonrpcErrorObj> {
+        let mut accs = BTreeMap::new();
+        for (acc, _) in &block_trace.storage_trace.proofs {
+            let addr: SH160 = acc.as_str().into();
+            accs.insert(addr, ());
+        }
+        let number = block_trace.header.number;
+        let acc_keys: Vec<_> = accs.into_keys().collect();
+        let codes = self
+            .l2_el
+            .get_codes(&acc_keys, (number - SU64::from(1)).into())
+            .map_err(|err| JsonrpcErrorObj::server("get codes failed", err))?;
+        Ok(codes)
     }
 }
 
@@ -183,6 +194,7 @@ impl Getter<RpcServer<PublicApi>> for App {
             prover: self.prover.get(self),
             verifier: self.verifier.get(self),
             relay: self.cfg.get(self).relay_account.clone(),
+            insecure: self.args.get(self).insecure,
         });
 
         let cfg = RpcServerConfig {
@@ -195,7 +207,9 @@ impl Getter<RpcServer<PublicApi>> for App {
         };
         let mut srv = RpcServer::new(self.alive.clone(), cfg, api.clone()).unwrap();
         srv.jsonrpc("prove", PublicApi::prove);
+        srv.jsonrpc("mock_single", PublicApi::mock_single);
         srv.jsonrpc("mock", PublicApi::mock);
+        srv.jsonrpc("proveAndSubmit", PublicApi::prove_and_submit);
 
         srv
     }

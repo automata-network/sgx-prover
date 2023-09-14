@@ -15,7 +15,7 @@ default = []
 [dependencies]
 sgxlib = { git = "https://github.com/automata-network/sgxlib", default-features = false, features = ["tstd", "types", "trts"] }
 apps = { path = "../../../../src/apps", default-features = false, features = ["tstd"] }
-app-prover = { path = "../../../../src/apps/prover", default-features = false, features = ["tstd", "sgx"] }
+app-prover = { path = "../../../../src/apps/prover", default-features = false, features = ["tstd", "sgx", "epid"] }
 
 glog = { git = "https://github.com/automata-network/glog-rs", default-features = false, features = ["tstd"] }
 

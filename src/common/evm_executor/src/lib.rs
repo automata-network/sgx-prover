@@ -12,7 +12,9 @@ mod context;
 pub use context::*;
 mod executor;
 pub use executor::*;
-mod state_fetcher;
-pub use state_fetcher::*;
+// mod state_fetcher;
+// pub use state_fetcher::*;
+mod fee;
+pub use fee::*;
 
 pub use evm::Config;

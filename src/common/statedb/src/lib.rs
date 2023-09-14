@@ -3,14 +3,14 @@
 #[macro_use]
 extern crate sgxlib as std;
 
-mod statedb;
-pub use statedb::*;
+mod cache;
+pub use cache::*;
 
-mod map_state;
-pub use map_state::*;
+mod types;
+pub use types::*;
+
+mod trie_state;
+pub use trie_state::*;
 
 mod mem_store;
 pub use mem_store::*;
-
-pub mod v2;
-pub use v2::*;

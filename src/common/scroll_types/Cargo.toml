@@ -1,0 +1,27 @@
+[package]
+name = "scroll_types"
+version = "0.1.0"
+authors = ["Automata Team"]
+edition = "2021"
+license = "Apache-2.0"
+
+[features]
+default = ["std"]
+std = ["glog/std", "eth_types/std", "serde/std", "crypto/std", "base/std", "poseidon-rs/std", "serde_json/std", "zktrie/std"]
+tstd = ["sgxlib/tstd", "glog/tstd", "eth_types/tstd", "serde/tstd", "crypto/tstd", "base/tstd", "poseidon-rs/tstd", "serde_json/tstd", "zktrie/tstd"]
+
+[dependencies]
+sgxlib = { git = "https://github.com/automata-network/sgxlib", default-features = false }
+glog = { git = "https://github.com/automata-network/glog-rs", default-features = false }
+eth_types = { git = "https://github.com/automata-network/eth-types-rs", default-features = false }
+base = { git = "https://github.com/automata-network/base-rs", default-features = false }
+crypto = { git = "https://github.com/automata-network/crypto-rs", default-features = false }
+serde = { git = "https://github.com/automata-network/sgxlib-thirdparty", default-features = false }
+serde_json = { git = "https://github.com/automata-network/sgxlib-thirdparty", default-features = false }
+poseidon-rs = { git = "https://github.com/automata-network/poseidon-rs", default-features = false }
+zktrie = { path = "../zktrie", default-features = false }
+
+lazy_static = { version = "1.4.0", default-features = false, features = ["spin_no_std"] }
+triehash              = { version = "0.8", default-features = false }
+rlp = { version = "0.5", default-features = false }
+rlp-derive = { version = "0.1" }

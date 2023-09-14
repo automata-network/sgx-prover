@@ -5,7 +5,7 @@ use base::trace::AvgCounter;
 use crypto::keccak_hash;
 use eth_client::ExecutionClient;
 use eth_types::{
-    BlockSelector, FetchState, FetchStateResult, HexBytes, TransactionAccessTuple, H160, H256,
+    BlockSelector, FetchState, HexBytes, TransactionAccessTuple, H160, H256,
     SH160, SH256, SU256,
 };
 use statedb::Error;
@@ -13,6 +13,7 @@ use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::sync::Mutex;
+use scroll_types::FetchStateResult;
 
 #[derive(Clone, Debug)]
 pub struct TraceBlockStateFetcher {
@@ -72,6 +73,7 @@ impl TraceBlockStateFetcher {
 }
 
 impl statedb::StateFetcher for TraceBlockStateFetcher {
+    type FetchStateResult = FetchStateResult;
     fn fork(&self) -> Self {
         Self {
             fetcher: self.fetcher.fork(),
@@ -179,6 +181,7 @@ impl BlockStateFetcher {
 }
 
 impl statedb::StateFetcher for BlockStateFetcher {
+    type FetchStateResult = FetchStateResult;
     fn with_acc(&self, address: &SH160) -> Self {
         Self {
             client: self.client.clone(),

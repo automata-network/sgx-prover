@@ -1,11 +1,11 @@
 use std::prelude::v1::*;
 
 use eth_types::{
-    AccessListResult, AccountResult, Block, BlockHeader, BlockSelector, BlockSimple, FetchState,
-    FetchStateResult, HexBytes, Log, Receipt, StorageResult, Transaction, TransactionInner, SH160,
-    SH256, SU256, SU64,
+    AccessListResult, BlockSelector, FetchState, HexBytes, Log, Receipt, StorageResult,
+    Transaction, TransactionInner, SH160, SH256, SU256, SU64,
 };
 use jsonrpc::{JsonrpcClient, MixRpcClient, RpcClient, RpcError};
+use scroll_types::{AccountResult, Block, BlockHeader, BlockSimple, BlockTrace, FetchStateResult};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 #[derive(Debug, Clone)]
@@ -107,6 +107,15 @@ impl<C: RpcClient> ExecutionClient<C> {
         self.client.rpc("eth_getCode", (address, blk))
     }
 
+    pub fn get_codes(
+        &self,
+        address: &[SH160],
+        blk: BlockSelector,
+    ) -> Result<Vec<HexBytes>, RpcError> {
+        let params_list: Vec<_> = address.into_iter().map(|addr| (addr, blk)).collect();
+        self.client.batch_rpc("eth_getCode", &params_list)
+    }
+
     pub fn get_storage(
         &self,
         address: &SH160,
@@ -151,6 +160,11 @@ impl<C: RpcClient> ExecutionClient<C> {
 
     pub fn get_block_number(&self) -> Result<SU64, RpcError> {
         self.client.rpc("eth_blockNumber", ())
+    }
+
+    pub fn get_block_trace(&self, blk: BlockSelector) -> Result<BlockTrace, RpcError> {
+        self.client
+            .rpc("scroll_getBlockTraceByNumberOrHash", (blk,))
     }
 
     pub fn get_proof(

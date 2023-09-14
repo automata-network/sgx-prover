@@ -7,8 +7,8 @@ license = "Apache-2.0"
 
 [features]
 default = ["std"]
-std = ["glog/std", "eth_types/std", "serde/std", "crypto/std", "base/std", "eth_client/std", "solidity/std", "serde_json/std", "evm_executor/std", "statedb/std"]
-tstd = ["sgxlib/tstd", "glog/tstd", "eth_types/tstd", "serde/tstd", "crypto/tstd", "base/tstd", "eth_client/tstd", "solidity/tstd", "serde_json/tstd", "evm_executor/tstd", "statedb/tstd", "sgxlib-ra/sgx"]
+std = ["glog/std", "eth_types/std", "serde/std", "crypto/std", "base/std", "eth_client/std", "solidity/std", "serde_json/std", "evm_executor/std", "statedb/std", "scroll_types/std", "zktrie/std", "poseidon-rs/std"]
+tstd = ["sgxlib/tstd", "glog/tstd", "eth_types/tstd", "serde/tstd", "crypto/tstd", "base/tstd", "eth_client/tstd", "solidity/tstd", "serde_json/tstd", "evm_executor/tstd", "statedb/tstd", "sgxlib-ra/sgx", "scroll_types/tstd", "zktrie/tstd", "poseidon-rs/tstd"]
 sgx = ["sgxlib-ra", "sgxlib-ra/sgx"]
 
 [dependencies]
@@ -22,8 +22,11 @@ base = { git = "https://github.com/automata-network/base-rs", default-features =
 crypto = { git = "https://github.com/automata-network/crypto-rs", default-features = false }
 evm_executor = { path = "../evm_executor", default-features = false }
 statedb = { path = "../statedb", default-features = false }
+scroll_types = { path = "../scroll_types", default-features = false }
+zktrie = { path = "../zktrie", default-features = false }
+poseidon-rs = { git = "https://github.com/automata-network/poseidon-rs", default-features = false }
 
-sgxlib-ra = { path = "../sgxlib-ra", default-features = false, optional = true }
+sgxlib-ra = { git = "https://github.com/automata-network/sgxlib-ra", default-features = false, optional = true }
 
 serde = { git = "https://github.com/automata-network/sgxlib-thirdparty", default-features = false }
 serde_json = { git = "https://github.com/automata-network/sgxlib-thirdparty", default-features = false }

@@ -1,38 +1,29 @@
 use std::prelude::v1::*;
 
-use eth_types::{Block, HexBytes, Signer, SH256, SU256};
-use evm_executor::PrecompileSet;
+use eth_types::{HexBytes, SH256};
+use scroll_types::Block;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-pub struct BuildEnv {
-    pub precompile_set: PrecompileSet,
-    pub signer: Signer,
-    pub cfg: evm_executor::Config,
-}
-
-impl BuildEnv {
-    pub fn new(chain_id: SU256) -> Self {
-        Self {
-            precompile_set: PrecompileSet::berlin(),
-            signer: Signer::new(chain_id),
-            cfg: evm_executor::Config::shanghai(),
-        }
-    }
-}
-
 pub struct ProveResult {
     pub new_state_root: SH256,
+    pub withdrawal_root: SH256,
 }
 
-#[derive(Default, Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Pob {
-    pub blocks: Vec<Block>,
+    pub block: Block,
     pub data: PobData,
 }
 
 impl Pob {
+    pub fn new(block: Block, mut data: PobData) -> Pob {
+        data.mpt_nodes.sort_unstable();
+        Pob { block, data }
+    }
+
     pub fn state_hash(&self) -> SH256 {
+        // the mpt_nodes should be in order
         crypto::keccak_encode(|hash| {
             for item in &self.data.mpt_nodes {
                 hash(&item);
@@ -42,12 +33,7 @@ impl Pob {
     }
 
     pub fn block_hash(&self) -> SH256 {
-        crypto::keccak_encode(|hash| {
-            for blk in &self.blocks {
-                hash(&blk.header.hash().0);
-            }
-        })
-        .into()
+        self.block.header.hash()
     }
 }
 
@@ -55,8 +41,8 @@ impl Pob {
 pub struct PobData {
     pub chain_id: u64,
     pub prev_state_root: SH256,
-    pub withdrawal_root: SH256,
     pub block_hashes: BTreeMap<u64, SH256>,
     pub mpt_nodes: Vec<HexBytes>,
     pub codes: Vec<HexBytes>,
+    pub start_l1_queue_index: u64,
 }

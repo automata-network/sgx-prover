@@ -8,8 +8,8 @@ license = "Apache-2.0"
 [features]
 default = ["std"]
 
-std = ["jsonrpc/std", "serde/std", "serde_json/std", "base/std", "net-http/std", "eth_types/std", "glog/std", "bytes/std", "crypto/std"]
-tstd = ["sgxlib/tstd", "jsonrpc/tstd", "serde/tstd", "serde_json/tstd", "base/tstd", "net-http/tstd", "eth_types/tstd", "glog/tstd", "bytes/tstd", "crypto/tstd"]
+std = ["jsonrpc/std", "serde/std", "serde_json/std", "base/std", "net-http/std", "eth_types/std", "glog/std", "bytes/std", "crypto/std", "scroll_types/std"]
+tstd = ["sgxlib/tstd", "jsonrpc/tstd", "serde/tstd", "serde_json/tstd", "base/tstd", "net-http/tstd", "eth_types/tstd", "glog/tstd", "bytes/tstd", "crypto/tstd", "scroll_types/tstd"]
 
 [dependencies]
 sgxlib = { git = "https://github.com/automata-network/sgxlib", default-features = false }
@@ -20,6 +20,7 @@ eth_types = { git = "https://github.com/automata-network/eth-types-rs", default-
 glog = { git = "https://github.com/automata-network/glog-rs", default-features = false }
 bytes = { git = "https://github.com/automata-network/bytes-rs", default-features = false }
 crypto = { git = "https://github.com/automata-network/crypto-rs", default-features = false }
+scroll_types = { path = "../scroll_types", default-features = false }
 
 serde = { git = "https://github.com/automata-network/sgxlib-thirdparty", default-features = false }
 serde_json = { git = "https://github.com/automata-network/sgxlib-thirdparty", default-features = false }

@@ -4,7 +4,7 @@ use crate::ExecutionClient;
 use base::channel::Boardcast;
 use base::thread::spawn;
 use base::trace::Alive;
-use eth_types::{BlockHeader, BlockSimple};
+use scroll_types::{BlockHeader, BlockSimple};
 use jsonrpc::{JsonrpcWsClient, RpcError, WsClientConfig, WsClientError};
 use std::sync::{mpsc, Arc};
 use std::time::Duration;

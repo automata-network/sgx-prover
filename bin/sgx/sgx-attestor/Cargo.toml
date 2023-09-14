@@ -16,6 +16,6 @@ ata-sgx-builder = { git = "https://github.com/automata-network/sgxlib" }
 glog = { git = "https://github.com/automata-network/glog-rs" }
 apps = { path = "../../../src/apps" }
 sgxlib-enclave = { git = "https://github.com/automata-network/sgxlib" }
-sgxlib-ra = { path = "../../../src/common/sgxlib-ra" }
+sgxlib-ra = { git = "https://github.com/automata-network/sgxlib-ra" }
 
 serde_json = { git = "https://github.com/automata-network/sgxlib-thirdparty" }

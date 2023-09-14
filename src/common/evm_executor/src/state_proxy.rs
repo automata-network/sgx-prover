@@ -1,11 +1,10 @@
 use std::prelude::v1::*;
 
 use super::Context;
+use core::cell::RefCell;
 use crypto::keccak_hash;
 use eth_types::{H160, H256, SH256, U256};
 use statedb::StateDB;
-
-use core::cell::RefCell;
 
 pub struct StateProxy<'a, D: StateDB> {
     state_db: RefCell<&'a mut D>,
@@ -23,8 +22,8 @@ impl<'a, D: StateDB> StateProxy<'a, D> {
 
 impl<'a, D: StateDB> evm::backend::Backend for StateProxy<'a, D> {
     fn block_base_fee_per_gas(&self) -> U256 {
-        glog::debug!(target: "executor", "get base_fee");
-        self.ctx.header.base_fee_per_gas.into()
+        glog::debug!(target: "executor", "get base fee");
+        0.into()
     }
 
     fn basic(&self, address: H160) -> evm::backend::Basic {
@@ -42,13 +41,13 @@ impl<'a, D: StateDB> evm::backend::Backend for StateProxy<'a, D> {
     }
 
     fn block_coinbase(&self) -> H160 {
-        glog::debug!(target: "executor", "get coinbase");
-        *self.ctx.header.miner
+        glog::debug!(target: "executor", "get coinbase: {:?}", self.ctx.header.miner);
+        self.ctx.header.miner.into()
     }
 
     fn block_difficulty(&self) -> U256 {
         glog::debug!(target: "executor", "get difficulty: {:?}", self.ctx.header.mix_hash);
-        self.ctx.header.mix_hash.0.into()
+        0.into()
     }
 
     fn block_gas_limit(&self) -> U256 {
@@ -57,18 +56,17 @@ impl<'a, D: StateDB> evm::backend::Backend for StateProxy<'a, D> {
     }
 
     fn block_hash(&self, number: U256) -> H256 {
+        glog::info!("get block hash: {:?}", number);
+        let chain_id = self.chain_id().as_u64();
         let number = number.as_u64();
         let blk_num = self.ctx.header.number.as_u64();
-        if number >= blk_num || number < blk_num.saturating_sub(256) {
-            return Default::default();
-        }
-
-        let val = self
-            .state_db
-            .borrow()
-            .get_block_hash(number.into())
-            .unwrap()
-            .into();
+        let val = if number >= blk_num || number < blk_num.saturating_sub(256) {
+            Default::default()
+        } else {
+            let mut buf = chain_id.to_be_bytes().to_vec();
+            buf.extend(number.to_be_bytes());
+            keccak_hash(&buf).into()
+        };
 
         glog::debug!(target: "executor", "get block hash: {:?} => {:?}", number, val);
         val
@@ -96,7 +94,7 @@ impl<'a, D: StateDB> evm::backend::Backend for StateProxy<'a, D> {
             .get_code(&address.into())
             .unwrap();
 
-        glog::debug!(target: "executor", "get code: {:?}, hash:{:?}", address, SH256::from(keccak_hash(&code)));
+        glog::debug!(target: "executor", "get code: {:?}, hash:{:?}, size: {}", address, SH256::from(keccak_hash(&code)), code.len());
         code.as_ref().clone().into()
     }
 
@@ -111,7 +109,7 @@ impl<'a, D: StateDB> evm::backend::Backend for StateProxy<'a, D> {
         self.ctx
             .tx
             .tx
-            .gas_price(Some(self.ctx.header.base_fee_per_gas))
+            .gas_price(self.ctx.header.base_fee_per_gas)
             .into()
     }
 

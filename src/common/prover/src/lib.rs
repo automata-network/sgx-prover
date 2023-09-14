@@ -10,8 +10,5 @@ mod types;
 pub use types::*;
 mod executor;
 pub use executor::*;
-
-#[cfg(feature = "sgx")]
-mod attestation;
-#[cfg(feature = "sgx")]
-pub use attestation::*;
+mod trie_state;
+pub use trie_state::*;

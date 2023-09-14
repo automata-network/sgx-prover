@@ -145,6 +145,7 @@ impl Client {
         &self,
         start: Option<SU64>,
         signer: &Secp256k1PrivateKey,
+        insecure: bool,
     ) -> Result<(), RpcError> {
         let log_trace = eth_client::LogTrace::new(self.alive.clone(), self.el.clone(), 10, 0);
         let sig = solidity::encode_eventsig("RequestAttestation(bytes32)");
@@ -165,7 +166,7 @@ impl Client {
                 let prover = solidity::parse_h160(0, &tx.input[4..]);
                 let report = solidity::parse_bytes(32, &tx.input[4..]);
                 glog::info!("tx: {:?} -> {}", prover, HexBytes::from(report.as_slice()));
-                if let Err(err) = client.validate_report(signer, prover, report) {
+                if let Err(err) = client.validate_report(signer, prover, report, insecure) {
                     glog::error!("validate fail: {}", err);
                 }
             }
@@ -180,22 +181,26 @@ impl Client {
         signer: &Secp256k1PrivateKey,
         prover: SH160,
         report: Vec<u8>,
+        insecure: bool,
     ) -> Result<(), String> {
-        #[cfg(feature = "sgx")]
-        {
-            use crypto::Secp256k1PublicKey;
-            let report: sgxlib_ra::IasReport = serde_json::from_slice(&report).map_err(debug)?;
-            let quote = report.verify().map_err(debug)?;
-            let report_data = quote.get_report_body().report_data;
-            let mut pubkey = Secp256k1PublicKey::from_raw_bytes(&report_data.d);
-            let report_prover_key: SH160 = pubkey.eth_accountid().into();
-            if report_prover_key != prover {
-                return Err(format!(
-                    "prover account not match: want={:?}, got={:?}",
-                    prover, report_prover_key
-                ));
+        if !insecure {
+            #[cfg(all(feature = "sgx", feature = "epid"))]
+            {
+                use crypto::Secp256k1PublicKey;
+                let report: sgxlib_ra::IasReport =
+                    serde_json::from_slice(&report).map_err(debug)?;
+                let quote = report.verify().map_err(debug)?;
+                let report_data = quote.get_report_body().report_data;
+                let mut pubkey = Secp256k1PublicKey::from_raw_bytes(&report_data.d);
+                let report_prover_key: SH160 = pubkey.eth_accountid().into();
+                if report_prover_key != prover {
+                    return Err(format!(
+                        "prover account not match: want={:?}, got={:?}",
+                        prover, report_prover_key
+                    ));
+                }
+                glog::info!("prover key: {:?}", report_prover_key);
             }
-            glog::info!("prover key: {:?}", report_prover_key);
         }
 
         let hash: SH256 = keccak_hash(&report).into();

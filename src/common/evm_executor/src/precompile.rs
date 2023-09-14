@@ -32,12 +32,42 @@ impl PrecompileSet {
         def.add(2, PrecompileSha256Hash {});
         def.add(3, PrecompileRipemd160Hash {});
         def.add(4, PrecompileDataCopy {});
-        def.add(5, PrecompileBigModExp { eip2565: true });
+        def.add(
+            5,
+            PrecompileBigModExp {
+                eip2565: true,
+                length_limit: None,
+            },
+        );
         def.add(6, PrecompileAddIstanbul {});
         def.add(7, PrecompileMulIstanbul {});
         def.add(8, PrecompilePairIstanbul {});
         // def.add(9, PrecompileBlake2F {});
         // 9: 0x6ad71132f7493ae1c13b4e2c2742ba9ad7432971815f48c188aa54bee9a7e9ce blake2F
+
+        def
+    }
+
+    pub fn scroll() -> Self {
+        let mut def = Self::default();
+        for i in 1..=9 {
+            def.add(i, PrecompileUnimplemented { addr: i });
+        }
+
+        def.add(1, PrecompileEcrecover {});
+        // def.add(2, PrecompileSha256Hash {});
+        // def.add(3, PrecompileRipemd160Hash {});
+        def.add(4, PrecompileDataCopy {});
+        def.add(
+            5,
+            PrecompileBigModExp {
+                eip2565: true,
+                length_limit: Some(32),
+            },
+        );
+        def.add(6, PrecompileAddIstanbul {});
+        def.add(7, PrecompileMulIstanbul {});
+        def.add(8, PrecompilePairIstanbul {});
 
         def
     }
@@ -211,9 +241,16 @@ impl PrecompiledContract for PrecompilePairIstanbul {
     fn run(&self, input: &[u8]) -> PrecompileResult {
         use bn::{AffineG1, AffineG2, Fq, Fq2, Group, Gt, G1, G2};
 
+        if input.len() > 4 * PAIR_ELEMENT_LEN {
+            return Err(PrecompileFailure::Fatal {
+                exit_status: ExitFatal::Other("errBadPairingInput".into()),
+            });
+        }
+
         if input.len() % PAIR_ELEMENT_LEN != 0 {
-            unreachable!();
-            // return Err(Error::Bn128PairLength);
+            return Err(PrecompileFailure::Fatal {
+                exit_status: ExitFatal::Other("errBadPairingInput".into()),
+            });
         }
 
         let output = if input.is_empty() {
@@ -439,6 +476,7 @@ impl PrecompiledContract for PrecompileRipemd160Hash {
 pub struct PrecompileBigModExp {
     // testcase 0x6baf80b76832ff53cd551d3d607c04596ec45dd098dc7c0ac292f6a1264c1337
     eip2565: bool,
+    length_limit: Option<usize>,
 }
 
 impl PrecompiledContract for PrecompileBigModExp {
@@ -533,6 +571,17 @@ impl PrecompiledContract for PrecompileBigModExp {
         let base_length: usize = base_length.as_usize();
         let exponent_length: usize = exponent_length.as_usize();
         let modulus_length: usize = modulus_length.as_usize();
+
+        if let Some(length_limit) = self.length_limit {
+            if base_length > length_limit
+                || exponent_length > length_limit
+                || modulus_length > length_limit
+            {
+                return Err(PrecompileFailure::Fatal {
+                    exit_status: ExitFatal::Other("ModexpUnsupportedInput".into()),
+                });
+            }
+        }
 
         let mut base_arr = Vec::new();
         let mut exponent_arr = Vec::new();

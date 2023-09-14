@@ -9,6 +9,7 @@ pub struct Args {
     pub executable: String,
     pub port: u32,
     pub cfg: String,
+    pub insecure: bool,
 }
 
 impl Default for Args {
@@ -16,6 +17,7 @@ impl Default for Args {
         Self {
             executable: "".into(),
             port: 19001,
+            insecure: false,
             cfg: "".into(),
         }
     }
@@ -33,6 +35,9 @@ impl Args {
                 }
                 Opt::Short('c') => {
                     out.cfg = opts.value().unwrap().parse().unwrap();
+                }
+                Opt::Long("insecure") => {
+                    out.insecure = true;
                 }
                 _ => continue,
             }

@@ -1,6 +1,6 @@
+use core::marker::PhantomData;
 use std::prelude::v1::*;
 
-use crate::{TrieNode, TrieStorageNode};
 use base::lru::LruMap;
 use eth_types::{HexBytes, SH256};
 
@@ -10,17 +10,23 @@ use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
+use super::NodeDB;
+
 #[derive(Debug, Clone)]
-pub struct TrieMemStore {
-    kv: Arc<Mutex<LruMap<SH256, Arc<TrieStorageNode>>>>,
-    staging: BTreeMap<SH256, Arc<TrieStorageNode>>,
+pub struct MemStore<T, H: Hasher<T>> {
+    codes: Arc<Mutex<LruMap<SH256, Arc<HexBytes>>>>,
+    kv: Arc<Mutex<LruMap<SH256, Arc<T>>>>,
+    staging: BTreeMap<SH256, Arc<T>>,
+    _phantom: PhantomData<H>,
 }
 
-impl TrieMemStore {
+impl<T, H: Hasher<T>> MemStore<T, H> {
     pub fn new(limit: usize) -> Self {
         Self {
+            codes: Arc::new(Mutex::new(LruMap::new(limit))),
             kv: Arc::new(Mutex::new(LruMap::new(limit))),
             staging: BTreeMap::new(),
+            _phantom: PhantomData,
         }
     }
 
@@ -30,18 +36,23 @@ impl TrieMemStore {
     }
 }
 
-impl TrieStore for TrieMemStore {
-    type StorageNode = TrieStorageNode;
-    type Node = TrieNode;
+pub trait Hasher<T> {
+    fn hash(n: &T) -> SH256;
+}
+
+impl<T, H: Hasher<T>> NodeDB for MemStore<T, H> {
+    type Node = T;
 
     fn fork(&self) -> Self {
         Self {
+            codes: self.codes.clone(),
             kv: self.kv.clone(),
             staging: BTreeMap::new(),
+            _phantom: PhantomData,
         }
     }
 
-    fn get(&self, index: &SH256) -> Option<Arc<TrieStorageNode>> {
+    fn get(&self, index: &SH256) -> Option<Arc<Self::Node>> {
         let result = if let Some(node) = self.staging.get(index) {
             Some(node.clone())
         } else {
@@ -53,8 +64,8 @@ impl TrieStore for TrieMemStore {
         result
     }
 
-    fn add_node(&mut self, node: &Arc<TrieStorageNode>) {
-        match self.staging.entry(node.hash) {
+    fn add_node(&mut self, node: &Arc<Self::Node>) {
+        match self.staging.entry(H::hash(&node)) {
             Entry::Occupied(_) => {}
             Entry::Vacant(entry) => {
                 entry.insert(node.clone());
@@ -62,44 +73,23 @@ impl TrieStore for TrieMemStore {
         }
     }
 
-    fn add_nodes(&mut self, nodes: Vec<Self::Node>) {
-        for item in nodes {
-            match item.embedded() {
-                Some(node) => self.add_node(node),
-                None => {}
-            }
-        }
+    fn set_code(&mut self, hash: SH256, code: Cow<HexBytes>) {
+        let mut codes = self.codes.lock().unwrap();
+        codes.insert(hash, Arc::new(code.into_owned()));
     }
 
-    fn set_code(&mut self, hash: SH256, code: Cow<HexBytes>) -> Arc<TrieStorageNode> {
-        match self.get(&hash) {
-            Some(n) => n.clone(),
-            None => {
-                let mut node = TrieStorageNode::value(code.into_owned());
-                node.hash = hash;
-                let node = Arc::new(node);
-                self.add_node(&node);
-                node
-            }
-        }
+    fn get_code(&mut self, hash: &SH256) -> Option<Arc<HexBytes>> {
+        let mut codes = self.codes.lock().unwrap();
+        codes.get(hash).map(|v| v.clone())
     }
 
-    fn get_code(&mut self, hash: &SH256) -> Option<HexBytes> {
-        match self.get(hash) {
-            Some(n) => Some(n.get_value().unwrap().into()),
-            None => None,
-        }
+    fn remove_staging_node(&mut self, node: &Arc<Self::Node>) {
+        self.staging.remove(&H::hash(&node));
     }
 
-    fn remove_staging_node(&mut self, node: &Arc<TrieStorageNode>) {
-        self.staging.remove(&node.hash);
-    }
-
-    fn staging(&mut self, node: TrieNode) -> TrieNode {
-        match node.embedded() {
-            Some(node) => self.add_node(node),
-            None => {}
-        }
+    fn staging(&mut self, node: Self::Node) -> Arc<Self::Node> {
+        let node = Arc::new(node);
+        self.add_node(&node);
         node
     }
 
@@ -115,7 +105,9 @@ impl TrieStore for TrieMemStore {
                 glog::info!("evited: {}", cnt);
             }
         }
-        glog::info!(exclude:"dry_run",
+        glog::debug!(
+            exclude:"dry_run",
+            target: "store",
             "commit items: {}, old: {}, using time: {:?}",
             commit_len,
             old_len,
@@ -123,18 +115,4 @@ impl TrieStore for TrieMemStore {
         );
         commit_len
     }
-}
-
-pub trait TrieStore {
-    type StorageNode;
-    type Node;
-    fn fork(&self) -> Self;
-    fn get(&self, index: &SH256) -> Option<Arc<Self::StorageNode>>;
-    fn add_node(&mut self, node: &Arc<Self::StorageNode>);
-    fn add_nodes(&mut self, nodes: Vec<Self::Node>);
-    fn get_code(&mut self, hash: &SH256) -> Option<HexBytes>;
-    fn set_code(&mut self, hash: SH256, code: Cow<HexBytes>) -> Arc<Self::StorageNode>;
-    fn remove_staging_node(&mut self, node: &Arc<Self::StorageNode>);
-    fn staging(&mut self, node: Self::Node) -> Self::Node;
-    fn commit(&mut self) -> usize;
 }

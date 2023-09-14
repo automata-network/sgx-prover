@@ -21,6 +21,12 @@ pub struct App {
 impl apps::App for App {
     fn run(&self, env: apps::AppEnv) -> Result<(), String> {
         self.arg.set(Args::from_args(env.args));
+        #[cfg(feature = "std")]
+        assert!(
+            self.arg.get().insecure,
+            "must enable --insecure on std mode"
+        );
+
         let cfg = self.cfg.get(self);
 
         let acc: SH160 = cfg.private_key.public().eth_accountid().into();
@@ -37,7 +43,7 @@ impl apps::App for App {
         );
 
         verifier
-            .subscribe_attestation_request(None, &cfg.private_key)
+            .subscribe_attestation_request(None, &cfg.private_key, self.arg.get().insecure)
             .unwrap();
         Ok(())
     }

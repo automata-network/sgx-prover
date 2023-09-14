@@ -5,23 +5,28 @@ authors = ["Automata Team"]
 edition = "2021"
 license = "Apache-2.0"
 
+resolver = "2"
+
 [features]
 default = ["std"]
 
-std = ["num-bigint/std", "evm/std", "glog/std", "crypto/std", "eth_types/std", "statedb/std", "base/std", "eth_client/std"]
-tstd = ["sgxlib/tstd", "num-bigint/tstd", "evm/tstd", "glog/tstd", "crypto/tstd", "eth_types/tstd", "statedb/tstd", "base/tstd", "eth_client/tstd"]
+std = ["num-bigint/std", "evm/std", "glog/std", "crypto/std", "eth_types/std", "statedb/std", "base/std", "eth_client/std", "scroll_types/std"]
+tstd = ["sgxlib/tstd", "num-bigint/tstd", "evm/tstd", "glog/tstd", "crypto/tstd", "eth_types/tstd", "statedb/tstd", "base/tstd", "eth_client/tstd", "scroll_types/tstd"]
 
 [dependencies]
 sgxlib = { git = "https://github.com/automata-network/sgxlib", default-features = false }
 glog = { git = "https://github.com/automata-network/glog-rs", default-features = false }
 crypto = { git = "https://github.com/automata-network/crypto-rs", default-features = false }
 eth_types = { git = "https://github.com/automata-network/eth-types-rs", default-features = false }
+scroll_types = { path = "../scroll_types", default-features = false }
 eth_client = { path = "../eth_client", default-features = false }
 statedb = { path = "../statedb", default-features = false }
 base = { git = "https://github.com/automata-network/base-rs", default-features = false }
 
 evm = { git = "https://github.com/automata-network/evm-rs", default-features = false }
 num-bigint = { git = "https://github.com/automata-network/sgxlib-thirdparty", default-features = false }
+# revm = { path = "../../revm/crates/revm", default-features = false }
 
 bn = { package = "substrate-bn", version = "0.6", default-features = false }
 ripemd160 = { version = "0.9", default-features = false }
+lazy_static = { version = "1.4.0", default-features = false, features = ["spin_no_std"] }
