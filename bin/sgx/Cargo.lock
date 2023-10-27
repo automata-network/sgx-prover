@@ -82,7 +82,6 @@ dependencies = [
  "sgxlib-ra",
  "solidity 0.1.0",
  "statedb",
- "threadpool 0.1.0",
  "verifier",
 ]
 
@@ -418,9 +417,9 @@ dependencies = [
 
 [[package]]
 name = "cpufeatures"
-version = "0.2.10"
+version = "0.2.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3fbc60abd742b35f2492f808e1abbb83d45f72db402e14c55057edc9c7b1e9e4"
+checksum = "ce420fe07aecd3e67c5f910618fe65e94158f6dcc0adf44e00d69ce2bdfe0fd0"
 dependencies = [
  "libc 0.2.149",
 ]
@@ -2376,7 +2375,7 @@ dependencies = [
 [[package]]
 name = "sgxlib-ra"
 version = "0.1.0"
-source = "git+https://github.com/automata-network/sgxlib-ra#4c8652d408bf7a17acf52632406b142ab0256ac5"
+source = "git+https://github.com/automata-network/sgxlib-ra#4c2331d77e9a84867f2b32f726e6bb96ea02e7da"
 dependencies = [
  "base",
  "base16",
