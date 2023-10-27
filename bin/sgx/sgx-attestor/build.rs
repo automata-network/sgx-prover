@@ -16,5 +16,6 @@
 // under the License..
 
 fn main() {
-    ata_sgx_builder::GeodeBuild::new().build();
+    let ty = ata_sgx_builder::LinkType::Dcap;
+    ata_sgx_builder::GeodeBuild::new().build(ty);
 }

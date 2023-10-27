@@ -13,9 +13,6 @@ pub struct Config {
     pub server: ServerConfig,
     pub l2: String,
 
-    pub spid: HexBytes,
-    pub ias_apikey: String,
-
     pub relay_account: Secp256k1PrivateKey,
 }
 

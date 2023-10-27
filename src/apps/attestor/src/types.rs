@@ -10,6 +10,7 @@ pub struct Args {
     pub port: u32,
     pub cfg: String,
     pub insecure: bool,
+    pub start: Option<u64>,
 }
 
 impl Default for Args {
@@ -19,6 +20,7 @@ impl Default for Args {
             port: 19001,
             insecure: false,
             cfg: "".into(),
+            start: None,
         }
     }
 }
@@ -38,6 +40,9 @@ impl Args {
                 }
                 Opt::Long("insecure") => {
                     out.insecure = true;
+                }
+                Opt::Long("start") => {
+                    out.start = Some(opts.value().unwrap().parse().unwrap());
                 }
                 _ => continue,
             }

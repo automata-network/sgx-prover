@@ -288,42 +288,6 @@ pub struct LeafNode {
     pub value_preimage: Vec<Byte32>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Default)]
-pub struct StateAccount {
-    pub nonce: u64,
-    pub balance: SU256,
-    pub root: SH256,
-    pub keccak_code_hash: SH256,
-
-    // StateAccount Scroll extensions
-    pub poseidon_code_hash: SH256,
-    pub code_size: u64,
-}
-
-pub fn test(raw: &[u8]) -> StateAccount {
-    if raw.len() == 0 {
-        return StateAccount::default();
-    }
-    if raw.len() != 160 {
-        panic!("InvalidLength");
-    }
-    let mut u64_buf = [0_u8; 8];
-    let mut acc = StateAccount::default();
-
-    u64_buf.copy_from_slice(&raw[16..24]);
-    acc.code_size = u64::from_be_bytes(u64_buf);
-
-    u64_buf.copy_from_slice(&raw[24..32]);
-    acc.nonce = u64::from_be_bytes(u64_buf);
-
-    acc.balance = SU256::from_big_endian(&raw[32..64]);
-    acc.root.0.copy_from_slice(&raw[64..96]);
-    acc.keccak_code_hash.0.copy_from_slice(&raw[96..128]);
-    acc.poseidon_code_hash.0.copy_from_slice(&raw[128..160]);
-
-    acc
-}
-
 impl LeafNode {
     pub fn hash<H: HashScheme>(&self) -> Hash {
         let value_hash =

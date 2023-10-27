@@ -7,8 +7,8 @@ use core::{
 };
 use crypto::{keccak_hash, Secp256k1PrivateKey};
 use eth_client::{EthCall, ExecutionClient, LogFilter};
-use eth_types::{BlockSelector, HexBytes, LegacyTx, TransactionInner, SH160, SH256, SU256, SU64};
-use jsonrpc::{JsonrpcWsClient, RpcError, WsClientConfig};
+use eth_types::{BlockSelector, HexBytes, LegacyTx, TransactionInner, SH160, SH256, SU256};
+use jsonrpc::{MixRpcClient, RpcError};
 use serde::Deserialize;
 use solidity::EncodeArg;
 use std::sync::Arc;
@@ -23,27 +23,17 @@ pub struct Config {
 pub struct Client {
     alive: Alive,
     chain_id: SU256,
-    el: ExecutionClient<Arc<JsonrpcWsClient>>,
+    el: ExecutionClient<Arc<MixRpcClient>>,
     to: SH160,
     attested: Arc<AtomicBool>,
 }
 
 impl Client {
     pub fn new(alive: &Alive, cfg: Config) -> Self {
-        let conn = Arc::new(
-            JsonrpcWsClient::new(WsClientConfig {
-                endpoint: cfg.endpoint.into(),
-                ws_frame_size: 64 << 10,
-                keep_alive: None,
-                auto_resubscribe: true,
-                poll_interval: Duration::from_millis(0),
-                concurrent_bench: Some(2),
-                alive: alive.clone(),
-            })
-            .unwrap(),
-        );
+        let mut mix = MixRpcClient::new(None);
+        mix.add_endpoint(alive, &[cfg.endpoint.clone()]).unwrap();
 
-        let el = ExecutionClient::new(conn.clone());
+        let el = ExecutionClient::new(Arc::new(mix));
         let chain_id = el.chain_id().unwrap().into();
         Self {
             alive: alive.clone(),
@@ -54,7 +44,7 @@ impl Client {
         }
     }
 
-    pub fn el(&self) -> ExecutionClient<Arc<JsonrpcWsClient>> {
+    pub fn el(&self) -> ExecutionClient<Arc<MixRpcClient>> {
         self.el.clone()
     }
 
@@ -143,7 +133,7 @@ impl Client {
 
     pub fn subscribe_attestation_request(
         &self,
-        start: Option<SU64>,
+        start: Option<u64>,
         signer: &Secp256k1PrivateKey,
         insecure: bool,
     ) -> Result<(), RpcError> {
@@ -155,7 +145,7 @@ impl Client {
             ..Default::default()
         };
         let client = self.clone();
-        let start = start.map(|n| n.as_u64()).unwrap_or(0);
+        let start = start.unwrap_or(0);
         log_trace.subscribe(start, filter, move |logs| {
             glog::info!("scan attestaion request: {:?}", logs);
             for log in logs {
@@ -184,12 +174,11 @@ impl Client {
         insecure: bool,
     ) -> Result<(), String> {
         if !insecure {
-            #[cfg(all(feature = "sgx", feature = "epid"))]
+            #[cfg(feature = "sgx")]
             {
                 use crypto::Secp256k1PublicKey;
-                let report: sgxlib_ra::IasReport =
-                    serde_json::from_slice(&report).map_err(debug)?;
-                let quote = report.verify().map_err(debug)?;
+                let quote: sgxlib_ra::SgxQuote = serde_json::from_slice(&report).map_err(debug)?;
+                sgxlib_ra::RaFfi::dcap_verify_quote(&quote)?;
                 let report_data = quote.get_report_body().report_data;
                 let mut pubkey = Secp256k1PublicKey::from_raw_bytes(&report_data.d);
                 let report_prover_key: SH160 = pubkey.eth_accountid().into();
@@ -199,7 +188,6 @@ impl Client {
                         prover, report_prover_key
                     ));
                 }
-                glog::info!("prover key: {:?}", report_prover_key);
             }
         }
 

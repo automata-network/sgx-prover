@@ -14,6 +14,7 @@ Install node using nvm. It's recommended to use v18.16.1. Then, install hardhat.
 ```
 
 Initialize the SGX environment. You can refer [here](https://github.com/automata-network/attestable-build-tool/blob/main/image/rust/Dockerfile).
+It's recommended to use Azure with the `Standard DC4s v3` size.
 
 Install the latest [Geth](https://github.com/ethereum/go-ethereum). We'll be using it to launch a local node as the L1 node and deploy the verifier contract.   
 Ensure it's added to the PATH environment variable.
@@ -57,8 +58,6 @@ verifier address: 0xBf2A60958a0dF024Ffa1dF8C652240C42425762c
         "addr": "0xBf2A60958a0dF024Ffa1dF8C652240C42425762c" <- Replace with the deployed verifier contract address
     },
     "l2": "http://localhost:18546",
-    "spid": "***",
-    "ias_apikey": "***",
     "relay_account": "0xc4c4ce41c075356be1f31bdec70accea47fd9c140d411f97aad82c19895eb2d1", <- Do not modify in the test environment
 
     "server": {

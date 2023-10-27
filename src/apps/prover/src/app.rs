@@ -57,35 +57,20 @@ impl apps::App for App {
                 let verifier = self.verifier.get(self);
                 let signer = cfg.relay_account;
                 let prover_key = *prover.prvkey();
-
-                #[cfg(feature = "sgx")]
-                let spid = {
-                    let mut buf = [0_u8; 16];
-                    buf.copy_from_slice(&cfg.spid);
-                    buf
-                };
-
-                #[cfg(all(feature = "sgx", feature = "epid"))]
-                let ias_server = sgxlib_ra::IasServer::new(&cfg.ias_apikey, true, None);
-
                 move || {
                     verifier.monitor_attested(
                         &signer,
                         &prover_key,
                         || -> Result<Vec<u8>, String> {
                             if !dummy_attestation_report {
-                                // generate the report
-                                #[cfg(feature = "epid")]
+                                #[cfg(feature = "tstd")]
                                 {
                                     let acc = prover.pubkey().to_raw_bytes();
-                                    let report = sgxlib_ra::epid_report(
-                                        &ias_server,
-                                        acc,
-                                        spid,
-                                        env.enclave_id,
-                                    )
-                                    .map_err(debug)?;
-                                    return serde_json::to_vec(&report).map_err(debug);
+                                    let quote =
+                                        sgxlib_ra::dcap_generate_quote(acc).map_err(debug)?;
+                                    
+                                    let data = serde_json::to_vec(&quote).map_err(debug)?;
+                                    return Ok(data)
                                 }
                             }
 

@@ -1610,7 +1610,7 @@ dependencies = [
 [[package]]
 name = "poseidon-rs"
 version = "0.0.10"
-source = "git+https://github.com/automata-network/poseidon-rs#39f89a74dba3bb6043e985bdcd811384091a82a9"
+source = "git+https://github.com/automata-network/poseidon-rs#34024803967cab9c8adab1009075b3ac9406f871"
 dependencies = [
  "eth_types",
  "ff_ce",
@@ -2282,7 +2282,7 @@ version = "0.1.0"
 source = "git+https://github.com/automata-network/sgxlib-thirdparty#997ca529ec5283788854d54b579b643eec10ba4a"
 dependencies = [
  "serde 0.1.0",
- "serde_json 1.0.107",
+ "serde_json 1.0.108",
  "serde_json 1.0.60",
  "sgxlib",
 ]
@@ -2300,9 +2300,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.107"
+version = "1.0.108"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6b420ce6e3d8bd882e9b243c6eed35dbc9a6110c9769e74b584e0d68d1f20c65"
+checksum = "3d1c7e3eac408d115102c4c24ad393e0821bb3a5df4d506a80f85f7a742a526b"
 dependencies = [
  "itoa 1.0.9",
  "ryu",
@@ -2470,7 +2470,7 @@ dependencies = [
 [[package]]
 name = "sgxlib-ra"
 version = "0.1.0"
-source = "git+https://github.com/automata-network/sgxlib-ra#4c2331d77e9a84867f2b32f726e6bb96ea02e7da"
+source = "git+https://github.com/automata-network/sgxlib-ra#a6acb235a488c441913fc8392a886cc83ed52e17"
 dependencies = [
  "base",
  "base16",

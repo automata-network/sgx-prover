@@ -141,13 +141,15 @@ impl<'a, D: StateDB> Executor<'a, D> {
         };
 
         if matches!(reason, ExitReason::Fatal(ExitFatal::NotSupported)) {
-            glog::info!("load {:?}", executor.used_gas());
             self.refund_gas()?;
             return Err(ExecuteError::NotSupported);
         }
         let mut used_gas = executor.used_gas();
         if !tx.cost_gas() {
-            used_gas += 5600;
+            // executor.used_gas() will minus the refunded_gas but we don't need it.
+            use evm::executor::stack::StackState;
+            let refund_gas = executor.state().metadata().gasometer().refunded_gas();
+            used_gas += refund_gas as u64;
         }
 
         if !dry_run {

@@ -43,7 +43,7 @@ impl apps::App for App {
         );
 
         verifier
-            .subscribe_attestation_request(None, &cfg.private_key, self.arg.get().insecure)
+            .subscribe_attestation_request(self.arg.get().start, &cfg.private_key, self.arg.get().insecure)
             .unwrap();
         Ok(())
     }

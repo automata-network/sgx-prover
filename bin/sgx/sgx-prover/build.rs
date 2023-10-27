@@ -16,10 +16,10 @@
 // under the License..
 
 fn main() {
-    let ty = if cfg!(feature = "dcap") {
-        ata_sgx_builder::LinkType::Dcap
-    } else {
+    let ty = if cfg!(feature = "epid") {
         ata_sgx_builder::LinkType::Epid
+    } else {
+        ata_sgx_builder::LinkType::Dcap
     };
     ata_sgx_builder::GeodeBuild::new().build(ty);
 }
