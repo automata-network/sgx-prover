@@ -2,7 +2,7 @@ use std::prelude::v1::*;
 
 use apps::getargs::{Opt, Options};
 use crypto::{Secp256k1PrivateKey, Secp256k1RecoverableSignature};
-use eth_types::{HexBytes, SH160, SH256, SU64};
+use eth_types::{HexBytes, SH160, SH256};
 use prover::Pob;
 use serde::{Deserialize, Serialize};
 use solidity::EncodeArg;
@@ -12,7 +12,6 @@ pub struct Config {
     pub verifier: verifier::Config,
     pub server: ServerConfig,
     pub l2: String,
-    pub l2_chain_id: SU64,
 
     pub spid: HexBytes,
     pub ias_apikey: String,

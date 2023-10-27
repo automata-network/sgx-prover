@@ -82,6 +82,7 @@ dependencies = [
  "sgxlib-ra",
  "solidity 0.1.0",
  "statedb",
+ "threadpool 0.1.0",
  "verifier",
 ]
 
@@ -138,7 +139,7 @@ dependencies = [
  "openssl",
  "openssl-sys",
  "rand 0.7.3",
- "serde 1.0.189",
+ "serde 1.0.190",
  "substrate-bn",
 ]
 
@@ -202,7 +203,7 @@ checksum = "d27c3610c36aee21ce8ac510e6224498de4228ad772a171ed65643a24693a5a8"
 [[package]]
 name = "base64"
 version = "0.1.0"
-source = "git+https://github.com/automata-network/sgxlib-thirdparty#5bd0cc884c2004a01fbd8e9d7ffdfad4b292ef05"
+source = "git+https://github.com/automata-network/sgxlib-thirdparty#997ca529ec5283788854d54b579b643eec10ba4a"
 dependencies = [
  "base64 0.13.0",
  "base64 0.13.1",
@@ -277,7 +278,7 @@ checksum = "8d696c370c750c948ada61c69a0ee2cbbb9c50b1019ddb86d9317157a99c2cae"
 [[package]]
 name = "blst"
 version = "0.3.10"
-source = "git+https://github.com/automata-network/sgxlib-thirdparty#5bd0cc884c2004a01fbd8e9d7ffdfad4b292ef05"
+source = "git+https://github.com/automata-network/sgxlib-thirdparty#997ca529ec5283788854d54b579b643eec10ba4a"
 dependencies = [
  "cc",
  "hex 0.4.3",
@@ -330,7 +331,7 @@ checksum = "e3b5ca7a04898ad4bcd41c90c5285445ff5b791899bb1b0abdd2a2aa791211d7"
 [[package]]
 name = "byteorder"
 version = "0.1.0"
-source = "git+https://github.com/automata-network/sgxlib-thirdparty#5bd0cc884c2004a01fbd8e9d7ffdfad4b292ef05"
+source = "git+https://github.com/automata-network/sgxlib-thirdparty#997ca529ec5283788854d54b579b643eec10ba4a"
 dependencies = [
  "byteorder 1.3.4",
 ]
@@ -370,8 +371,8 @@ version = "0.11.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e72c3ff59e3b7d24630206bb63a73af65da4ed5df1f76ee84dfafb9fee2ba60e"
 dependencies = [
- "serde 1.0.189",
- "serde_derive 1.0.189",
+ "serde 1.0.190",
+ "serde_derive 1.0.190",
  "toml",
 ]
 
@@ -508,9 +509,9 @@ dependencies = [
 
 [[package]]
 name = "curve25519-dalek"
-version = "3.2.0"
+version = "3.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b9fdf9972b2bd6af2d913799d9ebc165ea4d2e65878e329d9c6b372c4491b61"
+checksum = "90f9d052967f590a76e62eb387bd0bbb1b000182c3cefe5364db6b7211651bc0"
 dependencies = [
  "byteorder 1.4.3",
  "digest 0.9.0",
@@ -584,7 +585,7 @@ dependencies = [
 [[package]]
 name = "env_logger"
 version = "0.1.0"
-source = "git+https://github.com/automata-network/sgxlib-thirdparty#5bd0cc884c2004a01fbd8e9d7ffdfad4b292ef05"
+source = "git+https://github.com/automata-network/sgxlib-thirdparty#997ca529ec5283788854d54b579b643eec10ba4a"
 dependencies = [
  "env_logger 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.7.1 (git+https://github.com/mesalock-linux/env_logger-sgx)",
@@ -793,7 +794,7 @@ dependencies = [
  "num-traits 0.2.17",
  "proc-macro2 1.0.69",
  "quote 1.0.33",
- "serde 1.0.189",
+ "serde 1.0.190",
  "syn 1.0.109",
 ]
 
@@ -927,7 +928,7 @@ dependencies = [
 [[package]]
 name = "gsrs"
 version = "0.1.4"
-source = "git+https://github.com/automata-network/sgxlib-thirdparty#5bd0cc884c2004a01fbd8e9d7ffdfad4b292ef05"
+source = "git+https://github.com/automata-network/sgxlib-thirdparty#997ca529ec5283788854d54b579b643eec10ba4a"
 dependencies = [
  "sgxlib",
 ]
@@ -1018,7 +1019,7 @@ dependencies = [
 [[package]]
 name = "http_req"
 version = "0.1.0"
-source = "git+https://github.com/automata-network/sgxlib-thirdparty#5bd0cc884c2004a01fbd8e9d7ffdfad4b292ef05"
+source = "git+https://github.com/automata-network/sgxlib-thirdparty#997ca529ec5283788854d54b579b643eec10ba4a"
 dependencies = [
  "http_req 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "http_req 0.7.2 (git+https://github.com/mesalock-linux/http_req-sgx?tag=sgx_1.1.3)",
@@ -1188,7 +1189,7 @@ dependencies = [
 [[package]]
 name = "libc"
 version = "0.1.0"
-source = "git+https://github.com/automata-network/sgxlib-thirdparty#5bd0cc884c2004a01fbd8e9d7ffdfad4b292ef05"
+source = "git+https://github.com/automata-network/sgxlib-thirdparty#997ca529ec5283788854d54b579b643eec10ba4a"
 dependencies = [
  "libc 0.2.149",
  "sgxlib",
@@ -1203,7 +1204,7 @@ checksum = "a08173bc88b7955d1b3145aa561539096c421ac8debde8cbc3612ec635fee29b"
 [[package]]
 name = "log"
 version = "0.1.0"
-source = "git+https://github.com/automata-network/sgxlib-thirdparty#5bd0cc884c2004a01fbd8e9d7ffdfad4b292ef05"
+source = "git+https://github.com/automata-network/sgxlib-thirdparty#997ca529ec5283788854d54b579b643eec10ba4a"
 dependencies = [
  "log 0.4.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.14 (git+https://github.com/mesalock-linux/log-sgx)",
@@ -1306,7 +1307,7 @@ dependencies = [
 [[package]]
 name = "net2"
 version = "0.1.0"
-source = "git+https://github.com/automata-network/sgxlib-thirdparty#5bd0cc884c2004a01fbd8e9d7ffdfad4b292ef05"
+source = "git+https://github.com/automata-network/sgxlib-thirdparty#997ca529ec5283788854d54b579b643eec10ba4a"
 dependencies = [
  "net2 0.2.33",
  "net2 0.2.37",
@@ -1348,7 +1349,7 @@ dependencies = [
 [[package]]
 name = "num-bigint"
 version = "0.1.0"
-source = "git+https://github.com/automata-network/sgxlib-thirdparty#5bd0cc884c2004a01fbd8e9d7ffdfad4b292ef05"
+source = "git+https://github.com/automata-network/sgxlib-thirdparty#997ca529ec5283788854d54b579b643eec10ba4a"
 dependencies = [
  "num-bigint 0.2.5",
 ]
@@ -1900,7 +1901,7 @@ checksum = "3e75f6a532d0fd9f7f13144f392b6ad56a32696bfcd9c78f797f16bbb6f072d6"
 [[package]]
 name = "rustls"
 version = "0.1.0"
-source = "git+https://github.com/automata-network/sgxlib-thirdparty#5bd0cc884c2004a01fbd8e9d7ffdfad4b292ef05"
+source = "git+https://github.com/automata-network/sgxlib-thirdparty#997ca529ec5283788854d54b579b643eec10ba4a"
 dependencies = [
  "rustls 0.19.0 (git+https://github.com/mesalock-linux/rustls?tag=sgx_1.1.3)",
  "rustls 0.19.1",
@@ -2074,10 +2075,10 @@ dependencies = [
 [[package]]
 name = "serde"
 version = "0.1.0"
-source = "git+https://github.com/automata-network/sgxlib-thirdparty#5bd0cc884c2004a01fbd8e9d7ffdfad4b292ef05"
+source = "git+https://github.com/automata-network/sgxlib-thirdparty#997ca529ec5283788854d54b579b643eec10ba4a"
 dependencies = [
  "serde 1.0.118",
- "serde 1.0.189",
+ "serde 1.0.190",
 ]
 
 [[package]]
@@ -2091,17 +2092,17 @@ dependencies = [
 
 [[package]]
 name = "serde"
-version = "1.0.189"
+version = "1.0.190"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8e422a44e74ad4001bdc8eede9a4570ab52f71190e9c076d14369f38b9200537"
+checksum = "91d3c334ca1ee894a2c6f6ad698fe8c435b76d504b13d436f0685d648d6d96f7"
 dependencies = [
- "serde_derive 1.0.189",
+ "serde_derive 1.0.190",
 ]
 
 [[package]]
 name = "serde-big-array"
 version = "0.1.0"
-source = "git+https://github.com/automata-network/sgxlib-thirdparty#5bd0cc884c2004a01fbd8e9d7ffdfad4b292ef05"
+source = "git+https://github.com/automata-network/sgxlib-thirdparty#997ca529ec5283788854d54b579b643eec10ba4a"
 dependencies = [
  "serde 0.1.0",
  "serde-big-array 0.3.0",
@@ -2124,7 +2125,7 @@ version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cd31f59f6fe2b0c055371bb2f16d7f0aa7d8881676c04a55b1596d1a17cd10a4"
 dependencies = [
- "serde 1.0.189",
+ "serde 1.0.190",
 ]
 
 [[package]]
@@ -2139,9 +2140,9 @@ dependencies = [
 
 [[package]]
 name = "serde_derive"
-version = "1.0.189"
+version = "1.0.190"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e48d1f918009ce3145511378cf68d613e3b3d9137d67272562080d68a2b32d5"
+checksum = "67c5609f394e5c2bd7fc51efda478004ea80ef42fee983d5c67a65e34f32c0e3"
 dependencies = [
  "proc-macro2 1.0.69",
  "quote 1.0.33",
@@ -2151,7 +2152,7 @@ dependencies = [
 [[package]]
 name = "serde_json"
 version = "0.1.0"
-source = "git+https://github.com/automata-network/sgxlib-thirdparty#5bd0cc884c2004a01fbd8e9d7ffdfad4b292ef05"
+source = "git+https://github.com/automata-network/sgxlib-thirdparty#997ca529ec5283788854d54b579b643eec10ba4a"
 dependencies = [
  "serde 0.1.0",
  "serde_json 1.0.107",
@@ -2178,7 +2179,7 @@ checksum = "6b420ce6e3d8bd882e9b243c6eed35dbc9a6110c9769e74b584e0d68d1f20c65"
 dependencies = [
  "itoa 1.0.9",
  "ryu",
- "serde 1.0.189",
+ "serde 1.0.190",
 ]
 
 [[package]]
@@ -2453,7 +2454,7 @@ dependencies = [
 [[package]]
 name = "solidity"
 version = "0.1.0"
-source = "git+https://github.com/automata-network/solidity-rs#c0655d66ec4b8d7308b66e00325f0337ae6a3334"
+source = "git+https://github.com/automata-network/solidity-rs#7cc988a56bb9430a80e0853b68fb1b58e9d12040"
 dependencies = [
  "crypto",
  "eth_types",
@@ -2469,7 +2470,7 @@ checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
 [[package]]
 name = "ssz"
 version = "0.2.0"
-source = "git+https://github.com/automata-network/sgxlib-thirdparty#5bd0cc884c2004a01fbd8e9d7ffdfad4b292ef05"
+source = "git+https://github.com/automata-network/sgxlib-thirdparty#997ca529ec5283788854d54b579b643eec10ba4a"
 dependencies = [
  "blst",
  "bm-le",
@@ -2601,7 +2602,7 @@ dependencies = [
 [[package]]
 name = "thiserror"
 version = "0.1.0"
-source = "git+https://github.com/automata-network/sgxlib-thirdparty#5bd0cc884c2004a01fbd8e9d7ffdfad4b292ef05"
+source = "git+https://github.com/automata-network/sgxlib-thirdparty#997ca529ec5283788854d54b579b643eec10ba4a"
 dependencies = [
  "thiserror 1.0.50",
  "thiserror 1.0.9",
@@ -2658,7 +2659,7 @@ dependencies = [
 [[package]]
 name = "threadpool"
 version = "0.1.0"
-source = "git+https://github.com/automata-network/sgxlib-thirdparty#5bd0cc884c2004a01fbd8e9d7ffdfad4b292ef05"
+source = "git+https://github.com/automata-network/sgxlib-thirdparty#997ca529ec5283788854d54b579b643eec10ba4a"
 dependencies = [
  "threadpool 1.8.0",
  "threadpool 1.8.1",
@@ -2696,7 +2697,7 @@ version = "0.5.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f4f7f0dd8d50a853a531c426359045b1998f04219d88799810762cd4ad314234"
 dependencies = [
- "serde 1.0.189",
+ "serde 1.0.190",
 ]
 
 [[package]]
@@ -2915,7 +2916,7 @@ dependencies = [
 [[package]]
 name = "webpki"
 version = "0.1.0"
-source = "git+https://github.com/automata-network/sgxlib-thirdparty#5bd0cc884c2004a01fbd8e9d7ffdfad4b292ef05"
+source = "git+https://github.com/automata-network/sgxlib-thirdparty#997ca529ec5283788854d54b579b643eec10ba4a"
 dependencies = [
  "webpki 0.21.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "webpki 0.21.4 (git+https://github.com/mesalock-linux/webpki?branch=mesalock_sgx)",
@@ -3069,20 +3070,20 @@ checksum = "ed94fce61571a4006852b7389a063ab983c02eb1bb37b47f8272ce92d06d9538"
 
 [[package]]
 name = "x25519-dalek"
-version = "1.1.1"
+version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5a0c105152107e3b96f6a00a65e86ce82d9b125230e1c4302940eca58ff71f4f"
+checksum = "2392b6b94a576b4e2bf3c5b2757d63f10ada8020a2e4d08ac849ebcf6ea8e077"
 dependencies = [
- "curve25519-dalek 3.2.0",
+ "curve25519-dalek 3.2.1",
  "rand_core 0.5.1",
  "zeroize",
 ]
 
 [[package]]
 name = "zeroize"
-version = "1.4.3"
+version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d68d9dcec5f9b43a30d38c49f91dfedfaac384cb8f085faca366c26207dd1619"
+checksum = "4756f7db3f7b5574938c3eb1c117038b8e07f95ee6718c0efad4ac21508f1efd"
 dependencies = [
  "zeroize_derive",
 ]

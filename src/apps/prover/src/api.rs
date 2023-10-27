@@ -25,21 +25,22 @@ pub struct PublicApi {
 }
 
 impl PublicApi {
-    fn mock(&self, arg: RpcArgs<(SU64, u64)>) -> Result<(), JsonrpcErrorObj> {
+    // validate a batch of blocks
+    // * arg1: start block
+    // * arg2: number of blocks to validated
+    fn validate(&self, arg: RpcArgs<(SU64, u64)>) -> Result<(), JsonrpcErrorObj> {
         let start_blk = arg.params.0.as_u64();
         for blk_no in start_blk..start_blk + arg.params.1 {
+            glog::info!("{}  {}  {}", "=".repeat(20), blk_no, "=".repeat(20));
             let new_arg = arg.map(|_| (blk_no.into(),));
-            self.mock_single(new_arg)?;
+            let report = self.report(new_arg)?;
+            glog::info!("prove result: {:?}", report);
         }
         Ok(())
     }
 
-    fn mock_single(&self, arg: RpcArgs<(SU64,)>) -> Result<(), JsonrpcErrorObj> {
-        glog::info!(
-            "===================================  {}  ===================================",
-            arg.params.0
-        );
-
+    // validate a block and generate a execution report
+    fn report(&self, arg: RpcArgs<(SU64,)>) -> Result<ExecutionReport, JsonrpcErrorObj> {
         let block_trace = self
             .l2_el
             .get_block_trace(arg.params.0.into())
@@ -57,9 +58,10 @@ impl PublicApi {
         };
 
         let result = self.prove(arg.map(|_| (params,)))?;
-        glog::info!("prove result: {:?}", result);
-
-        Ok(())
+        
+        let report = ExecutionReport::sign(&[result], self.prover.prvkey())
+            .ok_or(JsonrpcErrorObj::client("report not found".into()))?;
+        Ok(report)
     }
 
     fn prove_and_submit(&self, arg: RpcArgs<(SU64, SU64)>) -> Result<ProveResult, JsonrpcErrorObj> {
@@ -207,8 +209,8 @@ impl Getter<RpcServer<PublicApi>> for App {
         };
         let mut srv = RpcServer::new(self.alive.clone(), cfg, api.clone()).unwrap();
         srv.jsonrpc("prove", PublicApi::prove);
-        srv.jsonrpc("mock_single", PublicApi::mock_single);
-        srv.jsonrpc("mock", PublicApi::mock);
+        srv.jsonrpc("report", PublicApi::report);
+        srv.jsonrpc("validate", PublicApi::validate);
         srv.jsonrpc("proveAndSubmit", PublicApi::prove_and_submit);
 
         srv

@@ -7,7 +7,7 @@ edition = "2021"
 [features]
 default = ["std"]
 
-std = ["glog/std", "apps/std", "eth_types/std", "jsonrpc/std", "serde/std", "serde_json/std", "base/std", "eth_client/std", "statedb/std", "procinfo", "net-http/std", "crypto/std", "verifier/std", "prover/std", "scroll_types/std"]
+std = ["glog/std", "apps/std", "eth_types/std", "jsonrpc/std", "serde/std", "serde_json/std", "base/std", "eth_client/std", "statedb/std", "net-http/std", "crypto/std", "verifier/std", "prover/std", "scroll_types/std"]
 tstd = ["sgxlib/tstd", "glog/tstd", "apps/tstd", "eth_types/tstd", "jsonrpc/tstd", "serde/tstd", "serde_json/tstd", "base/tstd", "eth_client/tstd", "statedb/tstd", "net-http/tstd", "crypto/tstd", "verifier/tstd", "prover/tstd", "sgxlib-ra/tstd", "scroll_types/tstd"]
 sgx = ["sgxlib-ra", "sgxlib-ra/sgx", "prover/sgx", "verifier/sgx"]
 epid = ["sgxlib-ra/epid"]
@@ -33,6 +33,3 @@ sgxlib-ra = { git = "https://github.com/automata-network/sgxlib-ra", default-fea
 
 serde = { git = "https://github.com/automata-network/sgxlib-thirdparty", default-features = false }
 serde_json = { git = "https://github.com/automata-network/sgxlib-thirdparty", default-features = false }
-
-[target.'cfg(target_os = "linux")'.dependencies]
-procinfo = { optional = true, version = "0.4.2" }

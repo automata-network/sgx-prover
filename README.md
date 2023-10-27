@@ -27,7 +27,6 @@ Open a terminal window and execute:
 > ./scripts/verifier.sh geth
 ```
 The script will assist in launching geth in dev mode (data will be lost after a restart) and produces a block every 2 seconds.
-**NOTICE**: For testing convenience, in this demo, we use the same Geth instance for both L1 and L2.
 
 #### 2.2. Deploy Contract
 
@@ -44,9 +43,9 @@ verifier address: 0xBf2A60958a0dF024Ffa1dF8C652240C42425762c
 {
     "private_key": "0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a", <- Do not modify in the test environment
     "verifier": {
-        "endpoint": "ws://localhost:8546",
+        "endpoint": "http://localhost:8546",
         "addr": "0xBf2A60958a0dF024Ffa1dF8C652240C42425762c" <- Replace with the deployed verifier contract address
-    }
+    },
 }
 ```
 
@@ -54,10 +53,10 @@ verifier address: 0xBf2A60958a0dF024Ffa1dF8C652240C42425762c
 ```json
 {
     "verifier": {
-        "endpoint": "ws://localhost:8546",
+        "endpoint": "http://localhost:8546",
         "addr": "0xBf2A60958a0dF024Ffa1dF8C652240C42425762c" <- Replace with the deployed verifier contract address
     },
-    "l2": "ws://localhost:8546", <- used in mock
+    "l2": "http://localhost:18546",
     "spid": "***",
     "ias_apikey": "***",
     "relay_account": "0xc4c4ce41c075356be1f31bdec70accea47fd9c140d411f97aad82c19895eb2d1", <- Do not modify in the test environment
@@ -88,6 +87,9 @@ Open a terminal window and execute:
 [2023-09-04 08:31:14.008] [ef0612d2984c026c] [eth_client::log_trace:89] [INFO] - finish scan to 9640 -> 9642
 [2023-09-04 08:31:18.010] [ef0612d2984c026c] [eth_client::log_trace:89] [INFO] - finish scan to 9643 -> 9644s
 ```
+**Tips**:
+  * In the testing environment, you can add --insecure to accept any attestation report.
+  * Without an SGX environment, you can add NOSGX=1 to run in standard mode. In this mode, you need to forcibly enable --insecure.
 
 #### 3.2. Run the prover
 
@@ -112,29 +114,40 @@ Open a terminal window and execute:
 ```
 Wait for "prover is attested" to appear.
 
+**Tips**:
+  * In the testing environment, you can add --dummy_attestation_report to generate a dummy attestation report.
+  * In the testing environment, you can add --insecure to skip the attestation process.
+  * Without an SGX environment, you can add NOSGX=1 to run in standard mode. In this mode, you need to forcibly enable --dummy_attestation_report.
+
 #### 3.3. Test block execution
 
 Prover offers a method to quickly simulate the execution of certain blocks. It will assist in generating Proof of Blocks and invoke the prove method.
 
 **Note, this method can only be used in a dev environment.**
 ```bash
-# We execute blocks with block numbers 1 to 20
-> curl http://localhost:18232 -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"mock","params":["1","20"]}'
+# generate a execution report for the block 100,000
+> curl http://localhost:18232 -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"report","params":["100000"]}'
 
 {
-    "jsonrpc":"2.0",
-    "result":{
-        "report":{
-            "block_hash":"0xb1d033b35f5e9cedee24efb9fc52eed36b6fabb2d84bf7f14e1a0012ca35caaa",
-            "state_hash":"0xbfdfb6ab02770fedf554762ee2e6f1a92bdf9e8b9beb0ed46cf99b438926fdec",
-            "prev_state_root":"0x612881e2e663cec84fbccf01df88fb6312db020b51f445da627c8bff049fa8ff",
-            "new_state_root":"0xbbe62440b2cbb1e8d07cea505a1e0f6ae0fb29da5205f3e8079706d2594bf30a",
-            "withdrawal_root":"0x0000000000000000000000000000000000000000000000000000000000000000",
-            "signature":"0x93a634b42038823b77ae08a647533861d25ac4dd6d87a4c081793fee98be3a7557666ea70e3b42d68ebd240d20e13a371d18d1b8aaefde2c457475baaf1e0fe400"
-        },
-        "tx_hash":"0xe552720643c9a4a42a9473f56e26c76dd530dc0d42c10a3bedde7d533244543a"
-    },
-    "id":1
+	"id": 1,
+	"jsonrpc": "2.0",
+	"result": {
+		"block_hash": "0xb743a9800b35a76b06ba854f3f36720f7d12871ea78b2cd17430502e158039c9",
+		"new_state_root": "0x2e6c6fd65960c84447166b45d8a2112c229cba88fd1e4db34fbcbeb6dd0d67b8",
+		"prev_state_root": "0x20dd588f8ce73141baba126193a112ee2eee739b10241e5fadfbbc95eb1917e5",
+		"signature": "0xb2de217b8b6407323d7da51f78882586af2c66c5425a1389f16847b8e5648b167db16d78e0ccaa3dc2befa9e2dfb559fec7ff3965a1ec8f5889810d66ffd6a0901",
+		"state_hash": "0x50f33560917312545fa0d8cdc01a380e3f53962d2457817bddbf46455c59d2ec",
+		"withdrawal_root": "0xe323c9fea8a2e6a5a0ae2c857d5dc29fdadc16a669a60df6e16fb3a0bfe9eef9"
+	}
+}
+
+# validate the block from 100 to 200
+> curl http://localhost:18232 -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"validate","params":["100", 100]}'
+
+{
+	"id": 1,
+	"jsonrpc": "2.0",
+	"result": null
 }
 ```
 

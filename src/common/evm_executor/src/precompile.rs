@@ -43,7 +43,6 @@ impl PrecompileSet {
         def.add(7, PrecompileMulIstanbul {});
         def.add(8, PrecompilePairIstanbul {});
         // def.add(9, PrecompileBlake2F {});
-        // 9: 0x6ad71132f7493ae1c13b4e2c2742ba9ad7432971815f48c188aa54bee9a7e9ce blake2F
 
         def
     }
@@ -55,8 +54,8 @@ impl PrecompileSet {
         }
 
         def.add(1, PrecompileEcrecover {});
-        // def.add(2, PrecompileSha256Hash {});
-        // def.add(3, PrecompileRipemd160Hash {});
+        def.add(2, PrecompileRevert {});
+        def.add(3, PrecompileRevert {});
         def.add(4, PrecompileDataCopy {});
         def.add(
             5,
@@ -68,6 +67,7 @@ impl PrecompileSet {
         def.add(6, PrecompileAddIstanbul {});
         def.add(7, PrecompileMulIstanbul {});
         def.add(8, PrecompilePairIstanbul {});
+        def.add(9, PrecompileRevert {});
 
         def
     }
@@ -131,6 +131,20 @@ impl PrecompiledContract for PrecompileUnimplemented {
         glog::error!("unimplemented addr: {}", self.addr);
         PrecompileResult::Err(PrecompileFailure::Fatal {
             exit_status: ExitFatal::NotSupported,
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct PrecompileRevert {}
+
+impl PrecompiledContract for PrecompileRevert {
+    fn required_gas(&self, _: &[u8]) -> u64 {
+        1_000_000_000
+    }
+    fn run(&self, _: &[u8]) -> PrecompileResult {
+        PrecompileResult::Err(PrecompileFailure::Fatal {
+            exit_status: ExitFatal::Other("DISABLED".into()),
         })
     }
 }

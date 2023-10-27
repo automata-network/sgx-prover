@@ -17,6 +17,10 @@ pub struct Executor<S: StateDB> {
 
 pub fn scroll_evm_config() -> evm_executor::Config {
     let mut cfg = evm_executor::Config::shanghai();
+    // SputnikVM doesn't have the option to disable the SELFDESTRUCT,
+    // however, we can raise a OutOfGas error to stop the execution
+    cfg.gas_suicide = 1_000_000_000;
+
     cfg.has_base_fee = false;
     cfg
 }

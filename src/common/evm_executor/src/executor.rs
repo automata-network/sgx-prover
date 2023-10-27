@@ -141,6 +141,7 @@ impl<'a, D: StateDB> Executor<'a, D> {
         };
 
         if matches!(reason, ExitReason::Fatal(ExitFatal::NotSupported)) {
+            glog::info!("load {:?}", executor.used_gas());
             self.refund_gas()?;
             return Err(ExecuteError::NotSupported);
         }
@@ -254,14 +255,6 @@ impl<'a, D: StateDB> Executor<'a, D> {
             }
         }
 
-        // let gas = self
-        //     .state_db
-        //     .client()
-        //     .call(&self.context.caller.into(), self.tx, &self.parent.number)
-        //     .unwrap();
-        // glog::info!("gas: {}", gas);
-        // glog::info!("================================================================================================");
-        // panic!("tx: {:?}", self.tx.hash());
         let gas_tip_cap = tx.max_priority_fee_per_gas();
         let gas_fee_cap = tx.max_fee_per_gas();
         if let Some(base_fee) = &base_fee {
@@ -292,22 +285,9 @@ impl<'a, D: StateDB> Executor<'a, D> {
     }
 
     fn refund_gas(&mut self) -> Result<(), ExecuteError> {
-        // Apply refund counter, capped to a refund quotient
-        // REMINDER: already calculated in executor.gas_used();
-        // let mut refund = self.gas_used() / refund_quotient;
-        // if refund > state_refund {
-        //     refund = state_refund
-        // }
-        // self.gas += refund;
-
-        // Return ETH for remaining gas, exchanged at the original rate.
         let remaining = SU256::from(self.gas) * self.gas_price;
         self.state_db.add_balance(self.ctx.caller, &remaining)?;
         // glog::info!("refund gas fee: {}", remaining);
-
-        // Also return remaining gas to the block gas counter so it is
-        // available for the next transaction.
-        // FIXME: st.gp.AddGas(st.gas)
         Ok(())
     }
 
@@ -316,14 +296,10 @@ impl<'a, D: StateDB> Executor<'a, D> {
         let caller = self.ctx.caller;
         let gas: SU256 = tx.gas().as_u64().into();
         let mut mgval = gas * self.gas_price;
-        // let mut balance_check = mgval.clone();
-        // if let Some(gas_fee_cap) = self.tx.max_fee_per_gas() {
         let mut balance_check = gas * tx.max_fee_per_gas();
         balance_check = balance_check + tx.value();
         let extra_fee = self.ctx.extra_fee.unwrap_or(SU256::default());
         balance_check += extra_fee;
-
-        // }
 
         let balance = self.state_db.get_balance(caller)?;
 

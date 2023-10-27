@@ -146,8 +146,9 @@ impl Getter<ExecutionClient> for App {
 impl Getter<Prover> for App {
     fn generate(&self) -> Prover {
         let cfg = self.cfg.get(self);
+        let l2 = self.l2_el.get(self);
         let prover_cfg = prover::Config {
-            l2_chain_id: cfg.l2_chain_id.into(),
+            l2_chain_id: l2.chain_id().unwrap().into(),
         };
         let mut mix = MixRpcClient::new(None);
         mix.add_endpoint(&self.alive, &[cfg.verifier.endpoint.clone()])
