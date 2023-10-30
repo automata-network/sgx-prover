@@ -758,7 +758,6 @@ dependencies = [
 [[package]]
 name = "evm"
 version = "0.37.0"
-source = "git+https://github.com/automata-network/evm-rs#c3bee6f18be73c8e6654a1c2afd3b0b218742470"
 dependencies = [
  "auto_impl",
  "environmental",
@@ -766,6 +765,7 @@ dependencies = [
  "evm-core",
  "evm-gasometer",
  "evm-runtime",
+ "glog",
  "parity-scale-codec 3.1.5",
  "primitive-types 0.9.1",
  "rlp",
@@ -777,7 +777,6 @@ dependencies = [
 [[package]]
 name = "evm-core"
 version = "0.37.0"
-source = "git+https://github.com/automata-network/evm-rs#c3bee6f18be73c8e6654a1c2afd3b0b218742470"
 dependencies = [
  "parity-scale-codec 3.1.5",
  "primitive-types 0.9.1",
@@ -788,7 +787,6 @@ dependencies = [
 [[package]]
 name = "evm-gasometer"
 version = "0.37.0"
-source = "git+https://github.com/automata-network/evm-rs#c3bee6f18be73c8e6654a1c2afd3b0b218742470"
 dependencies = [
  "environmental",
  "evm-core",
@@ -799,7 +797,6 @@ dependencies = [
 [[package]]
 name = "evm-runtime"
 version = "0.37.0"
-source = "git+https://github.com/automata-network/evm-rs#c3bee6f18be73c8e6654a1c2afd3b0b218742470"
 dependencies = [
  "auto_impl",
  "environmental",
