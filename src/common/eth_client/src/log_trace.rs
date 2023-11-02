@@ -22,7 +22,7 @@ impl<C: RpcClient> LogTrace<C> {
         }
     }
 
-    pub fn subscribe<F>(&self, mut start: u64, mut filter: LogFilter, f: F) -> Result<(), RpcError>
+    pub fn subscribe<F>(&self, tag: &str, mut start: u64, mut filter: LogFilter, f: F) -> Result<(), RpcError>
     where
         F: Fn(Vec<Log>) -> Result<(), String>,
     {
@@ -84,7 +84,7 @@ impl<C: RpcClient> LogTrace<C> {
                     }
                 }
             }
-            glog::info!("finish scan to {} -> {}", start, end);
+            glog::info!("[{}] finish scan to {} -> {}", tag, start, end);
             start = end + 1;
         }
         Ok(())

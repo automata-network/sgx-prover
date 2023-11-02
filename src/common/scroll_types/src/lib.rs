@@ -20,3 +20,6 @@ pub use poseidon::*;
 
 mod trace;
 pub use trace::*;
+
+mod chunk;
+pub use chunk::*;

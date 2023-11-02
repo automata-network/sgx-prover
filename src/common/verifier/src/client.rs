@@ -1,5 +1,6 @@
 use std::prelude::v1::*;
 
+use base::time::Time;
 use base::{format::debug, trace::Alive};
 use core::{
     sync::atomic::{AtomicBool, Ordering},
@@ -10,7 +11,7 @@ use eth_client::{EthCall, ExecutionClient, LogFilter};
 use eth_types::{BlockSelector, HexBytes, LegacyTx, TransactionInner, SH160, SH256, SU256};
 use jsonrpc::{MixRpcClient, RpcError};
 use serde::Deserialize;
-use solidity::EncodeArg;
+use solidity::{EncodeArg, Encoder};
 use std::sync::Arc;
 
 #[derive(Clone, Debug, Default, Deserialize)]
@@ -109,6 +110,50 @@ impl Client {
         self.attested.load(Ordering::SeqCst)
     }
 
+    pub fn fetch_report(&self, report_hash: &SH256) -> Result<Option<Vec<u8>>, RpcError> {
+        let mut encoder = solidity::Encoder::new("getReportBlockNumber");
+        encoder.add(report_hash);
+        let call = EthCall {
+            to: self.to.clone(),
+            data: encoder.encode().into(),
+            ..Default::default()
+        };
+        let val: SU256 = self.el.eth_call(call, BlockSelector::Latest)?;
+
+        let sig = solidity::encode_eventsig("RequestAttestation(bytes32)");
+        let filter = LogFilter {
+            address: vec![self.to],
+            topics: vec![vec![sig]],
+            to_block: Some(val),
+            from_block: Some(val),
+            ..Default::default()
+        };
+        let logs = self.el.get_logs(&filter)?;
+        for log in logs {
+            let hash = solidity::parse_h256(0, &log.data);
+            if &hash == report_hash {
+                let tx = self.el.get_transaction(&log.transaction_hash)?;
+                let report = solidity::parse_bytes(32, &tx.input[4..]);
+                return Ok(Some(report));
+            }
+        }
+        return Ok(None);
+    }
+
+    pub fn get_report_prover(&self, report_hash: &SH256) -> Result<SH160, RpcError> {
+        let mut encoder = solidity::Encoder::new("getReportProver");
+        encoder.add(report_hash);
+        let call = EthCall {
+            to: self.to.clone(),
+            data: encoder.encode().into(),
+            ..Default::default()
+        };
+        let val: SH256 = self.el.eth_call(call, BlockSelector::Latest)?;
+        let mut addr = SH160::default();
+        addr.raw_mut().0.copy_from_slice(&val.as_bytes()[12..]);
+        Ok(addr)
+    }
+
     pub fn attest_validity_seconds(&self) -> Result<u64, RpcError> {
         let data = solidity::Encoder::new("attestValiditySeconds").encode();
         let call = EthCall {
@@ -131,6 +176,48 @@ impl Client {
         Ok(val)
     }
 
+    pub fn subscribe_vote_request(
+        &self,
+        start: Option<u64>,
+        signer: &Secp256k1PrivateKey,
+    ) -> Result<(), RpcError> {
+        let log_trace = eth_client::LogTrace::new(self.alive.clone(), self.el.clone(), 10, 0);
+        let sig = solidity::encode_eventsig("VoteAttestationReport(address,bytes32)");
+        let filter = LogFilter {
+            address: vec![self.to],
+            topics: vec![vec![sig]],
+            ..Default::default()
+        };
+        let client = self.clone();
+        let start = start.unwrap_or(0);
+        log_trace.subscribe("subscribe_vote_request", start, filter, move |logs| {
+            glog::info!("scan vote request: {:?}", logs);
+            for log in logs {
+                let attestor = solidity::parse_h160(0, &log.data);
+                let hash = solidity::parse_h256(32, &log.data);
+                glog::info!(
+                    "validate vote request: sender:{:?},report:{:?}",
+                    attestor,
+                    hash
+                );
+                if let Ok(Some(report)) = client.fetch_report(&hash) {
+                    // validate
+                    let mut pass = false;
+                    if let Ok(prover) = self.get_report_prover(&hash) {
+                        pass = self.verify_quote(&prover, &report).is_ok();
+                    }
+
+                    if !pass {
+                        let result = client.challenge_vote(&attestor, signer, &report);
+                        glog::info!("challenge report[{}]: {:?}", hash, result);
+                    }
+                }
+            }
+            Ok(())
+        })?;
+        Ok(())
+    }
+
     pub fn subscribe_attestation_request(
         &self,
         start: Option<u64>,
@@ -146,27 +233,68 @@ impl Client {
         };
         let client = self.clone();
         let start = start.unwrap_or(0);
-        log_trace.subscribe(start, filter, move |logs| {
-            glog::info!("scan attestaion request: {:?}", logs);
-            for log in logs {
-                let tx = client
-                    .el
-                    .get_transaction(&log.transaction_hash)
-                    .map_err(debug)?;
-                let prover = solidity::parse_h160(0, &tx.input[4..]);
-                let report = solidity::parse_bytes(32, &tx.input[4..]);
-                glog::info!("tx: {:?} -> {}", prover, HexBytes::from(report.as_slice()));
-                if let Err(err) = client.validate_report(signer, prover, report, insecure) {
-                    glog::error!("validate fail: {}", err);
+        log_trace.subscribe(
+            "subscribe_attestation_request",
+            start,
+            filter,
+            move |logs| {
+                glog::info!("scan attestaion request: {:?}", logs);
+                for log in logs {
+                    let tx = client
+                        .el
+                        .get_transaction(&log.transaction_hash)
+                        .map_err(debug)?;
+                    let prover = solidity::parse_h160(0, &tx.input[4..]);
+                    let report = solidity::parse_bytes(32, &tx.input[4..]);
+                    glog::info!("tx: {:?} -> {}", prover, HexBytes::from(report.as_slice()));
+                    if let Err(err) =
+                        client.validate_and_vote_report(signer, prover, report, insecure)
+                    {
+                        glog::error!("validate fail: {}", err);
+                    }
                 }
+                Ok(())
+            },
+        )?;
+        Ok(())
+    }
+
+    fn challenge_vote(
+        &self,
+        attestor: &SH160,
+        signer: &Secp256k1PrivateKey,
+        report: &[u8],
+    ) -> Result<(), String> {
+        let mut encoder = Encoder::new("challengeReport");
+        encoder.add(attestor);
+        encoder.add(report);
+        let result = self.send_tx(signer, encoder.encode()).map_err(debug)?;
+        self.wait_receipt(&result, Duration::from_secs(60))
+            .map_err(debug)?;
+        Ok(())
+    }
+
+    fn verify_quote(&self, prover: &SH160, report: &[u8]) -> Result<(), String> {
+        #[cfg(feature = "sgx")]
+        {
+            use crypto::Secp256k1PublicKey;
+            let quote: sgxlib_ra::SgxQuote = serde_json::from_slice(report).map_err(debug)?;
+            sgxlib_ra::RaFfi::dcap_verify_quote(&quote)?;
+            let report_data = quote.get_report_body().report_data;
+            let mut pubkey = Secp256k1PublicKey::from_raw_bytes(&report_data.d);
+            let report_prover_key: SH160 = pubkey.eth_accountid().into();
+            if &report_prover_key != prover {
+                return Err(format!(
+                    "prover account not match: want={:?}, got={:?}",
+                    prover, report_prover_key
+                ));
             }
-            Ok(())
-        })?;
+        }
         Ok(())
     }
 
     #[allow(unused_variables)]
-    fn validate_report(
+    fn validate_and_vote_report(
         &self,
         signer: &Secp256k1PrivateKey,
         prover: SH160,
@@ -174,21 +302,7 @@ impl Client {
         insecure: bool,
     ) -> Result<(), String> {
         if !insecure {
-            #[cfg(feature = "sgx")]
-            {
-                use crypto::Secp256k1PublicKey;
-                let quote: sgxlib_ra::SgxQuote = serde_json::from_slice(&report).map_err(debug)?;
-                sgxlib_ra::RaFfi::dcap_verify_quote(&quote)?;
-                let report_data = quote.get_report_body().report_data;
-                let mut pubkey = Secp256k1PublicKey::from_raw_bytes(&report_data.d);
-                let report_prover_key: SH160 = pubkey.eth_accountid().into();
-                if report_prover_key != prover {
-                    return Err(format!(
-                        "prover account not match: want={:?}, got={:?}",
-                        prover, report_prover_key
-                    ));
-                }
-            }
+            self.verify_quote(&prover, &report)?;
         }
 
         let hash: SH256 = keccak_hash(&report).into();
@@ -200,6 +314,20 @@ impl Client {
         self.wait_receipt(&result, Duration::from_secs(60))
             .map_err(debug)?;
         Ok(())
+    }
+
+    pub fn get_voted(&self, report: &SH256, addr: &SH160) -> Result<SU256, RpcError> {
+        let mut encoder = solidity::Encoder::new("getVote");
+        encoder.add(report);
+        encoder.add(addr);
+        let args = encoder.encode();
+        let call = EthCall {
+            to: self.to.clone(),
+            data: args.into(),
+            ..Default::default()
+        };
+        let val: SU256 = self.el.eth_call(call, BlockSelector::Latest)?;
+        Ok(val)
     }
 
     pub fn is_attestor(&self, addr: &SH160) -> Result<bool, RpcError> {
@@ -277,6 +405,34 @@ impl Client {
         Ok(hash)
     }
 
+    pub fn commit_batch(
+        &self,
+        relay: &Secp256k1PrivateKey,
+        batch_id: &SU256,
+        report: &[u8],
+    ) -> Result<SH256, String> {
+        let mut encoder = solidity::Encoder::new("commitBatch");
+        encoder.add(batch_id);
+        encoder.add(report);
+
+        let hash = self.send_tx(relay, encoder.encode()).map_err(debug)?;
+        self.wait_receipt(&hash, Duration::from_secs(60))?;
+        Ok(hash)
+    }
+
+    pub fn verify_report_on_chain(&self, report: &[u8]) -> Result<bool, RpcError> {
+        let mut encoder = solidity::Encoder::new("verifyAttestation");
+        encoder.add(report);
+
+        let call = EthCall {
+            to: self.to.clone(),
+            data: encoder.encode().into(),
+            ..Default::default()
+        };
+        let val: SU256 = self.el.eth_call(call, BlockSelector::Latest)?;
+        Ok(val.as_u64() == 1)
+    }
+
     pub fn submit_attestation_report(
         &self,
         relay: &Secp256k1PrivateKey,
@@ -301,7 +457,11 @@ impl Client {
                     return Ok(());
                 }
                 Ok(None) => {
-                    glog::info!("waiting receipt({:?}): unconfirmed, retry in 1 secs", hash,);
+                    glog::info!(
+                        "waiting receipt({:?}): unconfirmed, retry in 1 secs, total: {:?}",
+                        hash,
+                        alive.deadline().map(|t| t.checked_sub_time(&Time::now()))
+                    );
                 }
                 Err(err) => {
                     glog::info!("waiting receipt({:?}): {:?}, retry in 1 secs", hash, err);

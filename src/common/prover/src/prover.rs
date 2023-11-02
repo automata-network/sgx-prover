@@ -2,9 +2,9 @@ use std::prelude::v1::*;
 
 use crypto::{secp256k1_gen_keypair, Secp256k1PrivateKey, Secp256k1PublicKey};
 use eth_client::ExecutionClient;
-use eth_types::{BlockSelector, HexBytes, SH160, SU256};
+use eth_types::{BlockSelector, HexBytes, SH160, SU256, SU64};
 use evm_executor::{read_withdral_root, ExecuteError};
-use jsonrpc::RpcError;
+use jsonrpc::{RpcClient, RpcError};
 use scroll_types::{Block, BlockTrace, Signer};
 use scroll_types::{Transaction, TransactionInner};
 use serde::Deserialize;
@@ -178,6 +178,22 @@ impl Prover {
         };
 
         Ok(prove_result)
+    }
+
+    pub fn fetch_codes<C: RpcClient>(
+        &self,
+        l2: &ExecutionClient<C>,
+        block_trace: &BlockTrace,
+    ) -> Result<Vec<HexBytes>, RpcError> {
+        let mut accs = BTreeMap::new();
+        for (acc, _) in &block_trace.storage_trace.proofs {
+            let addr: SH160 = acc.as_str().into();
+            accs.insert(addr, ());
+        }
+        let number = block_trace.header.number;
+        let acc_keys: Vec<_> = accs.into_keys().collect();
+        let codes = l2.get_codes(&acc_keys, (number - SU64::from(1)).into())?;
+        Ok(codes)
     }
 }
 

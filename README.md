@@ -42,7 +42,7 @@ verifier address: 0xBf2A60958a0dF024Ffa1dF8C652240C42425762c
 `config/attestor-localhost.json`:   
 ```json
 {
-    "private_key": "0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a", <- Do not modify in the test environment
+    "private_key": "0x6767f2678b02e0612a0bf6f07a1cb83da787d9369d965caf65184e82767c02a2", <- Do not modify in the test environment
     "verifier": {
         "endpoint": "http://localhost:8546",
         "addr": "0xBf2A60958a0dF024Ffa1dF8C652240C42425762c" <- Replace with the deployed verifier contract address
@@ -58,7 +58,7 @@ verifier address: 0xBf2A60958a0dF024Ffa1dF8C652240C42425762c
         "addr": "0xBf2A60958a0dF024Ffa1dF8C652240C42425762c" <- Replace with the deployed verifier contract address
     },
     "l2": "http://localhost:18546",
-    "relay_account": "0xc4c4ce41c075356be1f31bdec70accea47fd9c140d411f97aad82c19895eb2d1", <- Do not modify in the test environment
+    "relay_account": "0x135e5f68224c169b016d92aedb6af6163e6d985dd6d25b3bbd1124e964490843", <- Do not modify in the test environment
 
     "server": {
         "tls": "",

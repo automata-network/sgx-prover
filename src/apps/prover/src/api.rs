@@ -6,7 +6,7 @@ use apps::Getter;
 use base::trace::Alive;
 use crypto::Secp256k1PrivateKey;
 use eth_client::ExecutionClient;
-use eth_types::{HexBytes, SH160, SU64};
+use eth_types::{HexBytes, SH160, SH256, SU64};
 use jsonrpc::{JsonrpcErrorObj, RpcArgs, RpcServer, RpcServerConfig};
 use prover::{Database, Prover};
 use scroll_types::BlockTrace;
@@ -46,7 +46,10 @@ impl PublicApi {
             .get_block_trace(arg.params.0.into())
             .map_err(JsonrpcErrorObj::unknown)?;
 
-        let codes = self.fetch_codes(&block_trace)?;
+        let codes = self
+            .prover
+            .fetch_codes(&self.l2_el, &block_trace)
+            .map_err(|err| JsonrpcErrorObj::server("fetch code fail", err))?;
         let new_state_root = block_trace.storage_trace.root_after;
         let withdrawal_root = block_trace.withdraw_trie_root.unwrap_or_default();
         let pob = self.prover.generate_pob(block_trace, codes);
@@ -58,8 +61,8 @@ impl PublicApi {
         };
 
         let result = self.prove(arg.map(|_| (params,)))?;
-        
-        let report = ExecutionReport::sign(&[result], self.prover.prvkey())
+
+        let report = ExecutionReport::sign(SH256::default(), &[result], self.prover.prvkey())
             .ok_or(JsonrpcErrorObj::client("report not found".into()))?;
         Ok(report)
     }
@@ -87,7 +90,10 @@ impl PublicApi {
                 .l2_el
                 .get_block_trace(blk_num.into())
                 .map_err(JsonrpcErrorObj::unknown)?;
-            let extra_codes = self.fetch_codes(&block_trace)?;
+            let extra_codes = self
+                .prover
+                .fetch_codes(&self.l2_el, &block_trace)
+                .map_err(|err| JsonrpcErrorObj::server("fetch code fail", err))?;
             let withdrawal_root = block_trace.withdraw_trie_root.unwrap_or_default();
             let new_state_root = block_trace.storage_trace.root_after;
             let old_state_root = block_trace.storage_trace.root_before;
@@ -108,7 +114,7 @@ impl PublicApi {
             reports.push(report);
         }
 
-        let report = ExecutionReport::sign(&reports, self.prover.prvkey())
+        let report = ExecutionReport::sign(SH256::default(), &reports, self.prover.prvkey())
             .ok_or(JsonrpcErrorObj::client("report not found".into()))?;
 
         let tx_hash = self
@@ -150,7 +156,7 @@ impl PublicApi {
         }
 
         let report = ExecutionReport {
-            block_hash,
+            batch_hash: block_hash,
             state_hash,
             prev_state_root,
             new_state_root: result.new_state_root,
@@ -159,21 +165,6 @@ impl PublicApi {
         };
 
         return Ok(report);
-    }
-
-    fn fetch_codes(&self, block_trace: &BlockTrace) -> Result<Vec<HexBytes>, JsonrpcErrorObj> {
-        let mut accs = BTreeMap::new();
-        for (acc, _) in &block_trace.storage_trace.proofs {
-            let addr: SH160 = acc.as_str().into();
-            accs.insert(addr, ());
-        }
-        let number = block_trace.header.number;
-        let acc_keys: Vec<_> = accs.into_keys().collect();
-        let codes = self
-            .l2_el
-            .get_codes(&acc_keys, (number - SU64::from(1)).into())
-            .map_err(|err| JsonrpcErrorObj::server("get codes failed", err))?;
-        Ok(codes)
     }
 }
 

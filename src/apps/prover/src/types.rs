@@ -2,7 +2,7 @@ use std::prelude::v1::*;
 
 use apps::getargs::{Opt, Options};
 use crypto::{Secp256k1PrivateKey, Secp256k1RecoverableSignature};
-use eth_types::{HexBytes, SH160, SH256};
+use eth_types::{HexBytes, SH160, SH256, SU256};
 use prover::Pob;
 use serde::{Deserialize, Serialize};
 use solidity::EncodeArg;
@@ -10,6 +10,7 @@ use solidity::EncodeArg;
 #[derive(Deserialize, Debug, Clone)]
 pub struct Config {
     pub verifier: verifier::Config,
+    pub scroll_chain: ScrollChain,
     pub server: ServerConfig,
     pub l2: String,
 
@@ -17,6 +18,14 @@ pub struct Config {
 }
 
 impl Config {}
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub struct ScrollChain {
+    pub contract: SH160,
+    pub endpoint: String,
+    pub wait_block: u64,
+    pub max_block: u64,
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ProveResult {
@@ -26,7 +35,7 @@ pub struct ProveResult {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ExecutionReport {
-    pub block_hash: SH256,
+    pub batch_hash: SH256,
     pub state_hash: SH256,
     pub prev_state_root: SH256,
     pub new_state_root: SH256,
@@ -36,6 +45,7 @@ pub struct ExecutionReport {
 
 impl ExecutionReport {
     pub fn sign(
+        batch_hash: SH256,
         reports: &[ExecutionReport],
         prvkey: &Secp256k1PrivateKey,
     ) -> Option<ExecutionReport> {
@@ -43,12 +53,6 @@ impl ExecutionReport {
             return None;
         }
 
-        let block_hash = crypto::keccak_encode(|hash| {
-            for report in reports {
-                hash(&report.block_hash.0);
-            }
-        })
-        .into();
         let state_hash = crypto::keccak_encode(|hash| {
             for report in reports {
                 hash(&report.state_hash.0);
@@ -59,7 +63,7 @@ impl ExecutionReport {
         let new_state_root = reports.last().unwrap().new_state_root;
         let withdrawal_root = reports.last().unwrap().withdrawal_root;
         let mut report = Self {
-            block_hash,
+            batch_hash,
             state_hash,
             prev_state_root,
             new_state_root,
@@ -76,7 +80,7 @@ impl ExecutionReport {
 impl Default for ExecutionReport {
     fn default() -> Self {
         Self {
-            block_hash: SH256::default(),
+            batch_hash: SH256::default(),
             state_hash: SH256::default(),
             prev_state_root: SH256::default(),
             new_state_root: SH256::default(),
@@ -89,7 +93,7 @@ impl Default for ExecutionReport {
 impl ExecutionReport {
     pub fn encode(&self) -> Vec<u8> {
         let mut encoder = solidity::Encoder::new("");
-        encoder.add(&self.block_hash);
+        encoder.add(&self.batch_hash);
         encoder.add(&self.state_hash);
         encoder.add(&self.prev_state_root);
         encoder.add(&self.new_state_root);

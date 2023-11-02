@@ -6,7 +6,7 @@ use base::{
     fs::parse_file,
     trace::Alive,
 };
-use eth_types::{BlockSelector, SH160};
+use eth_types::{BlockSelector, HexBytes, SH160};
 
 use crate::{Args, Config};
 
@@ -42,8 +42,23 @@ impl apps::App for App {
             parse_ether(&balance, 18)
         );
 
+        if !self.arg.get().insecure {
+            base::thread::spawn("vote monitor".into(), {
+                let verifier = verifier.clone();
+                let start = self.arg.get().start;
+                let private_key = cfg.private_key;
+                move || {
+                    verifier.subscribe_vote_request(start, &private_key);
+                }
+            });
+        }
+
         verifier
-            .subscribe_attestation_request(self.arg.get().start, &cfg.private_key, self.arg.get().insecure)
+            .subscribe_attestation_request(
+                self.arg.get().start,
+                &cfg.private_key,
+                self.arg.get().insecure,
+            )
             .unwrap();
         Ok(())
     }
