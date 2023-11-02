@@ -1,13 +1,16 @@
 use std::prelude::v1::*;
 
-use crate::{Args, Config, PublicApi};
+use crate::{Args, BatchCommiter, BatchTask, Config, ExecutionReport, PublicApi};
 use apps::{Getter, Var, VarMutex};
 use base::{format::debug, trace::Alive};
-use eth_client::ExecutionClient;
-use eth_types::SH160;
+use crypto::Secp256k1PrivateKey;
+use eth_client::{ExecutionClient, LogFilter, LogTrace};
+use eth_types::{HexBytes, SH160, SH256};
 use jsonrpc::{MixRpcClient, RpcServer};
-use prover::Prover;
+use prover::{Database, Pob, Prover};
+use scroll_types::BatchHeader;
 use std::sync::Arc;
+use std::time::Duration;
 
 #[derive(Default)]
 pub struct App {
@@ -44,6 +47,30 @@ impl apps::App for App {
             );
         }
 
+        let batch_commiter_thread = base::thread::spawn("batch commiter".into(), {
+            let alive = self.alive.clone();
+            let cfg = cfg.clone();
+            let prover = prover.clone();
+            let verifier = self.verifier.get(self);
+            let l2 = self.l2_el.get(self);
+            move || {
+                let commiter = BatchCommiter::new(&alive, cfg.scroll_chain.clone());
+                let receiver = commiter.run().unwrap();
+                for task in alive.recv_iter(&receiver, Duration::from_secs(1)) {
+                    glog::info!("task: {:?}", task);
+                    let result = Self::commit_batch(
+                        &alive,
+                        &l2,
+                        &prover,
+                        &cfg.relay_account,
+                        &verifier,
+                        task,
+                    );
+                    glog::info!("submit batch: {:?}", result);
+                }
+            }
+        });
+
         let handle = base::thread::spawn("jsonrpc-server".into(), {
             move || {
                 let mut srv = srv.lock().unwrap();
@@ -68,9 +95,9 @@ impl apps::App for App {
                                     let acc = prover.pubkey().to_raw_bytes();
                                     let quote =
                                         sgxlib_ra::dcap_generate_quote(acc).map_err(debug)?;
-                                    
+
                                     let data = serde_json::to_vec(&quote).map_err(debug)?;
-                                    return Ok(data)
+                                    return Ok(data);
                                 }
                             }
 
@@ -87,12 +114,75 @@ impl apps::App for App {
             prover_status_monitor.join().unwrap();
         }
         handle.join().unwrap();
+        batch_commiter_thread.join().unwrap();
 
         Ok(())
     }
 
     fn terminate(&self) {
         self.alive.shutdown()
+    }
+}
+
+impl App {
+    pub fn commit_batch(
+        alive: &Alive,
+        l2: &ExecutionClient,
+        prover: &Prover,
+        relay_acc: &Secp256k1PrivateKey,
+        verifier: &verifier::Client,
+        task: BatchTask,
+    ) -> Result<SH256, String> {
+        let mut reports = Vec::new();
+        for chunk in task.chunks {
+            for blk in chunk {
+                if !alive.is_alive() {
+                    return Err("Canceled".into());
+                }
+                let block_trace = l2.get_block_trace(blk.into()).map_err(debug)?;
+                let codes = prover.fetch_codes(&l2, &block_trace).map_err(debug)?;
+                let withdrawal_root = block_trace.withdraw_trie_root.unwrap_or_default();
+                let pob = prover.generate_pob(block_trace, codes);
+                reports.push(Self::execute_block(&prover, pob, &withdrawal_root)?);
+                glog::info!("executed block: {}", blk);
+            }
+        }
+        let poe = ExecutionReport::sign(task.batch_hash, &reports, prover.prvkey())
+            .ok_or(format!("fail to gen poe"))?;
+
+        verifier.commit_batch(relay_acc, &task.batch_id, &poe.encode())
+    }
+
+    fn execute_block(
+        prover: &Prover,
+        pob: Pob,
+        new_withdrawal_trie_root: &SH256,
+    ) -> Result<ExecutionReport, String> {
+        let block_num = pob.block.header.number.as_u64();
+        let state_hash = pob.state_hash();
+        let prev_state_root = pob.data.prev_state_root;
+        let new_state_root = pob.block.header.state_root;
+        let db = Database::new(102400);
+        let result = prover.execute_block(&db, pob).map_err(debug)?;
+        if new_state_root != result.new_state_root {
+            return Err(format!(
+                "state not match[{}]: local: {:?} -> remote: {:?}",
+                block_num, result.new_state_root, new_state_root,
+            ));
+        }
+        if new_withdrawal_trie_root != &result.withdrawal_root {
+            return Err(format!(
+                "withdrawal not match[{}]: local: {:?} -> remote: {:?}",
+                block_num, result.withdrawal_root, new_withdrawal_trie_root,
+            ));
+        }
+        Ok(ExecutionReport {
+            state_hash,
+            prev_state_root,
+            new_state_root: result.new_state_root,
+            withdrawal_root: result.withdrawal_root,
+            ..Default::default()
+        })
     }
 }
 

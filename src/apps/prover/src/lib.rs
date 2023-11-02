@@ -7,6 +7,8 @@ extern crate sgxlib as std;
 
 pub use apps;
 
+mod batch_commiter;
+pub use batch_commiter::*;
 mod app;
 pub use app::*;
 mod types;
