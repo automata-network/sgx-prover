@@ -58,6 +58,13 @@ impl apps::App for App {
                 let receiver = commiter.run().unwrap();
                 for task in alive.recv_iter(&receiver, Duration::from_secs(1)) {
                     glog::info!("task: {:?}", task);
+                    while !verifier.is_attested() {
+                        glog::info!("prover not attested, stall task: {:?}", task.batch_id);
+                        if !alive.sleep_ms(1000) {
+                            break;
+                        }
+                    }
+
                     let result = Self::commit_batch(
                         &alive,
                         &l2,

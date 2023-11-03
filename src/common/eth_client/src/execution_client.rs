@@ -2,10 +2,12 @@ use std::prelude::v1::*;
 
 use eth_types::{
     AccessListResult, BlockSelector, FetchState, HexBytes, Log, Receipt, StorageResult,
-    Transaction, TransactionInner, SH160, SH256, SU256, SU64,
+    TransactionInner, SH160, SH256, SU256, SU64,
 };
 use jsonrpc::{JsonrpcClient, MixRpcClient, RpcClient, RpcError};
-use scroll_types::{AccountResult, Block, BlockHeader, BlockSimple, BlockTrace, FetchStateResult};
+use scroll_types::{
+    AccountResult, Block, BlockHeader, BlockSimple, BlockTrace, FetchStateResult, Transaction,
+};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 #[derive(Debug, Clone)]
@@ -81,6 +83,10 @@ impl<C: RpcClient> ExecutionClient<C> {
 
     pub fn send_raw_transaction(&self, tx: &TransactionInner) -> Result<SH256, RpcError> {
         self.client.rpc("eth_sendRawTransaction", (tx,))
+    }
+
+    pub fn estimate_gas(&self, tx: &Transaction, block: BlockSelector) -> Result<SU256, RpcError> {
+        self.client.rpc("eth_estimateGas", (tx, block))
     }
 
     pub fn eth_call<T>(&self, call: EthCall, block: BlockSelector) -> Result<T, RpcError>

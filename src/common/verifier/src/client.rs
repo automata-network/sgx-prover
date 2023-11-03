@@ -7,8 +7,10 @@ use core::{
     time::Duration,
 };
 use crypto::{keccak_hash, Secp256k1PrivateKey};
-use eth_client::{EthCall, ExecutionClient, LogFilter};
-use eth_types::{BlockSelector, HexBytes, LegacyTx, TransactionInner, SH160, SH256, SU256};
+use eth_client::{EthCall, ExecutionClient, LogFilter, TxSender};
+use eth_types::{
+    BlockSelector, HexBytes, LegacyTx, Receipt, TransactionInner, SH160, SH256, SU256,
+};
 use jsonrpc::{MixRpcClient, RpcError};
 use serde::Deserialize;
 use solidity::{EncodeArg, Encoder};
@@ -23,8 +25,9 @@ pub struct Config {
 #[derive(Clone)]
 pub struct Client {
     alive: Alive,
-    chain_id: SU256,
+    chain_id: u64,
     el: ExecutionClient<Arc<MixRpcClient>>,
+    tx_sender: TxSender<Arc<MixRpcClient>>,
     to: SH160,
     attested: Arc<AtomicBool>,
 }
@@ -35,9 +38,11 @@ impl Client {
         mix.add_endpoint(alive, &[cfg.endpoint.clone()]).unwrap();
 
         let el = ExecutionClient::new(Arc::new(mix));
-        let chain_id = el.chain_id().unwrap().into();
+        let chain_id = el.chain_id().unwrap();
+        let tx_sender = TxSender::new(alive, chain_id, el.clone(), Duration::from_secs(120));
         Self {
             alive: alive.clone(),
+            tx_sender,
             chain_id,
             el,
             to: cfg.addr,
@@ -59,6 +64,8 @@ impl Client {
     {
         let prover = prover_key.public().eth_accountid().into();
         let mut attested_validity_secs;
+        let mut last_submit = None;
+        let submit_cooldown = Duration::from_secs(60);
         while self.alive.is_alive() {
             let attested_time = match self.prover_status(&prover) {
                 Ok(status) => status,
@@ -81,7 +88,22 @@ impl Client {
             let now = base::time::now().as_secs();
             let is_attesed = attested_time + attested_validity_secs > now;
             self.attested.store(is_attesed, Ordering::SeqCst);
-            if attested_time + attested_validity_secs / 2 < now {
+
+            let mut need_attestation = attested_time + attested_validity_secs / 2 < now;
+            if !need_attestation {
+                glog::info!("prover is attested...");
+                self.alive
+                    .sleep_ms(60.min(attested_validity_secs / 2) * 1000);
+                continue;
+            }
+
+            let need_attestation = if let Some(last_submit) = &last_submit {
+                Time::now() > *last_submit + submit_cooldown
+            } else {
+                true
+            };
+
+            if need_attestation {
                 glog::info!("getting prover attested...");
                 let report = match f() {
                     Ok(report) => report,
@@ -96,11 +118,10 @@ impl Client {
                     self.alive.sleep_ms(1000);
                     continue;
                 }
+                last_submit = Some(Time::now());
+                glog::info!("attestation report submitted");
             } else {
-                glog::info!("prover is attested...");
-                self.alive
-                    .sleep_ms(60.min(attested_validity_secs / 2) * 1000);
-                continue;
+                glog::info!("waiting attestor to approve");
             }
             self.alive.sleep_ms(5000);
         }
@@ -268,8 +289,8 @@ impl Client {
         let mut encoder = Encoder::new("challengeReport");
         encoder.add(attestor);
         encoder.add(report);
-        let result = self.send_tx(signer, encoder.encode()).map_err(debug)?;
-        self.wait_receipt(&result, Duration::from_secs(60))
+        let receipt = self
+            .send_tx("challenge_vote", signer, encoder.encode())
             .map_err(debug)?;
         Ok(())
     }
@@ -310,9 +331,7 @@ impl Client {
         encoder.add(&hash);
         encoder.add(&true);
 
-        let result = self.send_tx(signer, encoder.encode()).map_err(debug)?;
-        self.wait_receipt(&result, Duration::from_secs(60))
-            .map_err(debug)?;
+        let _ = self.send_tx("vote_attestation_report", signer, encoder.encode())?;
         Ok(())
     }
 
@@ -356,40 +375,23 @@ impl Client {
         Ok(val.as_u64())
     }
 
-    fn send_tx(&self, signer: &Secp256k1PrivateKey, data: Vec<u8>) -> Result<SH256, RpcError> {
-        let addr = signer.public().eth_accountid().into();
-        let nonce = self.el.nonce(&addr, BlockSelector::Latest)?;
-        let gas_price = self.el.gas_price()?;
-
-        let call: Result<serde_json::Value, RpcError> = self.el.eth_call(
-            EthCall {
-                to: self.to.clone(),
-                from: Some(addr),
-                gas: None,
-                gas_price: None,
-                data: data.clone().into(),
-            },
-            BlockSelector::Latest,
-        );
-        match call {
-            Ok(_) => {}
-            Err(err) => {
-                glog::info!("call: {:?}", err);
-                return Err(err);
-            }
-        }
-
-        let mut tx = TransactionInner::Legacy(LegacyTx {
-            nonce,
-            gas_price,
-            gas: 1000000.into(),
-            to: Some(self.to.clone()).into(),
-            data: data.into(),
-            ..Default::default()
-        });
-        tx.sign(signer, self.chain_id.as_u64());
-
-        self.el.send_raw_transaction(&tx)
+    fn send_tx(
+        &self,
+        tag: &str,
+        signer: &Secp256k1PrivateKey,
+        data: Vec<u8>,
+    ) -> Result<Receipt, String> {
+        let mut receipt = self
+            .tx_sender
+            .send(signer, Some(self.to), SU256::zero(), data.into())
+            .map_err(debug)?;
+        glog::info!("[{}]tx sent: {:?}", tag, receipt);
+        let result = receipt
+            .wait_finished(&self.alive, |this| {
+                glog::info!("[{}] tx updates: {:?}", tag, this.status);
+            })
+            .ok_or_else(|| format!("tx aborted"))?;
+        Ok(result)
     }
 
     pub fn submit_proof(
@@ -400,9 +402,8 @@ impl Client {
         let mut encoder = solidity::Encoder::new("submitProof");
         encoder.add(report);
 
-        let hash = self.send_tx(relay, encoder.encode()).map_err(debug)?;
-        self.wait_receipt(&hash, Duration::from_secs(60))?;
-        Ok(hash)
+        let receipt = self.send_tx("submitProof", relay, encoder.encode())?;
+        Ok(receipt.transaction_hash)
     }
 
     pub fn commit_batch(
@@ -415,9 +416,8 @@ impl Client {
         encoder.add(batch_id);
         encoder.add(report);
 
-        let hash = self.send_tx(relay, encoder.encode()).map_err(debug)?;
-        self.wait_receipt(&hash, Duration::from_secs(60))?;
-        Ok(hash)
+        let receipt = self.send_tx("commit_batch", relay, encoder.encode())?;
+        Ok(receipt.transaction_hash)
     }
 
     pub fn verify_report_on_chain(&self, report: &[u8]) -> Result<bool, RpcError> {
@@ -438,37 +438,12 @@ impl Client {
         relay: &Secp256k1PrivateKey,
         prover: &SH160,
         report: &[u8],
-    ) -> Result<(), String> {
+    ) -> Result<SH256, String> {
         let mut encoder = solidity::Encoder::new("submitAttestationReport");
         encoder.add(prover);
         encoder.add(report);
         let data = encoder.encode();
-        let result = self.send_tx(relay, data).map_err(debug)?;
-        self.wait_receipt(&result, Duration::from_secs(60))?;
-        Ok(())
-    }
-
-    pub fn wait_receipt(&self, hash: &SH256, timeout: Duration) -> Result<(), String> {
-        let alive = self.alive.fork_with_timeout(timeout);
-        while alive.is_alive() {
-            match self.el.get_receipt(&hash) {
-                Ok(Some(receipt)) => {
-                    glog::info!("got receipt({:?}): {:?}", hash, receipt);
-                    return Ok(());
-                }
-                Ok(None) => {
-                    glog::info!(
-                        "waiting receipt({:?}): unconfirmed, retry in 1 secs, total: {:?}",
-                        hash,
-                        alive.deadline().map(|t| t.checked_sub_time(&Time::now()))
-                    );
-                }
-                Err(err) => {
-                    glog::info!("waiting receipt({:?}): {:?}, retry in 1 secs", hash, err);
-                }
-            }
-            alive.sleep_ms(1000);
-        }
-        Err(format!("waiting receipt({:?}) failed: timeout", hash))
+        let receipt = self.send_tx("submit_attestation_report", relay, data)?;
+        Ok(receipt.transaction_hash)
     }
 }

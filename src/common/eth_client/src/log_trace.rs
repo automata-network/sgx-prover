@@ -22,7 +22,13 @@ impl<C: RpcClient> LogTrace<C> {
         }
     }
 
-    pub fn subscribe<F>(&self, tag: &str, mut start: u64, mut filter: LogFilter, f: F) -> Result<(), RpcError>
+    pub fn subscribe<F>(
+        &self,
+        tag: &str,
+        mut start: u64,
+        mut filter: LogFilter,
+        f: F,
+    ) -> Result<(), RpcError>
     where
         F: Fn(Vec<Log>) -> Result<(), String>,
     {
@@ -30,7 +36,8 @@ impl<C: RpcClient> LogTrace<C> {
 
         if start > head || start == 0 {
             glog::warn!(
-                "incorrect start offset={}, head={}, reset to head",
+                "[{}]incorrect start offset={}, head={}, reset to head",
+                tag,
                 start,
                 head
             );
