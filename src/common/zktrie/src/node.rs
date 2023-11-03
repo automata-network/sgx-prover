@@ -1,6 +1,6 @@
 use std::prelude::v1::*;
 
-use eth_types::{SU256, SH256};
+use eth_types::SU256;
 use std::sync::Arc;
 
 use crate::{

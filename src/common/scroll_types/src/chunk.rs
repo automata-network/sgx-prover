@@ -2,10 +2,8 @@ use std::prelude::v1::*;
 
 use eth_types::SH256;
 
-use crate::{BlockHeader, TraceTx};
-
 pub fn decode_block_numbers(mut data: &[u8]) -> Option<Vec<u64>> {
-    if data.len() < 0 {
+    if data.len() < 1 {
         return None;
     }
     let num_blocks = data[0] as usize;

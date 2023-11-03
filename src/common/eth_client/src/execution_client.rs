@@ -307,7 +307,7 @@ impl<C: RpcClient> ExecutionClient<C> {
         self.client.rpc("eth_getTransactionReceipt", (hash,))
     }
 
-    pub fn get_receipts(&self, hashes: &[SH256]) -> Result<Vec<Receipt>, RpcError> {
+    pub fn get_receipts(&self, hashes: &[SH256]) -> Result<Vec<Option<Receipt>>, RpcError> {
         let hashes = hashes.iter().map(|n| [n]).collect::<Vec<_>>();
         self.client.batch_rpc("eth_getTransactionReceipt", &hashes)
     }

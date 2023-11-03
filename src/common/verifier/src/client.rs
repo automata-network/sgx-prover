@@ -8,9 +8,7 @@ use core::{
 };
 use crypto::{keccak_hash, Secp256k1PrivateKey};
 use eth_client::{EthCall, ExecutionClient, LogFilter, TxSender};
-use eth_types::{
-    BlockSelector, HexBytes, LegacyTx, Receipt, TransactionInner, SH160, SH256, SU256,
-};
+use eth_types::{BlockSelector, HexBytes, Receipt, SH160, SH256, SU256};
 use jsonrpc::{MixRpcClient, RpcError};
 use serde::Deserialize;
 use solidity::{EncodeArg, Encoder};
@@ -25,7 +23,6 @@ pub struct Config {
 #[derive(Clone)]
 pub struct Client {
     alive: Alive,
-    chain_id: u64,
     el: ExecutionClient<Arc<MixRpcClient>>,
     tx_sender: TxSender<Arc<MixRpcClient>>,
     to: SH160,
@@ -39,11 +36,10 @@ impl Client {
 
         let el = ExecutionClient::new(Arc::new(mix));
         let chain_id = el.chain_id().unwrap();
-        let tx_sender = TxSender::new(alive, chain_id, el.clone(), Duration::from_secs(120));
+        let tx_sender = TxSender::new(alive, chain_id, el.clone(), Duration::from_secs(45));
         Self {
             alive: alive.clone(),
             tx_sender,
-            chain_id,
             el,
             to: cfg.addr,
             attested: Arc::new(AtomicBool::new(false)),
@@ -89,7 +85,7 @@ impl Client {
             let is_attesed = attested_time + attested_validity_secs > now;
             self.attested.store(is_attesed, Ordering::SeqCst);
 
-            let mut need_attestation = attested_time + attested_validity_secs / 2 < now;
+            let need_attestation = attested_time + attested_validity_secs / 2 < now;
             if !need_attestation {
                 glog::info!("prover is attested...");
                 self.alive
@@ -271,7 +267,7 @@ impl Client {
                     if let Err(err) =
                         client.validate_and_vote_report(signer, prover, report, insecure)
                     {
-                        glog::error!("validate fail: {}", err);
+                        glog::error!("validate fail: {}, don't vote", err);
                     }
                 }
                 Ok(())
@@ -289,25 +285,25 @@ impl Client {
         let mut encoder = Encoder::new("challengeReport");
         encoder.add(attestor);
         encoder.add(report);
-        let receipt = self
+        let _ = self
             .send_tx("challenge_vote", signer, encoder.encode())
             .map_err(debug)?;
         Ok(())
     }
 
-    fn verify_quote(&self, prover: &SH160, report: &[u8]) -> Result<(), String> {
+    fn verify_quote(&self, _prover: &SH160, _report: &[u8]) -> Result<(), String> {
         #[cfg(feature = "sgx")]
         {
             use crypto::Secp256k1PublicKey;
-            let quote: sgxlib_ra::SgxQuote = serde_json::from_slice(report).map_err(debug)?;
+            let quote: sgxlib_ra::SgxQuote = serde_json::from_slice(_report).map_err(debug)?;
             sgxlib_ra::RaFfi::dcap_verify_quote(&quote)?;
             let report_data = quote.get_report_body().report_data;
             let mut pubkey = Secp256k1PublicKey::from_raw_bytes(&report_data.d);
             let report_prover_key: SH160 = pubkey.eth_accountid().into();
-            if &report_prover_key != prover {
+            if &report_prover_key != _prover {
                 return Err(format!(
                     "prover account not match: want={:?}, got={:?}",
-                    prover, report_prover_key
+                    _prover, report_prover_key
                 ));
             }
         }

@@ -5,10 +5,10 @@ use std::prelude::v1::*;
 use base::time::Time;
 use base::trace::Alive;
 use crypto::Secp256k1PrivateKey;
-use eth_types::{BlockSelector, HexBytes, Receipt, TransactionInner, SH256, SU64};
+use eth_types::{BlockSelector, HexBytes, Receipt, TransactionInner, SH256};
 use eth_types::{LegacyTx, SH160, SU256};
 use jsonrpc::{RpcClient, RpcError};
-use scroll_types::{Signer, Transaction};
+use scroll_types::Transaction;
 use std::collections::btree_map::Entry;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
@@ -147,7 +147,7 @@ impl<C: RpcClient + Clone + Send + 'static> TxSender<C> {
             &sender,
             nonce.nonce,
             gas_price,
-            gas_limit,
+            gas_limit.clone(),
         ))?;
 
         let (status_sender, status_receiver) = mpsc::sync_channel(1);
@@ -165,6 +165,8 @@ impl<C: RpcClient + Clone + Send + 'static> TxSender<C> {
                 sender: status_sender,
                 send_time: Time::now(),
                 last_check: Time::now(),
+                tx_hashes: vec![],
+                gas_limit,
             },
         );
         nonce.commit();
@@ -221,7 +223,17 @@ impl<C: RpcClient + Clone + Send + 'static> TxSender<C> {
         senders.keys().cloned().collect()
     }
 
-    pub fn run(&self) {
+    fn get_any_receipt(&self, hashes: &[SH256]) -> Result<Option<Receipt>, RpcError> {
+        for hash in hashes {
+            match self.el.get_receipt(hash)? {
+                Some(receipt) => return Ok(Some(receipt)),
+                None => continue,
+            }
+        }
+        return Ok(None);
+    }
+
+    fn run(&self) {
         self.started.store(true, Ordering::SeqCst);
         'nextLoop: while self.alive.is_alive() {
             self.alive.sleep_ms(1000);
@@ -232,7 +244,7 @@ impl<C: RpcClient + Clone + Send + 'static> TxSender<C> {
 
             'nextSender: for acc in senders {
                 let mut start_seq = 0;
-                'nextTx: loop {
+                'nextTx: while self.alive.is_alive() {
                     let (seq, tx) = match self.peek_tx(&acc, start_seq) {
                         Some(tx) => tx,
                         None => continue 'nextSender,
@@ -241,16 +253,20 @@ impl<C: RpcClient + Clone + Send + 'static> TxSender<C> {
                     updated = true;
 
                     match tx.status {
-                        MempoolTxStatus::Sent((hash, err)) => {
+                        MempoolTxStatus::Sent((hash, _)) => {
                             if Time::now() < tx.last_check + sec {
-                                continue;
+                                continue 'nextTx;
                             }
                             glog::info!(
                                 "checking tx receipt: {:?}, live_time: {:?}",
                                 hash,
                                 Time::now().checked_sub_time(&tx.send_time)
                             );
-                            let result = self.el.get_receipt(&hash);
+                            let mut hashes = vec![];
+                            hashes.extend_from_slice(&tx.tx_hashes);
+                            hashes.push(hash);
+
+                            let result = self.get_any_receipt(&hashes);
                             self.mut_tx(&acc, seq, |tx| tx.last_check = Time::now());
 
                             match result {
@@ -291,21 +307,27 @@ impl<C: RpcClient + Clone + Send + 'static> TxSender<C> {
                                                     hash,
                                                     err
                                                 );
-                                                let _ = tx
-                                                    .sender
-                                                    .send(TxReceiptStatus::Sent((hash, Some(err))));
-                                                continue 'nextSender;
+                                                tx.gas_limit
                                             }
                                         };
 
-                                        let tx_inner = tx
-                                            .tx
-                                            .to_legacy(&sender, tx.nonce, gas_price, gas_limit);
+                                        let tx_inner = tx.tx.to_legacy(
+                                            &sender,
+                                            tx.nonce,
+                                            gas_price,
+                                            gas_limit.clone(),
+                                        );
                                         match self.el.send_raw_transaction(&tx_inner) {
-                                            Ok(hash) => {
+                                            Ok(new_hash) => {
+                                                self.mut_tx(&acc, seq, |tx| {
+                                                    tx.gas_limit = gas_limit;
+                                                    tx.status =
+                                                        MempoolTxStatus::Sent((new_hash, None));
+                                                    tx.tx_hashes.push(hash); // save the old hash;
+                                                });
                                                 let _ = tx
                                                     .sender
-                                                    .send(TxReceiptStatus::Sent((hash, None)));
+                                                    .send(TxReceiptStatus::Sent((new_hash, None)));
                                             }
                                             Err(err) => {
                                                 let _ = tx
@@ -327,7 +349,7 @@ impl<C: RpcClient + Clone + Send + 'static> TxSender<C> {
                                 }
                             };
                         }
-                        MempoolTxStatus::Confirmed(receipt) => {
+                        MempoolTxStatus::Confirmed(_) => {
                             self.remove_tx_notify(&acc, seq, TxReceiptStatus::Finished);
                         }
                     }
@@ -356,7 +378,9 @@ struct MempoolTx {
     sender: mpsc::SyncSender<TxReceiptStatus>,
     status: MempoolTxStatus,
     send_time: Time,
+    gas_limit: SU256,
     last_check: Time,
+    tx_hashes: Vec<SH256>,
 }
 
 #[derive(Clone, Debug)]
@@ -448,6 +472,7 @@ struct InternalNonceManager {
 }
 
 impl InternalNonceManager {
+    #[allow(dead_code)]
     pub(self) fn new(committed: u64, staging: u64, failed: Vec<u64>) -> InternalNonceManager {
         let mut failed_set = BTreeSet::new();
         for item in failed {
@@ -478,6 +503,7 @@ impl NonceManager {
         guard.failed = BTreeSet::new();
     }
 
+    #[allow(dead_code)]
     pub(self) fn internal(&self) -> InternalNonceManager {
         let guard = self.0.lock().unwrap();
         (*guard).clone()

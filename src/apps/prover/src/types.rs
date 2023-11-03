@@ -2,7 +2,7 @@ use std::prelude::v1::*;
 
 use apps::getargs::{Opt, Options};
 use crypto::{Secp256k1PrivateKey, Secp256k1RecoverableSignature};
-use eth_types::{HexBytes, SH160, SH256, SU256};
+use eth_types::{HexBytes, SH160, SH256};
 use prover::Pob;
 use serde::{Deserialize, Serialize};
 use solidity::EncodeArg;

@@ -6,11 +6,9 @@ use apps::Getter;
 use base::trace::Alive;
 use crypto::Secp256k1PrivateKey;
 use eth_client::ExecutionClient;
-use eth_types::{HexBytes, SH160, SH256, SU64};
+use eth_types::{SH256, SU64};
 use jsonrpc::{JsonrpcErrorObj, RpcArgs, RpcServer, RpcServerConfig};
 use prover::{Database, Prover};
-use scroll_types::BlockTrace;
-use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use crate::{App, ExecutionReport, ProveParams, ProveResult};

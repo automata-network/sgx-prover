@@ -5,7 +5,6 @@ use eth_client::LogFilter;
 use eth_client::{ExecutionClient, LogTrace};
 use eth_types::{SH256, SU256};
 use jsonrpc::MixRpcClient;
-use jsonrpc::RpcClient;
 use scroll_types::{decode_block_numbers, BatchHeader};
 use std::sync::{mpsc, Arc};
 
@@ -79,7 +78,7 @@ impl BatchCommiter {
                         });
                     }
                     Ok(())
-                });
+                }).unwrap();
             }
         });
         Ok(receiver)

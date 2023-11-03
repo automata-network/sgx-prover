@@ -4,11 +4,10 @@ use crate::{Args, BatchCommiter, BatchTask, Config, ExecutionReport, PublicApi};
 use apps::{Getter, Var, VarMutex};
 use base::{format::debug, trace::Alive};
 use crypto::Secp256k1PrivateKey;
-use eth_client::{ExecutionClient, LogFilter, LogTrace};
-use eth_types::{HexBytes, SH160, SH256};
+use eth_client::ExecutionClient;
+use eth_types::{SH160, SH256};
 use jsonrpc::{MixRpcClient, RpcServer};
 use prover::{Database, Pob, Prover};
-use scroll_types::BatchHeader;
 use std::sync::Arc;
 use std::time::Duration;
 
