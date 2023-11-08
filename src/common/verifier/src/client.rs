@@ -61,7 +61,7 @@ impl Client {
         let prover = prover_key.public().eth_accountid().into();
         let mut attested_validity_secs;
         let mut last_submit = None;
-        let submit_cooldown = Duration::from_secs(60);
+        let submit_cooldown = Duration::from_secs(180);
         while self.alive.is_alive() {
             let attested_time = match self.prover_status(&prover) {
                 Ok(status) => status,
