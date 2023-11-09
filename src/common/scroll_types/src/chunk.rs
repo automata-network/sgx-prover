@@ -1,5 +1,6 @@
 use std::prelude::v1::*;
 
+use crypto::keccak_hash;
 use eth_types::SH256;
 
 pub fn decode_block_numbers(mut data: &[u8]) -> Option<Vec<u64>> {
@@ -22,7 +23,7 @@ pub fn decode_block_numbers(mut data: &[u8]) -> Option<Vec<u64>> {
     Some(numbers)
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BatchHeader {
     pub version: u8,
     pub batch_index: u64,
@@ -34,6 +35,22 @@ pub struct BatchHeader {
 }
 
 impl BatchHeader {
+    pub fn hash(&self) -> SH256 {
+        keccak_hash(&self.encode()).into()
+    }
+
+    pub fn encode(&self) -> Vec<u8> {
+        let mut batch_bytes = Vec::with_capacity(89 + self.skipped_l1_message_bitmap.len());
+        batch_bytes.push(self.version);
+        batch_bytes.extend_from_slice(&self.batch_index.to_be_bytes());
+        batch_bytes.extend_from_slice(&self.l1_message_popped.to_be_bytes());
+        batch_bytes.extend_from_slice(&self.total_l1_message_popped.to_be_bytes());
+        batch_bytes.extend_from_slice(self.data_hash.as_bytes());
+        batch_bytes.extend_from_slice(self.parent_batch_hash.as_bytes());
+        batch_bytes.extend_from_slice(&self.skipped_l1_message_bitmap);
+        batch_bytes
+    }
+
     pub fn from_bytes(data: &[u8]) -> Self {
         let version = data[0];
         let mut tmp = [0_u8; 8];

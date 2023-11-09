@@ -1,11 +1,7 @@
 use std::prelude::v1::*;
 
-use base::time::Time;
 use base::{format::debug, trace::Alive};
-use core::{
-    sync::atomic::{AtomicBool, Ordering},
-    time::Duration,
-};
+use core::time::Duration;
 use crypto::{keccak_hash, Secp256k1PrivateKey};
 use eth_client::{EthCall, ExecutionClient, LogFilter, TxSender};
 use eth_types::{BlockSelector, HexBytes, Receipt, SH160, SH256, SU256};
@@ -26,7 +22,6 @@ pub struct Client {
     el: ExecutionClient<Arc<MixRpcClient>>,
     tx_sender: TxSender<Arc<MixRpcClient>>,
     to: SH160,
-    attested: Arc<AtomicBool>,
 }
 
 impl Client {
@@ -42,89 +37,11 @@ impl Client {
             tx_sender,
             el,
             to: cfg.addr,
-            attested: Arc::new(AtomicBool::new(false)),
         }
     }
 
     pub fn el(&self) -> ExecutionClient<Arc<MixRpcClient>> {
         self.el.clone()
-    }
-
-    pub fn monitor_attested<F>(
-        &self,
-        signer: &Secp256k1PrivateKey,
-        prover_key: &Secp256k1PrivateKey,
-        f: F,
-    ) where
-        F: Fn() -> Result<Vec<u8>, String>,
-    {
-        let prover = prover_key.public().eth_accountid().into();
-        let mut attested_validity_secs;
-        let mut last_submit = None;
-        let submit_cooldown = Duration::from_secs(180);
-        while self.alive.is_alive() {
-            let attested_time = match self.prover_status(&prover) {
-                Ok(status) => status,
-                Err(err) => {
-                    glog::error!("getting prover status fail: {:?}", err);
-                    self.alive.sleep_ms(1000);
-                    continue;
-                }
-            };
-
-            attested_validity_secs = match self.attest_validity_seconds() {
-                Ok(secs) => secs,
-                Err(err) => {
-                    glog::error!("getting attest_validity_seconds fail: {:?}", err);
-                    self.alive.sleep_ms(1000);
-                    continue;
-                }
-            };
-
-            let now = base::time::now().as_secs();
-            let is_attesed = attested_time + attested_validity_secs > now;
-            self.attested.store(is_attesed, Ordering::SeqCst);
-
-            let need_attestation = attested_time + attested_validity_secs / 2 < now;
-            if !need_attestation {
-                glog::info!("prover is attested...");
-                self.alive
-                    .sleep_ms(60.min(attested_validity_secs / 2) * 1000);
-                continue;
-            }
-
-            let need_attestation = if let Some(last_submit) = &last_submit {
-                Time::now() > *last_submit + submit_cooldown
-            } else {
-                true
-            };
-
-            if need_attestation {
-                glog::info!("getting prover attested...");
-                let report = match f() {
-                    Ok(report) => report,
-                    Err(err) => {
-                        glog::info!("generate report fail: {}", err);
-                        self.alive.sleep_ms(1000);
-                        continue;
-                    }
-                };
-                if let Err(err) = self.submit_attestation_report(signer, &prover, &report) {
-                    glog::info!("submit attestation report fail: {:?}", err);
-                    self.alive.sleep_ms(1000);
-                    continue;
-                }
-                last_submit = Some(Time::now());
-                glog::info!("attestation report submitted");
-            } else {
-                glog::info!("waiting attestor to approve");
-            }
-            self.alive.sleep_ms(5000);
-        }
-    }
-
-    pub fn is_attested(&self) -> bool {
-        self.attested.load(Ordering::SeqCst)
     }
 
     pub fn fetch_report(&self, report_hash: &SH256) -> Result<Option<Vec<u8>>, RpcError> {

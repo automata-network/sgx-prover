@@ -36,7 +36,7 @@ impl<C: RpcClient> LogTrace<C> {
 
         if start > head || start == 0 {
             glog::warn!(
-                "[{}]incorrect start offset={}, head={}, reset to head",
+                "[{}] incorrect start offset={}, head={}, reset to head",
                 tag,
                 start,
                 head

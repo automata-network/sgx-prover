@@ -1,11 +1,11 @@
 use std::prelude::v1::*;
 
-use eth_types::{HexBytes, SH160, SH256, SU256};
+use eth_types::{HexBytes, LegacyTx, SH160, SH256, SU256};
 use rlp_derive::{RlpDecodable, RlpEncodable};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-use crate::{BlockHeader, Transaction, L1_MESSAGE_TX_TYPE};
+use crate::{BlockHeader, Transaction, TransactionInner, L1_MESSAGE_TX_TYPE};
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -24,6 +24,31 @@ pub struct BlockTrace {
     #[serde(rename = "withdraw_trie_root")]
     pub withdraw_trie_root: Option<SH256>,
     pub start_l1_queue_index: u64,
+}
+
+impl BlockTrace {
+    pub fn num_l1_msg(&self, total_l1_msg_poped_before: u64) -> u64 {
+        let mut last_queue_index = None;
+        for tx in &self.transactions {
+            if tx.is_l1_msg() {
+                last_queue_index = Some(tx.nonce);
+            }
+        }
+        match last_queue_index {
+            Some(last_queue_index) => last_queue_index - total_l1_msg_poped_before + 1,
+            None => 0,
+        }
+    }
+
+    pub fn num_l2_txs(&self) -> u64 {
+        let mut count = 0;
+        for tx in &self.transactions {
+            if !tx.is_l1_msg() {
+                count += 1;
+            }
+        }
+        return count;
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -90,7 +115,6 @@ pub struct ExecutionResult {
     pub poseidon_code_hash: Option<SH256>,
     // If it is a contract call, the contract code is returned.
     pub byte_code: HexBytes,
-
     // we don't need it for now
     // pub struct_logs: Vec<StructLogRes>,
 }
@@ -153,7 +177,7 @@ pub struct ExtraData {
 pub struct TraceTx {
     pub r#type: u8,
     pub nonce: u64,
-    pub tx_hash: String,
+    pub tx_hash: SH256,
     pub gas: u64,
     pub gas_price: SU256,
     pub from: SH160,
@@ -168,6 +192,10 @@ pub struct TraceTx {
 }
 
 impl TraceTx {
+    pub fn is_l1_msg(&self) -> bool {
+        self.r#type == L1_MESSAGE_TX_TYPE
+    }
+
     pub fn to_tx(&self) -> Transaction {
         let mut tx = Transaction::default();
         tx.r#type = (self.r#type as u64).into();
@@ -187,5 +215,20 @@ impl TraceTx {
             tx.sender = Some(self.from);
         }
         tx
+    }
+
+    pub fn to_rlp_encoding(&self) -> Vec<u8> {
+        let tx = TransactionInner::Legacy(LegacyTx {
+            nonce: self.nonce.into(),
+            to: self.to.into(),
+            value: self.value,
+            gas: self.gas.into(),
+            gas_price: self.gas_price,
+            data: self.data.clone(),
+            v: self.v,
+            r: self.r,
+            s: self.s,
+        });
+        tx.to_bytes()
     }
 }

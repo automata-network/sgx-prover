@@ -17,13 +17,13 @@ contract SGXVerifier {
     mapping(address => uint256) public attestedProvers; // prover's pubkey => attestedTime
     mapping(bytes32 => BatchInfo) public batches;
 
-    uint256 public attestValiditySeconds = 600;
-    bytes32 public currentStateRoot;
-    bytes32 public currentWithdrawalRoot;
+    uint256 public attestValiditySeconds = 3600;
 
     IAttestation public immutable dcapAttestation;
+    uint256 public immutable layer2ChainId;
 
     struct BatchInfo {
+        uint256 batchIndex;
         bytes32 newStateRoot;
         bytes32 prevStateRoot;
         bytes32 withdrawalRoot;
@@ -48,9 +48,10 @@ contract SGXVerifier {
         _;
     }
     
-    constructor(address attestationAddr) {
+    constructor(address attestationAddr, uint256 _chainId) {
         owner = msg.sender;
         dcapAttestation = IAttestation(attestationAddr);
+        layer2ChainId = _chainId;
     }
     
     function changeOwner(address _newOwner) public onlyOwner {
@@ -146,30 +147,16 @@ contract SGXVerifier {
     function commitBatch(uint256 batchId, bytes memory poe) public {
         (bytes32 batchHash, bytes32 stateHash, bytes32 prevStateRoot, bytes32 newStateRoot, bytes32 withdrawalRoot, bytes memory sig) = abi.decode(poe, (bytes32, bytes32, bytes32, bytes32, bytes32, bytes));
         (bytes32 r, bytes32 s, uint8 v) = splitSignature(sig);
-        bytes32 msgHash = keccak256(abi.encode(batchHash, stateHash, prevStateRoot, newStateRoot, withdrawalRoot, new bytes(65)));
+        bytes32 msgHash = keccak256(abi.encode(layer2ChainId, batchHash, stateHash, prevStateRoot, newStateRoot, withdrawalRoot, new bytes(65)));
         address signer = ecrecover(msgHash, v, r, s);
         require(signer != address(0), "ECDSA: invalid signature");
         require(attestedProvers[signer] + attestValiditySeconds > block.timestamp, "Prover not attested");
         require(batches[batchHash].newStateRoot == bytes32(0), "batch already commit");
+        batches[batchHash].batchIndex = batchId;
         batches[batchHash].newStateRoot = newStateRoot;
         batches[batchHash].prevStateRoot = prevStateRoot;
         batches[batchHash].withdrawalRoot = withdrawalRoot;
         emit CommitBatch(batchId, batchHash);
-    }
-
-    function submitProof(bytes memory report) public {
-        (bytes32 blockHash, bytes32 stateHash, bytes32 prevStateRoot, bytes32 newStateRoot, bytes32 withdrawalRoot, bytes memory sig) = abi.decode(report, (bytes32, bytes32, bytes32, bytes32, bytes32, bytes));
-        (bytes32 r, bytes32 s, uint8 v) = splitSignature(sig);
-
-        require(prevStateRoot == currentStateRoot || currentStateRoot == bytes32(0), "prevStateRoot not match");
-
-        bytes32 msgHash = keccak256(abi.encode(blockHash, stateHash, prevStateRoot, newStateRoot, withdrawalRoot, new bytes(65)));
-        address signer = ecrecover(msgHash, v, r, s);
-        require(signer != address(0), "ECDSA: invalid signature");
-        
-        require(attestedProvers[signer] + attestValiditySeconds > block.timestamp, "Prover not attested");
-        currentStateRoot = newStateRoot;
-        currentWithdrawalRoot = withdrawalRoot;
     }
 
     function splitSignature(bytes memory sig) internal pure returns (bytes32 r, bytes32 s, uint8 v) {

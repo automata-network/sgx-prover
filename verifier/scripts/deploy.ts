@@ -3,6 +3,12 @@ import { EnclaveIdStruct, TCBInfoStruct } from "../typechain-types/contracts/Aut
 import fs from 'fs';
 
 async function main() {
+  let chainId = process.env['CHAIN_ID'];
+  if (!chainId) {
+    throw "should provide CHAIN_ID";
+  }
+
+
   const sigVerifyLib = await ethers.deployContract("SigVerifyLib", [], {});
   await sigVerifyLib.waitForDeployment();
   const sigVerifyLibAddr = await sigVerifyLib.getAddress();
@@ -25,11 +31,13 @@ async function main() {
   }
 
 
-  const verifier = await ethers.deployContract("SGXVerifier", [attestationAddr], {
+  const verifier = await ethers.deployContract("SGXVerifier", [attestationAddr, parseInt(chainId)], {
     // value: lockedAmount,
   });
 
   let result = await verifier.waitForDeployment();
+  let chainID = await verifier.layer2ChainId();
+  console.log(`chainID: ${chainID}`);
   let contractAddress = await result.getAddress();
 
   console.log(`verifier address: ${contractAddress}`);

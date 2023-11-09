@@ -6,12 +6,13 @@ use apps::Getter;
 use base::trace::Alive;
 use crypto::Secp256k1PrivateKey;
 use eth_client::ExecutionClient;
-use eth_types::{SH256, SU64};
+use eth_types::{SU64, SH256};
 use jsonrpc::{JsonrpcErrorObj, RpcArgs, RpcServer, RpcServerConfig};
 use prover::{Database, Prover};
+use scroll_types::Poe;
 use std::sync::Arc;
 
-use crate::{App, ExecutionReport, ProveParams, ProveResult};
+use crate::{App, ProveParams};
 
 pub struct PublicApi {
     pub alive: Alive,
@@ -38,7 +39,7 @@ impl PublicApi {
     }
 
     // validate a block and generate a execution report
-    fn report(&self, arg: RpcArgs<(SU64,)>) -> Result<ExecutionReport, JsonrpcErrorObj> {
+    fn report(&self, arg: RpcArgs<(SU64,)>) -> Result<Poe, JsonrpcErrorObj> {
         let block_trace = self
             .l2_el
             .get_block_trace(arg.params.0.into())
@@ -60,70 +61,14 @@ impl PublicApi {
 
         let result = self.prove(arg.map(|_| (params,)))?;
 
-        let report = ExecutionReport::sign(SH256::default(), &[result], self.prover.prvkey())
+        let poe = self
+            .prover
+            .sign_poe(SH256::default(), &[result])
             .ok_or(JsonrpcErrorObj::client("report not found".into()))?;
-        Ok(report)
+        Ok(poe)
     }
 
-    fn prove_and_submit(&self, arg: RpcArgs<(SU64, SU64)>) -> Result<ProveResult, JsonrpcErrorObj> {
-        if self.insecure {
-            return Err(JsonrpcErrorObj::client(
-                "not supported when insecure mode is enabled".into(),
-            ));
-        }
-
-        let (start_blk, end_blk) = arg.params;
-        if !self.verifier.is_attested() {
-            return Err(JsonrpcErrorObj::client("prover not attested".into()));
-        }
-
-        let mut current_state = self
-            .verifier
-            .current_state()
-            .map_err(JsonrpcErrorObj::unknown)?;
-
-        let mut reports = Vec::new();
-        for blk_num in start_blk.as_u64()..=end_blk.as_u64() {
-            let block_trace = self
-                .l2_el
-                .get_block_trace(blk_num.into())
-                .map_err(JsonrpcErrorObj::unknown)?;
-            let extra_codes = self
-                .prover
-                .fetch_codes(&self.l2_el, &block_trace)
-                .map_err(|err| JsonrpcErrorObj::server("fetch code fail", err))?;
-            let withdrawal_root = block_trace.withdraw_trie_root.unwrap_or_default();
-            let new_state_root = block_trace.storage_trace.root_after;
-            let old_state_root = block_trace.storage_trace.root_before;
-            if !current_state.is_zero() && current_state != old_state_root {
-                return Err(JsonrpcErrorObj::client(format!(
-                    "current_state_root({:?}) mismatch {:?}",
-                    current_state, old_state_root,
-                )));
-            }
-            let pob = self.prover.generate_pob(block_trace, extra_codes);
-            let prove_params = ProveParams {
-                pob,
-                withdrawal_root,
-                new_state_root,
-            };
-            let report = self.prove(arg.map(|_| (prove_params,)))?;
-            current_state = report.new_state_root;
-            reports.push(report);
-        }
-
-        let report = ExecutionReport::sign(SH256::default(), &reports, self.prover.prvkey())
-            .ok_or(JsonrpcErrorObj::client("report not found".into()))?;
-
-        let tx_hash = self
-            .verifier
-            .submit_proof(&self.relay, &report.encode())
-            .map_err(JsonrpcErrorObj::unknown)?;
-
-        Ok(ProveResult { report, tx_hash })
-    }
-
-    fn prove(&self, arg: RpcArgs<(ProveParams,)>) -> Result<ExecutionReport, JsonrpcErrorObj> {
+    fn prove(&self, arg: RpcArgs<(ProveParams,)>) -> Result<Poe, JsonrpcErrorObj> {
         let params = arg.params.0;
         let pob = params.pob;
         let new_withdrawal_trie_root = params.withdrawal_root;
@@ -153,7 +98,7 @@ impl PublicApi {
             )));
         }
 
-        let report = ExecutionReport {
+        let poe = Poe {
             batch_hash: block_hash,
             state_hash,
             prev_state_root,
@@ -162,7 +107,7 @@ impl PublicApi {
             ..Default::default()
         };
 
-        return Ok(report);
+        return Ok(poe);
     }
 }
 
@@ -200,7 +145,6 @@ impl Getter<RpcServer<PublicApi>> for App {
         srv.jsonrpc("prove", PublicApi::prove);
         srv.jsonrpc("report", PublicApi::report);
         srv.jsonrpc("validate", PublicApi::validate);
-        srv.jsonrpc("proveAndSubmit", PublicApi::prove_and_submit);
 
         srv
     }

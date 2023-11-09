@@ -1733,6 +1733,7 @@ dependencies = [
  "sgxlib-ra",
  "solidity 0.1.0",
  "statedb",
+ "verifier",
  "zktrie",
 ]
 
@@ -2157,6 +2158,7 @@ dependencies = [
  "serde 0.1.0",
  "serde_json 0.1.0",
  "sgxlib",
+ "solidity 0.1.0",
  "triehash",
  "zktrie",
 ]
@@ -2543,7 +2545,6 @@ version = "0.1.0"
 dependencies = [
  "base",
  "crypto",
- "eth_client",
  "eth_types",
  "glog",
  "jsonrpc",

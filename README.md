@@ -32,7 +32,7 @@ The script will assist in launching geth in dev mode (data will be lost after a 
 #### 2.2. Deploy Contract
 
 ```
-> ./scripts/verifier.sh deploy
+> CHAIN_ID=534351 ./scripts/verifier.sh deploy
 verifier address: 0xBf2A60958a0dF024Ffa1dF8C652240C42425762c
 ```
 

@@ -1,6 +1,6 @@
 use std::prelude::v1::*;
 
-use crate::{Args, BatchCommiter, BatchTask, Config, ExecutionReport, PublicApi};
+use crate::{Args, BatchChunkBuilder, BatchCommiter, BatchTask, Config, PublicApi};
 use apps::{Getter, Var, VarMutex};
 use base::{format::debug, trace::Alive};
 use crypto::Secp256k1PrivateKey;
@@ -8,6 +8,7 @@ use eth_client::ExecutionClient;
 use eth_types::{SH160, SH256};
 use jsonrpc::{MixRpcClient, RpcServer};
 use prover::{Database, Pob, Prover};
+use scroll_types::Poe;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -46,18 +47,19 @@ impl apps::App for App {
             );
         }
 
-        let batch_commiter_thread = base::thread::spawn("batch commiter".into(), {
+        let batch_commiter_thread = base::thread::spawn("BatchCommiter".into(), {
             let alive = self.alive.clone();
             let cfg = cfg.clone();
             let prover = prover.clone();
             let verifier = self.verifier.get(self);
             let l2 = self.l2_el.get(self);
+            let insecure = self.args.get(self).insecure;
             move || {
                 let commiter = BatchCommiter::new(&alive, cfg.scroll_chain.clone());
                 let receiver = commiter.run().unwrap();
                 for task in alive.recv_iter(&receiver, Duration::from_secs(1)) {
                     glog::info!("task: {:?}", task);
-                    while !verifier.is_attested() {
+                    while !prover.is_attested() && !insecure {
                         glog::info!("prover not attested, stall task: {:?}", task.batch_id);
                         if !alive.sleep_ms(1000) {
                             break;
@@ -89,18 +91,19 @@ impl apps::App for App {
             let prover_status_monitor = base::thread::spawn("prover-status-monitor".into(), {
                 let verifier = self.verifier.get(self);
                 let signer = cfg.relay_account;
-                let prover_key = *prover.prvkey();
+                let prover = self.prover.get(self);
                 move || {
-                    verifier.monitor_attested(
+                    prover.monitor_attested(
                         &signer,
-                        &prover_key,
-                        || -> Result<Vec<u8>, String> {
+                        &verifier,
+                        |_prvkey| -> Result<Vec<u8>, String> {
                             if !dummy_attestation_report {
                                 #[cfg(feature = "tstd")]
                                 {
-                                    let acc = prover.pubkey().to_raw_bytes();
-                                    let quote =
-                                        sgxlib_ra::dcap_generate_quote(acc).map_err(debug)?;
+                                    let quote = sgxlib_ra::dcap_generate_quote(
+                                        _prvkey.public().to_raw_bytes(),
+                                    )
+                                    .map_err(debug)?;
 
                                     let data = serde_json::to_vec(&quote).map_err(debug)?;
                                     return Ok(data);
@@ -140,12 +143,16 @@ impl App {
         task: BatchTask,
     ) -> Result<SH256, String> {
         let mut reports = Vec::new();
-        for chunk in task.chunks {
+        let mut chunks = BatchChunkBuilder::new(task.chunks.clone());
+
+        for chunk in &task.chunks {
             for blk in chunk {
                 if !alive.is_alive() {
                     return Err("Canceled".into());
                 }
-                let block_trace = l2.get_block_trace(blk.into()).map_err(debug)?;
+                let block_trace = l2.get_block_trace((*blk).into()).map_err(debug)?;
+                prover.check_chain_id(block_trace.chain_id)?;
+                chunks.add_block(&block_trace)?;
                 let codes = prover.fetch_codes(&l2, &block_trace).map_err(debug)?;
                 let withdrawal_root = block_trace.withdraw_trie_root.unwrap_or_default();
                 let pob = prover.generate_pob(block_trace, codes);
@@ -153,7 +160,23 @@ impl App {
                 glog::info!("executed block: {}", blk);
             }
         }
-        let poe = ExecutionReport::sign(task.batch_hash, &reports, prover.prvkey())
+        let chunks = chunks.chunks();
+
+        let batch_header = task.build_header(&chunks)?;
+        if batch_header.hash() != task.batch_hash
+            || batch_header.batch_index != task.batch_id.as_u64()
+        {
+            return Err(format!(
+                "batch hash mismatch, remote: ({:?}){:?}, local:{:?}({:?})",
+                task.batch_id,
+                task.batch_hash,
+                batch_header.hash(),
+                batch_header
+            ));
+        }
+
+        let poe = prover
+            .sign_poe(task.batch_hash, &reports)
             .ok_or(format!("fail to gen poe"))?;
 
         verifier.commit_batch(relay_acc, &task.batch_id, &poe.encode())
@@ -163,7 +186,7 @@ impl App {
         prover: &Prover,
         pob: Pob,
         new_withdrawal_trie_root: &SH256,
-    ) -> Result<ExecutionReport, String> {
+    ) -> Result<Poe, String> {
         let block_num = pob.block.header.number.as_u64();
         let state_hash = pob.state_hash();
         let prev_state_root = pob.data.prev_state_root;
@@ -182,7 +205,7 @@ impl App {
                 block_num, result.withdrawal_root, new_withdrawal_trie_root,
             ));
         }
-        Ok(ExecutionReport {
+        Ok(Poe {
             state_hash,
             prev_state_root,
             new_state_root: result.new_state_root,
@@ -234,6 +257,10 @@ impl Getter<Prover> for App {
         let mut mix = MixRpcClient::new(None);
         mix.add_endpoint(&self.alive, &[cfg.verifier.endpoint.clone()])
             .unwrap();
-        Prover::new(prover_cfg, Arc::new(ExecutionClient::new(mix)))
+        Prover::new(
+            self.alive.clone(),
+            prover_cfg,
+            Arc::new(ExecutionClient::new(mix)),
+        )
     }
 }
