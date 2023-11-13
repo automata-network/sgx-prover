@@ -23,7 +23,7 @@ impl Default for StateAccount {
         StateAccount {
             nonce: 0,
             balance: 0.into(),
-            root: zktrie::empty_root(),
+            root: SH256::default(), // defined in zktrie
             keccak_code_hash: eth_types::StateAccount::empty_code_hash(),
             poseidon_code_hash: *POSEIDON_EMPTY_CODE,
             code_size: 0,

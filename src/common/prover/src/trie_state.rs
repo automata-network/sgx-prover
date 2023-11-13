@@ -3,31 +3,36 @@ use std::prelude::v1::*;
 use base::format::debug;
 use crypto::keccak_hash;
 use eth_types::{HexBytes, SH256, SU256};
-use scroll_types::PoseidonHash;
 use statedb::{MemStore, NodeDB, Trie, TrieState, TrieUpdate};
 use std::borrow::Cow;
 use std::sync::Arc;
-use zktrie::{decode_smt_proofs, Byte32, Hash, Node, TrieData};
+use zktrie::{decode_smt_proofs, Byte32, Hash, PoseidonHash, TrieData};
+
+type Node = zktrie::Node<PoseidonHash>;
 
 #[derive(Clone, Debug)]
 pub struct NodeHasher;
-impl statedb::Hasher<zktrie::Node> for NodeHasher {
-    fn hash(n: &zktrie::Node) -> SH256 {
-        n.hash().u256().into()
+impl statedb::Hasher<Node> for NodeHasher {
+    fn hash(n: &Node) -> SH256 {
+        hash_to_h256(n.hash())
     }
+}
+
+fn hash_to_h256(hash: &Hash) -> SH256 {
+    SU256::from_big_endian(&hash.bytes()).into()
 }
 
 pub type ZkTrieState = TrieState<ZkTrie, Database>;
 
 pub fn new_zktrie_state(root: SH256, db: Database) -> ZkTrieState {
-    let root = root.0.into();
+    let root = Hash::from_bytes(root.as_bytes());
     let trie = ZkTrie::new(root);
     let state = TrieState::new(trie, db);
     state
 }
 
 pub struct Database {
-    db: statedb::MemStore<zktrie::Node, NodeHasher>,
+    db: statedb::MemStore<Node, NodeHasher>,
 }
 
 impl Database {
@@ -76,12 +81,13 @@ impl Database {
 }
 
 impl zktrie::Database for Database {
-    fn update_preimage(&mut self, _preimage: &[u8], _hash_field: &SU256) {}
-    fn get_node(&self, key: &zktrie::Hash) -> Result<Option<Arc<zktrie::Node>>, zktrie::Error> {
-        Ok(self.db.get(&key.u256().into()))
+    type Node = Node;
+    fn update_preimage(&mut self, _preimage: &[u8], _hash_field: &zktrie::Fr) {}
+    fn get_node(&self, key: &zktrie::Hash) -> Result<Option<Arc<Node>>, zktrie::Error> {
+        Ok(self.db.get(&hash_to_h256(key)))
     }
 
-    fn update_node(&mut self, node: zktrie::Node) -> Result<Arc<zktrie::Node>, zktrie::Error> {
+    fn update_node(&mut self, node: Node) -> Result<Arc<Node>, zktrie::Error> {
         let node = Arc::new(node);
         self.db.add_node(&node);
         Ok(node)
@@ -89,7 +95,7 @@ impl zktrie::Database for Database {
 }
 
 impl statedb::NodeDB for Database {
-    type Node = zktrie::Node;
+    type Node = Node;
 
     fn add_node(&mut self, node: &Arc<Self::Node>) {
         self.db.add_node(node)
@@ -149,12 +155,11 @@ impl Trie for ZkTrie {
     }
 
     fn new_root(&self, new_root: SH256) -> Self {
-        let new_root = unsafe { std::mem::transmute(new_root) };
-        Self::new(new_root)
+        Self::new(Hash::from_bytes(new_root.as_bytes()))
     }
 
-    fn root_hash(&self) -> &SH256 {
-        unsafe { std::mem::transmute(self.raw.hash()) }
+    fn root_hash(&self) -> SH256 {
+        self.raw.hash().bytes().into()
     }
 
     fn try_get(&self, db: &mut Self::DB, key: &[u8]) -> Option<Vec<u8>> {
@@ -176,7 +181,7 @@ impl Trie for ZkTrie {
                     Ok(_) => TrieUpdate::Success,
                     Err(zktrie::Error::NodeNotFound((i, node))) => {
                         glog::info!("node not found: {},{:?}", i, node);
-                        TrieUpdate::Missing(node.h256())
+                        TrieUpdate::Missing(hash_to_h256(&node))
                     }
                     Err(zktrie::Error::KeyNotFound) => TrieUpdate::Success,
                     Err(err) => panic!("should not have error: {:?}", err),

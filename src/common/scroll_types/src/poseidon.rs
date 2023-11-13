@@ -1,25 +1,23 @@
 use std::prelude::v1::*;
 
 use eth_types::{SH256, SU256};
-use poseidon_rs::{Fr, Poseidon};
+use zktrie::{Fr, POSEIDON};
 
 const DEFAULT_POSEIDON_CHUNK: usize = 3;
 const NBYTES_TO_FIELD_ELEMENT: usize = 31;
 
 lazy_static::lazy_static! {
-    pub static ref POSEIDON: Poseidon = Poseidon::new();
     pub static ref POSEIDON_EMPTY_CODE: SH256 = poseidon_code_hash(&[]);
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PoseidonHash;
 impl zktrie::HashScheme for PoseidonHash {
-    fn hash_scheme(list: &[SU256], val: &SU256) -> SU256 {
-        let inp = list.iter().map(|v| v.clone().into()).collect();
-        match POSEIDON.hash_fixed_with_domain(inp, (*val).into()) {
-            Ok(output) => output.into(),
+    fn hash_scheme(arr: &[Fr], domain: &Fr) -> Fr {
+        match POSEIDON.hash_fixed_with_domain(arr, *domain) {
+            Ok(output) => output,
             Err(err) => {
-                panic!("inp: {:?}, domain: {:?}, err: {:?}", list, val, err);
+                panic!("inp: {:?}, domain: {:?}, err: {:?}", arr, domain, err);
             }
         }
     }
@@ -36,13 +34,16 @@ pub fn copy_truncated(dst: &mut [u8], src: &[u8]) {
 pub fn poseidon_code_hash(code: &[u8]) -> SH256 {
     let length = (code.len() + NBYTES_TO_FIELD_ELEMENT - 1) / NBYTES_TO_FIELD_ELEMENT;
 
-    let mut frs: Vec<SU256> = Vec::with_capacity(length);
+    let mut frs = Vec::with_capacity(length);
     let mut ii = 0;
 
     while length > 1 && ii < length - 1 {
-        let val = SU256::from_big_endian(
+        let val = match Fr::from_big_endian(
             &code[ii * NBYTES_TO_FIELD_ELEMENT..(ii + 1) * NBYTES_TO_FIELD_ELEMENT],
-        );
+        ) {
+            Ok(val) => val,
+            Err(_) => return SH256::default(),
+        };
         frs.push(val);
         ii += 1;
     }
@@ -50,12 +51,14 @@ pub fn poseidon_code_hash(code: &[u8]) -> SH256 {
     if length > 0 {
         let mut buf = vec![0_u8; NBYTES_TO_FIELD_ELEMENT];
         copy_truncated(&mut buf, &code[ii * NBYTES_TO_FIELD_ELEMENT..]);
-        let val = SU256::from_big_endian(&buf);
+        let val = match Fr::from_big_endian(&buf) {
+            Ok(val) => val,
+            Err(_) => return SH256::default(),
+        };
         frs.push(val);
     }
 
-    let frs: Vec<Fr> = frs.into_iter().map(|n| n.into()).collect();
-    match POSEIDON.hash_with_cap(frs, DEFAULT_POSEIDON_CHUNK, code.len()) {
+    match POSEIDON.hash_with_cap(&frs, DEFAULT_POSEIDON_CHUNK, code.len()) {
         Ok(val) => {
             let hash: SU256 = val.into();
             hash.into()

@@ -59,7 +59,7 @@ where
     }
 
     pub fn root_hash(&self) -> SH256 {
-        *self.raw.root_hash()
+        self.raw.root_hash()
     }
 
     pub fn mark_dirty(&mut self, k: &K) {
@@ -71,7 +71,7 @@ where
     }
 
     pub fn revert(&mut self, root: SH256) -> bool {
-        if self.raw.root_hash() == &root && self.dirty.len() == 0 {
+        if self.raw.root_hash() == root && self.dirty.len() == 0 {
             return false;
         }
 

@@ -7,17 +7,14 @@ license = "Apache-2.0"
 
 [features]
 default = ["std"]
-std = ["glog/std", "eth_types/std", "crypto/std", "base/std", "num-bigint/std"]
-tstd = ["sgxlib/tstd", "glog/tstd", "eth_types/tstd", "crypto/tstd", "base/tstd", "num-bigint/tstd"]
+std = ["glog/std", "eth_types/std", "poseidon-rs/std"]
+tstd = ["sgxlib/tstd", "glog/tstd", "eth_types/tstd", "poseidon-rs/tstd"]
 
 [dependencies]
 sgxlib = { git = "https://github.com/automata-network/sgxlib", default-features = false }
 glog = { git = "https://github.com/automata-network/glog-rs", default-features = false }
 eth_types = { git = "https://github.com/automata-network/eth-types-rs", default-features = false }
-crypto = { git = "https://github.com/automata-network/crypto-rs", default-features = false }
-base = { git = "https://github.com/automata-network/base-rs", default-features = false }
+poseidon-rs = { git = "https://github.com/automata-network/poseidon-rs", default-features = false }
 
 lazy_static = { version = "1.4.0", default-features = false, features = ["spin_no_std"] }
-rlp = { version = "0.5", default-features = false }
-
-num-bigint = { git = "https://github.com/automata-network/sgxlib-thirdparty", default-features = false }
+hex = { package = "hex", version = "0.4", default-features = false, features = ["alloc"] }

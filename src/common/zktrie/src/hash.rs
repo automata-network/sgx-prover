@@ -1,23 +1,16 @@
 use std::prelude::v1::*;
 
-use core::cmp::Ordering;
-use eth_types::{SH256, SU256, U256};
-use num_bigint::BigInt;
+use crate::{fr_from_little_endian, reverse_byte_order, Byte32};
+use poseidon_rs::{Fr, Poseidon};
 use std::sync::Arc;
-
-use crate::{reverse_byte_order, Byte32};
 
 pub const HASH_DOMAIN_ELEMS_BASE: usize = 256;
 pub const HASH_DOMAIN_BYTE32: usize = 2 * HASH_DOMAIN_ELEMS_BASE;
 pub const HASH_BYTE_LEN: usize = 32;
 
 lazy_static::lazy_static! {
-    pub static ref Q: SU256 = {
-        let val = U256::from_str_radix("21888242871839275222246405745257275088548364400416034343698204186575808495617", 10).unwrap();
-        val.into()
-    };
-    pub static ref Q_BIG: BigInt = to_bigint(&Q);
-    pub static ref ZERO: Arc<Hash> = Arc::new(Hash::default());
+    pub static ref ZERO_HASH: Arc<Hash> = Arc::new(Hash::default());
+    pub static ref POSEIDON: Poseidon = Poseidon::new();
 }
 
 pub fn copy_truncated(dst: &mut [u8], src: &[u8]) {
@@ -28,39 +21,58 @@ pub fn copy_truncated(dst: &mut [u8], src: &[u8]) {
     }
 }
 
-pub fn from_bigint(val: &BigInt) -> SU256 {
-    let (_, bytes) = val.to_bytes_be();
-    SU256::from_big_endian(&bytes)
+impl HashScheme for () {
+    fn hash_scheme(_: &[Fr], _: &Fr) -> Fr {
+        0u64.into()
+    }
 }
 
-pub fn to_bigint(val: &SU256) -> BigInt {
-    let mut bytes = [0_u8; 32];
-    val.to_big_endian(&mut bytes);
-    BigInt::from_bytes_be(num_bigint::Sign::Plus, &bytes)
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PoseidonHash;
+impl HashScheme for PoseidonHash {
+    fn hash_scheme(arr: &[Fr], domain: &Fr) -> Fr {
+        match POSEIDON.hash_fixed_with_domain(arr, *domain) {
+            Ok(output) => output,
+            Err(err) => {
+                panic!("inp: {:?}, domain: {:?}, err: {:?}", arr, domain, err);
+            }
+        }
+    }
 }
-
-pub trait HashScheme {
-    fn hash_scheme(list: &[SU256], val: &SU256) -> SU256;
+pub trait HashScheme: PartialEq + Clone {
+    fn hash_scheme(arr: &[Fr], domain: &Fr) -> Fr;
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Copy, PartialOrd, Ord)]
-pub struct Hash(SH256);
+pub struct Hash([u8; 32]);
 
 impl Hash {
     pub fn is_zero(&self) -> bool {
-        self == ZERO.as_ref()
-    }
-
-    pub fn u256(&self) -> SU256 {
-        SU256::from_big_endian(self.0.as_bytes())
+        self == ZERO_HASH.as_ref()
     }
 
     pub fn raw_bytes(&self) -> &[u8] {
-        &self.0 .0[..]
+        &self.0[..]
     }
 
-    pub fn h256(&self) -> SH256 {
-        self.0
+    pub fn fr(&self) -> Result<Fr, String> {
+        fr_from_little_endian(&self.0)
+    }
+
+    pub fn hex(&self) -> String {
+        hex::encode(self.bytes())
+    }
+
+    #[cfg(test)]
+    pub fn from_hex(val: &str) -> Option<Self> {
+        let mut tmp = [0_u8; 32];
+        hex::decode_to_slice(val, &mut tmp).ok()?;
+        tmp.reverse();
+        Some(Self(tmp))
+    }
+    #[cfg(test)]
+    pub fn to_hex(&self) -> String {
+        hex::encode(&self.bytes())
     }
 
     pub fn bytes(&self) -> [u8; 32] {
@@ -68,35 +80,53 @@ impl Hash {
         reverse_byte_order(&mut dst, self.raw_bytes());
         dst
     }
+
     pub fn from_bytes(b: &[u8]) -> Self {
         let mut h = Hash::default();
-        copy_truncated(&mut h.0 .0, b);
+        copy_truncated(&mut h.0, b);
+        h.0.reverse();
         h
     }
 }
 
+#[cfg(test)]
+impl From<&str> for Hash {
+    fn from(val: &str) -> Self {
+        Self::from_hex(val).unwrap()
+    }
+}
+
+impl From<Fr> for Hash {
+    fn from(fr: Fr) -> Self {
+        (&fr).into()
+    }
+}
+
+impl From<&Fr> for Hash {
+    fn from(fr: &Fr) -> Self {
+        Self(fr.to_little_endian())
+    }
+}
+
+// impl From<[u8; 32]> for Hash {
+//     fn from(val: [u8; 32]) -> Self {
+//         Self(val.into())
+//     }
+// }
+
 impl From<Byte32> for Hash {
-    fn from(v: Byte32) -> Self {
-        let mut hash = Hash::default();
-        reverse_byte_order(&mut hash.0 .0, v.bytes());
-        hash
+    fn from(val: Byte32) -> Self {
+        Self::from_bytes(val.bytes())
     }
 }
 
-impl From<[u8; 32]> for Hash {
-    fn from(val: [u8; 32]) -> Self {
-        Self(val.into())
+impl From<&Byte32> for Hash {
+    fn from(val: &Byte32) -> Self {
+        Self::from_bytes(val.bytes())
     }
 }
 
-impl From<SU256> for Hash {
-    fn from(val: SU256) -> Self {
-        let mut hash = Hash::default();
-        val.to_big_endian(&mut hash.0 .0);
-        hash
-    }
-}
-
-pub fn check_in_field(val: &SU256) -> bool {
-    matches!(val.cmp(&Q), Ordering::Less)
-}
+// pub fn check_in_field(val: &SU256) -> bool {
+//     return true;
+//     // matches!(val.cmp(&Q), Ordering::Less)
+// }

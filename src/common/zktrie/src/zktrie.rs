@@ -3,12 +3,11 @@ use std::prelude::v1::*;
 
 use std::sync::Arc;
 
-use eth_types::SU256;
-
 use crate::{
-    check_in_field, test_bit, to_secure_key, BranchHash, BranchType, Byte32, Database, Error, Hash,
-    HashScheme, Node, NodeValue, ZERO,
+    test_bit, to_secure_key, BranchHash, BranchType, Byte32, Database, Error, Hash, HashScheme,
+    Node, NodeValue, ZERO_HASH,
 };
+use poseidon_rs::Fr;
 
 #[derive(Clone)]
 pub struct ZkTrie<H: HashScheme> {
@@ -18,12 +17,12 @@ pub struct ZkTrie<H: HashScheme> {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum TrieData {
+pub enum TrieData<H: HashScheme> {
     NotFound,
-    Node(Arc<Node>),
+    Node(Arc<Node<H>>),
 }
 
-impl TrieData {
+impl<H: HashScheme> TrieData<H> {
     pub fn get(&self) -> &[u8] {
         match self {
             Self::Node(node) => node.data(),
@@ -45,16 +44,24 @@ impl<H: HashScheme> ZkTrie<H> {
         &self.root
     }
 
-    pub fn get_data<D: Database>(&self, db: &mut D, key: &[u8]) -> Result<TrieData, Error> {
-        let k = to_secure_key::<H>(key);
-        match self.try_get_node(db, &k.into()) {
+    pub fn get_data<D>(&self, db: &mut D, key: &[u8]) -> Result<TrieData<H>, Error>
+    where
+        D: Database<Node = Node<H>>,
+    {
+        let k = to_secure_key::<H>(key)?;
+        let node_key: Hash = k.into();
+
+        match self.try_get_node(db, &node_key) {
             Ok(node) => Ok(TrieData::Node(node)),
             Err(Error::KeyNotFound) => Ok(TrieData::NotFound),
             Err(err) => Err(err),
         }
     }
 
-    fn try_get_node<D: Database>(&self, db: &mut D, node_key: &Hash) -> Result<Arc<Node>, Error> {
+    pub(crate) fn try_get_node<D>(&self, db: &mut D, node_key: &Hash) -> Result<Arc<Node<H>>, Error>
+    where
+        D: Database<Node = Node<H>>,
+    {
         let path = get_path(self.max_level, node_key.raw_bytes());
         let mut next_hash = self.root;
         for i in 0..self.max_level {
@@ -81,8 +88,11 @@ impl<H: HashScheme> ZkTrie<H> {
         return Err(Error::ReachedMaxLevel);
     }
 
-    pub fn delete<D: Database>(&mut self, db: &mut D, key: &[u8]) -> Result<(), Error> {
-        let k = to_secure_key::<H>(key);
+    pub fn delete<D>(&mut self, db: &mut D, key: &[u8]) -> Result<(), Error>
+    where
+        D: Database<Node = Node<H>>,
+    {
+        let k = to_secure_key::<H>(key)?;
         let key_hash = k.into();
 
         //mitigate the create-delete issue: do not delete unexisted key
@@ -95,10 +105,10 @@ impl<H: HashScheme> ZkTrie<H> {
         self.try_delete(db, &key_hash)
     }
 
-    fn try_delete<D: Database>(&mut self, db: &mut D, node_key: &Hash) -> Result<(), Error> {
-        if !check_in_field(&node_key.u256()) {
-            return Err(Error::InvalidField);
-        }
+    pub(crate) fn try_delete<D>(&mut self, db: &mut D, node_key: &Hash) -> Result<(), Error>
+    where
+        D: Database<Node = Node<H>>,
+    {
         let path = get_path(self.max_level, node_key.raw_bytes());
         let mut next_hash = self.root;
         let mut siblings = Vec::new();
@@ -132,15 +142,18 @@ impl<H: HashScheme> ZkTrie<H> {
         return Err(Error::KeyNotFound);
     }
 
-    fn rm_and_upload<D: Database>(
+    fn rm_and_upload<D>(
         &mut self,
         db: &mut D,
         path: &[bool],
         _key: &Hash,
         siblings: &[(BranchType, Hash)],
-    ) -> Result<Hash, Error> {
+    ) -> Result<Hash, Error>
+    where
+        D: Database<Node = Node<H>>,
+    {
         if siblings.len() == 0 {
-            self.root = *(ZERO.as_ref());
+            self.root = *(ZERO_HASH.as_ref());
             return Ok(self.root);
         }
 
@@ -163,9 +176,9 @@ impl<H: HashScheme> ZkTrie<H> {
             }
             let new_node_type = siblings[i].0.deduce_downgrade(path[i]);
             let new_node = if path[i] {
-                Node::new_branch_ty::<H>(new_node_type, siblings[i].1, *to_upload)
+                <Node<H>>::new_branch_ty(new_node_type, siblings[i].1, *to_upload)?
             } else {
-                Node::new_branch_ty::<H>(new_node_type, *to_upload, siblings[i].1)
+                <Node<H>>::new_branch_ty(new_node_type, *to_upload, siblings[i].1)?
             };
             match self.add_node(db, &new_node) {
                 Err(Error::NodeKeyAlreadyExists) | Ok(_) => {}
@@ -180,37 +193,40 @@ impl<H: HashScheme> ZkTrie<H> {
         return Ok(self.root);
     }
 
-    pub fn update<D: Database>(
+    pub fn update<D>(
         &mut self,
         db: &mut D,
         key: &[u8],
         v_flag: u32,
         v_preimage: Vec<Byte32>,
-    ) -> Result<(), Error> {
-        let k = to_secure_key::<H>(key);
+    ) -> Result<(), Error>
+    where
+        D: Database<Node = Node<H>>,
+    {
+        let k = to_secure_key::<H>(key)?;
         self.update_preimage(db, key, &k);
         let key_hash = k.into();
         self.try_update(db, &key_hash, v_flag, v_preimage)?;
         Ok(())
     }
 
-    fn update_preimage<D: Database>(&mut self, db: &mut D, preimage: &[u8], hash_field: &SU256) {
+    fn update_preimage<D: Database>(&mut self, db: &mut D, preimage: &[u8], hash_field: &Fr) {
         db.update_preimage(preimage, hash_field)
     }
 
-    fn try_update<D: Database>(
+    pub(crate) fn try_update<D>(
         &mut self,
         db: &mut D,
         key: &Hash,
         v_flag: u32,
         v_preimage: Vec<Byte32>,
-    ) -> Result<(), Error> {
-        if !check_in_field(&key.u256()) {
-            return Err(Error::InvalidField);
-        }
-
-        let new_leaf_node = Node::new_leaf::<H>(key.clone(), v_flag, v_preimage);
+    ) -> Result<(), Error>
+    where
+        D: Database<Node = Node<H>>,
+    {
+        let new_leaf_node = <Node<H>>::new_leaf(key.clone(), v_flag, v_preimage, None)?;
         let path = get_path(self.max_level, key.raw_bytes());
+
         let root = self.root.clone();
         // glog::info!("try update node: {:?}", new_leaf_node);
         let new_root_result = self.add_leaf(db, new_leaf_node, &root, 0, &path, true);
@@ -221,7 +237,6 @@ impl<H: HashScheme> ZkTrie<H> {
             Err(err) => return Err(err),
             Ok(new_root) => new_root,
         };
-        // glog::info!("old root {:?} -> new root {:?}", self.root, new_root);
         self.root = *(new_root.hash());
         Ok(())
     }
@@ -229,13 +244,12 @@ impl<H: HashScheme> ZkTrie<H> {
     // GetNode gets a node by node hash from the MT.  Empty nodes are not stored in the
     // tree; they are all the same and assumed to always exist.
     // <del>for non exist key, return (NewEmptyNode(), nil)</del>
-    pub fn get_node<D: Database>(
-        &self,
-        db: &mut D,
-        hash: &Hash,
-    ) -> Result<Option<Arc<Node>>, Error> {
+    fn get_node<D>(&self, db: &mut D, hash: &Hash) -> Result<Option<Arc<Node<H>>>, Error>
+    where
+        D: Database<Node = Node<H>>,
+    {
         if hash.is_zero() {
-            return Ok(Some(Node::empty()));
+            return Ok(Some(<Node<H>>::empty()));
         }
         Ok(match db.get_node(hash)? {
             Some(node) => Some(node),
@@ -243,19 +257,22 @@ impl<H: HashScheme> ZkTrie<H> {
         })
     }
 
-    fn recalculate_path_until_root<D: Database>(
+    fn recalculate_path_until_root<D>(
         &mut self,
         db: &mut D,
         path: &[bool],
-        mut node: Node,
+        mut node: Node<H>,
         siblings: &[(BranchType, Hash)],
-    ) -> Result<Hash, Error> {
+    ) -> Result<Hash, Error>
+    where
+        D: Database<Node = Node<H>>,
+    {
         for i in (0..siblings.len()).rev() {
             let node_hash = *node.hash();
             node = if path[i] {
-                Node::new_branch_ty::<H>(siblings[i].0, siblings[i].1, node_hash)
+                <Node<H>>::new_branch_ty(siblings[i].0, siblings[i].1, node_hash)?
             } else {
-                Node::new_branch_ty::<H>(siblings[i].0, node_hash, siblings[i].1)
+                <Node<H>>::new_branch_ty(siblings[i].0, node_hash, siblings[i].1)?
             };
             match self.add_node(db, &node) {
                 Err(Error::NodeKeyAlreadyExists) | Ok(_) => {}
@@ -267,15 +284,18 @@ impl<H: HashScheme> ZkTrie<H> {
 
     // addLeaf recursively adds a newLeaf in the MT while updating the path, and returns the node hash
     // of the new added leaf.
-    pub fn add_leaf<D: Database>(
+    pub fn add_leaf<D>(
         &mut self,
         db: &mut D,
-        new_leaf: Node,
+        new_leaf: Node<H>,
         curr_node_hash: &Hash,
         lvl: usize,
         path: &[bool],
         force_update: bool,
-    ) -> Result<BranchHash, Error> {
+    ) -> Result<BranchHash, Error>
+    where
+        D: Database<Node = Node<H>>,
+    {
         if lvl > self.max_level - 1 {
             return Err(Error::ReachedMaxLevel);
         }
@@ -314,7 +334,7 @@ impl<H: HashScheme> ZkTrie<H> {
                         path,
                         force_update,
                     )?;
-                    Node::new_branch::<H>(branch.left.clone(), new_node_hash)
+                    <Node<H>>::new_branch(branch.left.clone(), new_node_hash)?
                 } else {
                     // go left
                     let new_node_hash = self.add_leaf(
@@ -325,7 +345,7 @@ impl<H: HashScheme> ZkTrie<H> {
                         path,
                         force_update,
                     )?;
-                    Node::new_branch::<H>(new_node_hash, branch.right.clone())
+                    <Node<H>>::new_branch(new_node_hash, branch.right.clone())?
                 };
                 // glog::info!("[{}] add in branch: {:?}, new_leaf: ", lvl, new_parent_node);
                 let hash = self.add_node(db, &new_parent_node)?;
@@ -337,15 +357,18 @@ impl<H: HashScheme> ZkTrie<H> {
     // pushLeaf recursively pushes an existing oldLeaf down until its path diverges
     // from newLeaf, at which point both leafs are stored, all while updating the
     // path. pushLeaf returns the node hash of the parent of the oldLeaf and newLeaf
-    pub fn push_leaf<D: Database>(
+    pub fn push_leaf<D>(
         &mut self,
         db: &mut D,
-        new_leaf: Node,
-        old_leaf: &Node,
+        new_leaf: Node<H>,
+        old_leaf: &Node<H>,
         lvl: usize,
         path_new_leaf: &[bool],
         path_old_leaf: &[bool],
-    ) -> Result<Hash, Error> {
+    ) -> Result<Hash, Error>
+    where
+        D: Database<Node = Node<H>>,
+    {
         if lvl > self.max_level - 2 {
             return Err(Error::ReachedMaxLevel);
         }
@@ -360,23 +383,23 @@ impl<H: HashScheme> ZkTrie<H> {
             )?;
             let new_parent_node = if path_new_leaf[lvl] {
                 // go right
-                Node::new_branch::<H>(BranchHash::empty(), BranchHash::Branch(next_node_hash))
+                <Node<H>>::new_branch(BranchHash::empty(), BranchHash::Branch(next_node_hash))?
             } else {
                 // go left
-                Node::new_branch::<H>(BranchHash::Branch(next_node_hash), BranchHash::empty())
+                <Node<H>>::new_branch(BranchHash::Branch(next_node_hash), BranchHash::empty())?
             };
             return self.add_node(db, &new_parent_node);
         }
         let new_parent_node = if path_new_leaf[lvl] {
-            Node::new_branch::<H>(
+            <Node<H>>::new_branch(
                 BranchHash::Ternimal(*old_leaf.hash()),
                 BranchHash::Ternimal(*new_leaf.hash()),
-            )
+            )?
         } else {
-            Node::new_branch::<H>(
+            <Node<H>>::new_branch(
                 BranchHash::Ternimal(*new_leaf.hash()),
                 BranchHash::Ternimal(*old_leaf.hash()),
-            )
+            )?
         };
         self.add_node(db, &new_leaf)?;
         let new_parent_hash = self.add_node(db, &new_parent_node)?;
@@ -385,7 +408,10 @@ impl<H: HashScheme> ZkTrie<H> {
 
     // addNode adds a node into the MT and returns the node hash. Empty nodes are
     // not stored in the tree since they are all the same and assumed to always exist.
-    pub fn add_node<D: Database>(&mut self, db: &mut D, n: &Node) -> Result<Hash, Error> {
+    pub fn add_node<D>(&mut self, db: &mut D, n: &Node<H>) -> Result<Hash, Error>
+    where
+        D: Database<Node = Node<H>>,
+    {
         let hash = n.hash();
         if n.is_empty() {
             return Ok(*hash);
@@ -407,7 +433,10 @@ impl<H: HashScheme> ZkTrie<H> {
 
     // updateNode updates an existing node in the MT.  Empty nodes are not stored
     // in the tree; they are all the same and assumed to always exist.
-    pub fn update_node<D: Database>(&mut self, db: &mut D, n: Node) -> Result<Hash, Error> {
+    pub fn update_node<D>(&mut self, db: &mut D, n: Node<H>) -> Result<Hash, Error>
+    where
+        D: Database<Node = Node<H>>,
+    {
         let hash = n.hash();
         if n.is_empty() {
             return Ok(*hash);

@@ -1,11 +1,22 @@
 use std::prelude::v1::*;
 
-use eth_types::{SU256, U256, SH256};
+use crate::{
+    Byte32, Fr, Hash, HashScheme, PrimeFieldDecodingError, HASH_DOMAIN_BYTE32,
+    HASH_DOMAIN_ELEMS_BASE,
+};
 
-use crate::{Byte32, Hash, HashScheme, HASH_DOMAIN_BYTE32, HASH_DOMAIN_ELEMS_BASE};
+pub fn fr_from_big_endian(buf: &[u8]) -> Result<Fr, String> {
+    match Fr::from_big_endian(&buf) {
+        Ok(val) => Ok(val),
+        Err(PrimeFieldDecodingError::NotInField(val)) => Err(val),
+    }
+}
 
-pub fn empty_root() -> SH256 {
-    SH256::default()
+pub fn fr_from_little_endian(buf: &[u8]) -> Result<Fr, String> {
+    match Fr::from_little_endian(buf) {
+        Ok(val) => Ok(val),
+        Err(PrimeFieldDecodingError::NotInField(val)) => Err(val),
+    }
 }
 
 pub fn reverse_byte_order(dst: &mut [u8], src: &[u8]) {
@@ -15,31 +26,34 @@ pub fn reverse_byte_order(dst: &mut [u8], src: &[u8]) {
     }
 }
 
-pub fn handling_elems_and_byte32<H: HashScheme>(flag_array: u32, elems: &[Byte32]) -> Hash {
+pub fn handling_elems_and_byte32<H: HashScheme>(
+    flag_array: u32,
+    elems: &[Byte32],
+) -> Result<Hash, String> {
     let mut ret = Vec::with_capacity(elems.len());
     for (i, elem) in elems.iter().enumerate() {
         if flag_array & (1 << i) != 0 {
-            ret.push(elem.hash::<H>());
+            ret.push(elem.hash::<H>()?);
         } else {
-            ret.push(elem.u256());
+            ret.push(elem.fr()?);
         }
     }
 
     if ret.len() < 2 {
-        return ret[0].into();
+        return Ok(ret.first().map(|fr| fr.into()).unwrap_or_default());
     }
 
-    hash_elems::<H>(&ret[0], &ret[1], &ret[2..])
+    Ok(hash_elems::<H>(&ret[0], &ret[1], &ret[2..]))
 }
 
 // HashElemsWithDomain performs a recursive poseidon hash over the array of ElemBytes, each hash
 // reduce 2 fieds into one, with a specified domain field which would be used in
 // every recursiving call
 pub fn hash_elems_with_domain<H: HashScheme>(
-    domain: &SU256,
-    fst: &SU256,
-    snd: &SU256,
-    elems: &[SU256],
+    domain: &Fr,
+    fst: &Fr,
+    snd: &Fr,
+    elems: &[Fr],
 ) -> Hash {
     let l = elems.len();
     let base_h = H::hash_scheme(&[*fst, *snd], domain);
@@ -61,22 +75,26 @@ pub fn hash_elems_with_domain<H: HashScheme>(
 }
 
 // HashElems call HashElemsWithDomain with a domain of HASH_DOMAIN_ELEMS_BASE(256)*<element counts>
-pub fn hash_elems<H: HashScheme>(fst: &SU256, snd: &SU256, elems: &[SU256]) -> Hash {
-    let domain: U256 = (elems.len() * HASH_DOMAIN_ELEMS_BASE + HASH_DOMAIN_BYTE32).into();
-    let domain = domain.into();
+pub fn hash_elems<H: HashScheme>(fst: &Fr, snd: &Fr, elems: &[Fr]) -> Hash {
+    let domain = elems.len() * HASH_DOMAIN_ELEMS_BASE + HASH_DOMAIN_BYTE32;
+    let domain = Fr::from_usize(domain);
     hash_elems_with_domain::<H>(&domain, fst, snd, elems)
 }
 
 pub fn test_bit(bitmap: &[u8], n: usize) -> bool {
+    bitmap[n / 8] & (1 << (n % 8)) != 0
+}
+
+pub fn test_bit_big_endian(bitmap: &[u8], n: usize) -> bool {
     bitmap[bitmap.len() - n / 8 - 1] & (1 << (n % 8)) != 0
 }
 
-pub fn to_secure_key<H: HashScheme>(key: &[u8]) -> SU256 {
+pub fn to_secure_key<H: HashScheme>(key: &[u8]) -> Result<Fr, Error> {
     let word = Byte32::from_bytes_padding(key);
-    word.hash::<H>()
+    word.hash::<H>().map_err(Error::NotInField)
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Error {
     ReachedMaxLevel,
     EntryIndexAlreadyExists,
@@ -86,4 +104,6 @@ pub enum Error {
     InvalidField,
     NodeBytesBadSize,
     InvalidNodeFound(u8),
+    NotInField(String),
+    ExpectedLeafNode,
 }

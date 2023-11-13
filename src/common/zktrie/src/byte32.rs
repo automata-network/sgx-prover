@@ -1,11 +1,15 @@
 use std::prelude::v1::*;
 
-use eth_types::{SU256, U256};
+use crate::{fr_from_big_endian, Fr, HashScheme, HASH_DOMAIN_BYTE32};
 
-use crate::{HashScheme, HASH_DOMAIN_BYTE32};
-
-#[derive(Debug, PartialEq, Eq, Clone, Default)]
+#[derive(Debug, PartialEq, Eq, Clone, Default, Ord, PartialOrd, Copy)]
 pub struct Byte32([u8; 32]);
+
+impl From<[u8; 32]> for Byte32 {
+    fn from(val: [u8; 32]) -> Self {
+        Self(val)
+    }
+}
 
 impl Byte32 {
     pub fn from_bytes_padding(mut b: &[u8]) -> Self {
@@ -19,25 +23,39 @@ impl Byte32 {
             &mut bytes[..b.len()]
         };
         dst.copy_from_slice(b);
-        Self::from_bytes(bytes)
+        bytes.into()
     }
 
-    pub fn from_bytes(bytes: [u8; 32]) -> Self {
-        Self(bytes)
+    pub fn from_bytes(mut bytes: &[u8]) -> Self {
+        let mut out = Self::default();
+        if bytes.len() > 32 {
+            let len = bytes.len();
+            bytes = &bytes[len - 32..];
+        }
+        out.0[32 - bytes.len()..].copy_from_slice(&bytes);
+        out
     }
 
-    pub fn hash<H: HashScheme>(&self) -> SU256 {
-        let first16 = U256::from_big_endian(&self.0[0..16]).into();
-        let last16 = U256::from_big_endian(&self.0[16..32]).into();
+    pub fn hash<H: HashScheme>(&self) -> Result<Fr, String> {
+        let first16 = fr_from_big_endian(&self.0[0..16])?;
+        let last16 = fr_from_big_endian(&self.0[16..32])?;
         let domain = HASH_DOMAIN_BYTE32.into();
-        H::hash_scheme(&[first16, last16], &domain)
+        Ok(H::hash_scheme(&[first16, last16], &domain))
     }
 
-    pub fn u256(&self) -> SU256 {
-        U256::from_big_endian(&self.0).into()
+    pub fn fr(&self) -> Result<Fr, String> {
+        fr_from_big_endian(&self.0)
     }
 
-    pub fn bytes(&self) -> &[u8; 32] {
+    // pub fn u256(&self) -> SU256 {
+    //     U256::from_big_endian(&self.0).into()
+    // }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn bytes(&self) -> &[u8] {
         &self.0
     }
 

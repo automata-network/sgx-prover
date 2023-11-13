@@ -39,7 +39,7 @@ pub trait StateDB: Send + 'static {
 
 pub trait Trie {
     type DB: NodeDB;
-    fn root_hash(&self) -> &SH256;
+    fn root_hash(&self) -> SH256;
     fn try_get(&self, db: &mut Self::DB, key: &[u8]) -> Option<Vec<u8>>;
     fn get(&self, db: &mut Self::DB, key: &[u8]) -> Result<Vec<u8>, String>;
     fn update(&mut self, db: &mut Self::DB, updates: Vec<(&[u8], Vec<u8>)>) -> Vec<TrieUpdate>;
