@@ -1608,18 +1608,6 @@ dependencies = [
 [[package]]
 name = "poseidon-rs"
 version = "0.0.10"
-dependencies = [
- "eth_types",
- "ff_ce",
- "rand 0.4.6",
- "serde 0.1.0",
- "serde_json 0.1.0",
- "sgxlib",
-]
-
-[[package]]
-name = "poseidon-rs"
-version = "0.0.10"
 source = "git+https://github.com/automata-network/poseidon-rs#b003c5e45d0718ff56790fd5be4b23c0b3743180"
 dependencies = [
  "eth_types",
@@ -1733,7 +1721,7 @@ dependencies = [
  "evm_executor",
  "glog",
  "jsonrpc",
- "poseidon-rs 0.0.10 (git+https://github.com/automata-network/poseidon-rs)",
+ "poseidon-rs",
  "rlp",
  "rlp-derive",
  "scroll_types",
@@ -2125,7 +2113,6 @@ dependencies = [
  "eth_types",
  "glog",
  "lazy_static",
- "poseidon-rs 0.0.10",
  "rlp",
  "rlp-derive",
  "serde 0.1.0",
@@ -2662,7 +2649,6 @@ dependencies = [
  "scroll_types",
  "serde 0.1.0",
  "sgxlib",
- "zktrie",
 ]
 
 [[package]]
@@ -3249,11 +3235,12 @@ dependencies = [
 [[package]]
 name = "zktrie"
 version = "0.1.0"
+source = "git+https://github.com/automata-network/zktrie-rs#f967bacd365a626b352b51bf77684b18a6b0aad0"
 dependencies = [
  "eth_types",
  "glog",
  "hex 0.4.3",
  "lazy_static",
- "poseidon-rs 0.0.10 (git+https://github.com/automata-network/poseidon-rs)",
+ "poseidon-rs",
  "sgxlib",
 ]

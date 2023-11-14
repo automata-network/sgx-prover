@@ -2617,7 +2617,6 @@ dependencies = [
  "scroll_types",
  "serde 0.1.0",
  "sgxlib",
- "zktrie",
 ]
 
 [[package]]
@@ -3162,6 +3161,7 @@ dependencies = [
 [[package]]
 name = "zktrie"
 version = "0.1.0"
+source = "git+https://github.com/automata-network/zktrie-rs#f967bacd365a626b352b51bf77684b18a6b0aad0"
 dependencies = [
  "eth_types",
  "glog",

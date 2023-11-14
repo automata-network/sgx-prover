@@ -12,7 +12,11 @@ members = [
 
     "src/common/eth_client",
     "src/common/evm_executor",
-    "src/common/zktrie",
+    "src/common/prover",
+    "src/common/scroll_types",
+    "src/common/solidity",
+    "src/common/statedb",
+    "src/common/verifier",
 ]
 
 [patch.'https://github.com/apache/teaclave-sgx-sdk.git']

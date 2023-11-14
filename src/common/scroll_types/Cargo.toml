@@ -7,8 +7,8 @@ license = "Apache-2.0"
 
 [features]
 default = ["std"]
-std = ["glog/std", "eth_types/std", "serde/std", "crypto/std", "base/std", "serde_json/std", "zktrie/std", "solidity/std"]
-tstd = ["sgxlib/tstd", "glog/tstd", "eth_types/tstd", "serde/tstd", "crypto/tstd", "base/tstd", "serde_json/tstd", "zktrie/tstd", "solidity/tstd"]
+std = ["glog/std", "eth_types/std", "serde/std", "crypto/std", "base/std", "serde_json/std", "solidity/std", "zktrie/std"]
+tstd = ["sgxlib/tstd", "glog/tstd", "eth_types/tstd", "serde/tstd", "crypto/tstd", "base/tstd", "serde_json/tstd", "solidity/tstd", "zktrie/tstd"]
 
 [dependencies]
 sgxlib = { git = "https://github.com/automata-network/sgxlib", default-features = false }
@@ -18,8 +18,8 @@ base = { git = "https://github.com/automata-network/base-rs", default-features =
 crypto = { git = "https://github.com/automata-network/crypto-rs", default-features = false }
 serde = { git = "https://github.com/automata-network/sgxlib-thirdparty", default-features = false }
 serde_json = { git = "https://github.com/automata-network/sgxlib-thirdparty", default-features = false }
-zktrie = { path = "../zktrie", default-features = false }
 solidity = { path = "../solidity", default-features = false }
+zktrie = { git = "https://github.com/automata-network/zktrie-rs", default-features = false }
 
 lazy_static = { version = "1.4.0", default-features = false, features = ["spin_no_std"] }
 triehash              = { version = "0.8", default-features = false }
