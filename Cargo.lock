@@ -403,9 +403,9 @@ checksum = "a2bd12c1caf447e69cd4528f47f94d203fd2582878ecb9e9465484c4148a8223"
 
 [[package]]
 name = "cc"
-version = "1.0.84"
+version = "1.0.83"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0f8e7c90afad890484a21653d08b6e209ae34770fb5ee298f9c699fcc1e5c856"
+checksum = "f1174fb0b6ec23863f8b971027804a42614e347eafb0a95bf0b12cdae21fc4d0"
 dependencies = [
  "libc 0.2.150",
 ]
@@ -646,7 +646,7 @@ dependencies = [
  "humantime 1.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "regex 1.7.3",
- "termcolor 1.3.0",
+ "termcolor 1.4.0",
 ]
 
 [[package]]
@@ -2708,9 +2708,9 @@ dependencies = [
 
 [[package]]
 name = "termcolor"
-version = "1.3.0"
+version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6093bad37da69aab9d123a8091e4be0aa4a03e4d601ec641c327398315f62b64"
+checksum = "ff1bc3d3f05aff0403e8ac0d92ced918ec05b666a43f83297ccef5bea8a3d449"
 dependencies = [
  "winapi-util",
 ]
@@ -3161,7 +3161,7 @@ dependencies = [
 [[package]]
 name = "zktrie"
 version = "0.1.0"
-source = "git+https://github.com/automata-network/zktrie-rs#f967bacd365a626b352b51bf77684b18a6b0aad0"
+source = "git+https://github.com/automata-network/zktrie-rs#bb32f87d8d6de5e4abc4bf72859247a5ba1576e6"
 dependencies = [
  "eth_types",
  "glog",

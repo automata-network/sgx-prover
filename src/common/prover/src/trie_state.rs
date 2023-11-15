@@ -1,10 +1,12 @@
-use std::prelude::v1::*;
+use std::{prelude::v1::*, sync::Mutex};
 
 use base::format::debug;
 use crypto::keccak_hash;
 use eth_types::{HexBytes, SH256, SU256};
+use poseidon_rs::Fr;
 use statedb::{MemStore, NodeDB, Trie, TrieState, TrieUpdate};
 use std::borrow::Cow;
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use zktrie::{decode_smt_proofs, Byte32, Hash, PoseidonHash, TrieData};
 
@@ -33,12 +35,14 @@ pub fn new_zktrie_state(root: SH256, db: Database) -> ZkTrieState {
 
 pub struct Database {
     db: statedb::MemStore<Node, NodeHasher>,
+    preimages: Arc<Mutex<BTreeMap<Fr, Vec<u8>>>>,
 }
 
 impl Database {
     pub fn new(cap: usize) -> Self {
         Self {
             db: MemStore::new(cap),
+            preimages: Arc::new(Mutex::new(BTreeMap::new())),
         }
     }
 
@@ -80,9 +84,23 @@ impl Database {
     }
 }
 
+impl zktrie::PreimageDatabase for Database {
+    fn preimage(&self, key: &Fr) -> Vec<u8> {
+        let preimages = self.preimages.lock().unwrap();
+        match preimages.get(key) {
+            Some(val) => val.clone(),
+            None => Vec::new(),
+        }
+    }
+
+    fn update_preimage(&mut self, preimage: &[u8], hash_field: &Fr) {
+        let mut preimages = self.preimages.lock().unwrap();
+        preimages.insert(*hash_field, preimage.to_vec());
+    }
+}
+
 impl zktrie::Database for Database {
     type Node = Node;
-    fn update_preimage(&mut self, _preimage: &[u8], _hash_field: &zktrie::Fr) {}
     fn get_node(&self, key: &zktrie::Hash) -> Result<Option<Arc<Node>>, zktrie::Error> {
         Ok(self.db.get(&hash_to_h256(key)))
     }
@@ -106,7 +124,10 @@ impl statedb::NodeDB for Database {
     }
 
     fn fork(&self) -> Self {
-        Database { db: self.db.fork() }
+        Database {
+            db: self.db.fork(),
+            preimages: self.preimages.clone(),
+        }
     }
 
     fn get(&self, index: &SH256) -> Option<Arc<Self::Node>> {
