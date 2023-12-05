@@ -33,6 +33,7 @@ The script will assist in launching geth in dev mode (data will be lost after a 
 
 ```
 > CHAIN_ID=534351 ./scripts/verifier.sh deploy
+attestation address: 0xf9fE0D45f4D2E6039a13cBC9aFAc292140379112
 verifier address: 0xBf2A60958a0dF024Ffa1dF8C652240C42425762c
 ```
 
@@ -117,6 +118,18 @@ Wait for "prover is attested" to appear.
   * In the testing environment, you can add --dummy_attestation_report to generate a dummy attestation report.
   * In the testing environment, you can add --insecure to skip the attestation process.
   * Without an SGX environment, you can add NOSGX=1 to run in standard mode. In this mode, you need to forcibly enable --dummy_attestation_report.
+
+If you seeing the log like "generate report fail" as below, It means the mrenclave and mrsigner hasn't registered.
+```
+[2023-12-05 15:09:23.317] [prover-status-monitor] [app_prover::app:117] [INFO] - mrenclave: 0x0cfc69503cfe2f072431f3776f19a03253873f0c4a86d65dda8d16ec48e207f8, mrsigner: 0x0a9cc8e1d9a313accdf197223f876214f6869c42f2fa5d92f13290b09e9a5b4b
+[2023-12-05 15:09:23.317] [prover-status-monitor] [prover::prover:297] [INFO] - generate report fail: mrenclave[false] or mr_signer[false] not trusted
+[2023-12-05 15:09:24.807] [prover-status-monitor] [prover::prover:293] [INFO] - getting prover[0xc181b7acf902231b032821e7fb6c98827d3c8cb4] attested...
+```
+
+Register the mrenclave and mrsigner to the chain
+```
+> CONTRACT=0xf9fE0D45f4D2E6039a13cBC9aFAc292140379112 MRENCLAVE=0xebef290e360154b0ff307d0734ec62687bbc863353911a171b5fdd51484fc81f MRSIGNER=0xdb00409d350dc9705d2f6a1c76184341eb63d48c68d95077f2d477e426a73622 ./scripts/verifier.sh add_mrenclave
+```
 
 #### 3.3. Test block execution
 

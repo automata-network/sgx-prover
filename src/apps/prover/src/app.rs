@@ -5,7 +5,7 @@ use apps::{Getter, Var, VarMutex};
 use base::{format::debug, trace::Alive};
 use crypto::Secp256k1PrivateKey;
 use eth_client::ExecutionClient;
-use eth_types::{SH160, SH256};
+use eth_types::{HexBytes, SH160, SH256};
 use jsonrpc::{MixRpcClient, RpcServer};
 use prover::{Database, Pob, Prover};
 use scroll_types::Poe;
@@ -92,6 +92,7 @@ impl apps::App for App {
                 let verifier = self.verifier.get(self);
                 let signer = cfg.relay_account;
                 let prover = self.prover.get(self);
+                let check_report_metadata = self.args.get(self).check_report_metadata;
                 move || {
                     prover.monitor_attested(
                         &signer,
@@ -104,7 +105,25 @@ impl apps::App for App {
                                         _prvkey.public().to_raw_bytes(),
                                     )
                                     .map_err(debug)?;
-
+                                    if check_report_metadata {
+                                        let pass_mrenclave = verifier
+                                            .verify_mrenclave(quote.get_mr_enclave())
+                                            .map_err(debug)?;
+                                        let pass_mrsigner = verifier
+                                            .verify_mrsigner(quote.get_mr_signer())
+                                            .map_err(debug)?;
+                                        if !pass_mrenclave || !pass_mrsigner {
+                                            glog::info!(
+                                                "mrenclave: {}, mrsigner: {}",
+                                                HexBytes::from(&quote.get_mr_enclave()[..]),
+                                                HexBytes::from(&quote.get_mr_signer()[..])
+                                            );
+                                            return Err(format!(
+                                                "mrenclave[{}] or mr_signer[{}] not trusted",
+                                                pass_mrenclave, pass_mrsigner
+                                            ));
+                                        }
+                                    }
                                     let data = serde_json::to_vec(&quote).map_err(debug)?;
                                     return Ok(data);
                                 }

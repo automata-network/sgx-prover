@@ -3,6 +3,7 @@
 use sgxlib_enclave::sgx_types::sgx_status_t;
 use sgxlib_enclave::unsafe_ecall;
 use sgxlib_enclave::Enclave;
+use hex::HexBytes;
 
 use sgxlib_enclave::sgx_types;
 include!(concat!(env!("OUT_DIR"), "/ecall.rs"));
@@ -14,6 +15,12 @@ fn main() {
     glog::init();
 
     let enclave = Enclave::new("sgx_prover_enclave");
+
+    if let Ok(_) = std::env::var("SGX_MRENCLAVE") {
+        let mrenclave = enclave.mrenclave().unwrap();
+        println!("mrenclave: {:?}", HexBytes::from(&mrenclave[..]));
+        return;
+    }
 
     let args: Vec<String> = std::env::args().collect();
     let args = serde_json::to_string(&args).unwrap();

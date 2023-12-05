@@ -32,7 +32,7 @@ contract AutomataDcapV3Attestation is IAttestation {
 
     uint8 constant INVALID_EXIT_CODE = 255;
 
-    bool private checkLocalEnclaveReport;
+    bool public checkLocalEnclaveReport = true;
     mapping(bytes32 => bool) private trustedUserMrEnclave;
     mapping(bytes32 => bool) private trustedUserMrSigner;
 
@@ -65,6 +65,14 @@ contract AutomataDcapV3Attestation is IAttestation {
 
     function setMrEnclave(bytes32 _mrEnclave, bool _trusted) onlyOwner public  {
         trustedUserMrEnclave[_mrEnclave] = _trusted;
+    }
+
+    function verifyMrEnclave(bytes32 _mrEnclave) view public returns (bool) {
+        return trustedUserMrEnclave[_mrEnclave];
+    }
+
+    function verifyMrSigner(bytes32 _mrSigner) view public returns (bool) {
+        return trustedUserMrSigner[_mrSigner];
     }
 
     function addRevokedCertSerialNum(

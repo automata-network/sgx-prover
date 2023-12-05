@@ -47,8 +47,9 @@ impl apps::App for App {
                 let verifier = verifier.clone();
                 let start = self.arg.get().start;
                 let private_key = cfg.private_key;
+                let check_report_metadata = self.arg.get().check_report_metadata;
                 move || {
-                    verifier.subscribe_vote_request(start, &private_key);
+                    verifier.subscribe_vote_request(start, &private_key, check_report_metadata);
                 }
             });
         }
@@ -58,6 +59,7 @@ impl apps::App for App {
                 self.arg.get().start,
                 &cfg.private_key,
                 self.arg.get().insecure,
+                self.arg.get().check_report_metadata,
             )
             .unwrap();
         Ok(())

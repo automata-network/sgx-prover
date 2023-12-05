@@ -10,6 +10,7 @@ pub struct Args {
     pub port: u32,
     pub cfg: String,
     pub insecure: bool,
+    pub check_report_metadata: bool,
     pub start: Option<u64>,
 }
 
@@ -20,6 +21,7 @@ impl Default for Args {
             port: 19001,
             insecure: false,
             cfg: "".into(),
+            check_report_metadata: true,
             start: None,
         }
     }
@@ -44,7 +46,13 @@ impl Args {
                 Opt::Long("start") => {
                     out.start = Some(opts.value().unwrap().parse().unwrap());
                 }
-                _ => continue,
+                Opt::Long("disable_check_report_metadata") => {
+                    out.check_report_metadata = false;
+                }
+                opt => {
+                    glog::warn!("unknown opt: {:?}", opt);
+                    continue;
+                }
             }
         }
         out

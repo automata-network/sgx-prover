@@ -114,6 +114,7 @@ impl Client {
         &self,
         start: Option<u64>,
         signer: &Secp256k1PrivateKey,
+        check_report_metadata: bool,
     ) -> Result<(), RpcError> {
         let log_trace = eth_client::LogTrace::new(self.alive.clone(), self.el.clone(), 10, 0);
         let sig = solidity::encode_eventsig("VoteAttestationReport(address,bytes32)");
@@ -138,7 +139,9 @@ impl Client {
                     // validate
                     let mut pass = false;
                     if let Ok(prover) = self.get_report_prover(&hash) {
-                        pass = self.verify_quote(&prover, &report).is_ok();
+                        pass = self
+                            .verify_quote(check_report_metadata, &prover, &report)
+                            .is_ok();
                     }
 
                     if !pass {
@@ -157,6 +160,7 @@ impl Client {
         start: Option<u64>,
         signer: &Secp256k1PrivateKey,
         insecure: bool,
+        check_report_metadata: bool,
     ) -> Result<(), RpcError> {
         let log_trace = eth_client::LogTrace::new(self.alive.clone(), self.el.clone(), 10, 0);
         let sig = solidity::encode_eventsig("RequestAttestation(bytes32)");
@@ -181,9 +185,13 @@ impl Client {
                     let prover = solidity::parse_h160(0, &tx.input[4..]);
                     let report = solidity::parse_bytes(32, &tx.input[4..]);
                     glog::info!("tx: {:?} -> {}", prover, HexBytes::from(report.as_slice()));
-                    if let Err(err) =
-                        client.validate_and_vote_report(signer, prover, report, insecure)
-                    {
+                    if let Err(err) = client.validate_and_vote_report(
+                        signer,
+                        prover,
+                        report,
+                        insecure,
+                        check_report_metadata,
+                    ) {
                         glog::error!("validate fail: {}, don't vote", err);
                     }
                 }
@@ -208,12 +216,64 @@ impl Client {
         Ok(())
     }
 
-    fn verify_quote(&self, _prover: &SH160, _report: &[u8]) -> Result<(), String> {
+    pub fn verify_mrenclave(&self, mrenclave: [u8; 32]) -> Result<bool, String> {
+        let mut hash = SH256::default();
+        hash.raw_mut().0 = mrenclave;
+        let mut encoder = solidity::Encoder::new("verifyMrEnclave");
+        encoder.add(&hash);
+        let args = encoder.encode();
+        let call = EthCall {
+            to: self.to.clone(),
+            data: args.into(),
+            ..Default::default()
+        };
+        let val: SU256 = self
+            .el
+            .eth_call(call, BlockSelector::Latest)
+            .map_err(debug)?;
+        Ok(!val.is_zero())
+    }
+
+    pub fn verify_mrsigner(&self, mrenclave: [u8; 32]) -> Result<bool, String> {
+        let mut hash = SH256::default();
+        hash.raw_mut().0 = mrenclave;
+        let mut encoder = solidity::Encoder::new("verifyMrSigner");
+        encoder.add(&hash);
+        let args = encoder.encode();
+        let call = EthCall {
+            to: self.to.clone(),
+            data: args.into(),
+            ..Default::default()
+        };
+        let val: SU256 = self
+            .el
+            .eth_call(call, BlockSelector::Latest)
+            .map_err(debug)?;
+        Ok(!val.is_zero())
+    }
+
+    fn verify_quote(
+        &self,
+        _check_report_metadata: bool,
+        _prover: &SH160,
+        _report: &[u8],
+    ) -> Result<(), String> {
         #[cfg(feature = "sgx")]
         {
             use crypto::Secp256k1PublicKey;
             let quote: sgxlib_ra::SgxQuote = serde_json::from_slice(_report).map_err(debug)?;
+
             sgxlib_ra::RaFfi::dcap_verify_quote(&quote)?;
+            if _check_report_metadata {
+                let trusted_mrenclave = self.verify_mrenclave(quote.get_mr_enclave())?;
+                let trusted_mrsigner = self.verify_mrsigner(quote.get_mr_signer())?;
+                if (!trusted_mrenclave || !trusted_mrsigner) {
+                    return Err(format!(
+                        "report metadata validation fail: mrenclave: {}, mrsigner: {}",
+                        trusted_mrenclave, trusted_mrsigner
+                    ));
+                }
+            }
             let report_data = quote.get_report_body().report_data;
             let mut pubkey = Secp256k1PublicKey::from_raw_bytes(&report_data.d);
             let report_prover_key: SH160 = pubkey.eth_accountid().into();
@@ -234,9 +294,10 @@ impl Client {
         prover: SH160,
         report: Vec<u8>,
         insecure: bool,
+        check_report_metadata: bool,
     ) -> Result<(), String> {
         if !insecure {
-            self.verify_quote(&prover, &report)?;
+            self.verify_quote(check_report_metadata, &prover, &report)?;
         }
 
         let hash: SH256 = keccak_hash(&report).into();

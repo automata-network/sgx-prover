@@ -101,31 +101,19 @@ contract SGXVerifier {
         uint vote = reports[reportHash].votes[attestor];
         require(vote != 0, "invalid votes");
         bool approve = verifyAttestation(reportBytes);
-        require((vote == 1 && !approve) || (vote == 2 && approve), "invalid challenge");
+        require(vote == 1 && !approve, "invalid challenge");
 
-        uint approvedNum = reports[reportHash].approved;
-        if (approve) {
-            approvedNum += 1;
-            reports[reportHash].votes[attestor] = 1;
-        } else {
-            approvedNum -= 1;
-            reports[reportHash].votes[attestor] = 2;
-        }
-        reports[reportHash].approved = approvedNum;
-
-        // update the attestedProvers list
-        if (approvedNum < threshold) {
-            attestedProvers[reports[reportHash].prover] = 0;
-        } else {
-            attestedProvers[reports[reportHash].prover] = 1;
-        }
-
+        // revoke the prover and can't be reused
+        attestedProvers[reports[reportHash].prover] = 1;
         // remove the attestor
         attestors[attestor] = false;
     }
     
     function voteAttestationReport(bytes32 reportHash, bool approve) public onlyAttestor {
         require(reports[reportHash].votes[msg.sender] == 0, "Attestor has already voted for this report.");
+
+        address prover = reports[reportHash].prover;
+        require(attestedProvers[prover] == 0, "Prover already attested");
         uint approved = reports[reportHash].approved;
         
         if (approve) {
@@ -137,7 +125,6 @@ contract SGXVerifier {
         }
         
         if (approved >= threshold) {
-            address prover = reports[reportHash].prover;
             attestedProvers[prover] = block.timestamp;
             emit ProverApproved(prover);
         }
@@ -173,6 +160,14 @@ contract SGXVerifier {
         }
         
         require(v == 27 || v == 28, "invalid v value");
+    }
+
+    function verifyMrEnclave(bytes32 _mrenclave) view public returns (bool) {
+        return dcapAttestation.verifyMrEnclave(_mrenclave);
+    }
+
+    function verifyMrSigner(bytes32 _mrsigner) view public returns (bool) {
+        return dcapAttestation.verifyMrSigner(_mrsigner);
     }
 
     function verifyAttestation(bytes calldata data) view public returns (bool) {

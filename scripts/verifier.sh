@@ -11,7 +11,19 @@ function geth() {
 }
 
 function deploy() {
-	npx hardhat --network l1 run ./scripts/deploy.ts
+	_run ./scripts/deploy.ts
+}
+
+function add_mrenclave() {
+	_run ./scripts/add_mrenclave.ts
+}
+
+function _run() {
+	if [[ "$URL" != "" ]]; then
+		npx hardhat --network custom run $@	
+	else
+		npx hardhat --network l1 run $@	
+	fi
 }
 
 $@

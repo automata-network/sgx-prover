@@ -48,6 +48,7 @@ pub struct Args {
     // skip the attestation
     pub insecure: bool,
     pub dummy_attestation_report: bool,
+    pub check_report_metadata: bool,
 }
 
 impl Default for Args {
@@ -57,6 +58,7 @@ impl Default for Args {
             port: 18232,
             insecure: false,
             dummy_attestation_report: false,
+            check_report_metadata: true,
             cfg: "config/prover.json".into(),
         }
     }
@@ -77,7 +79,11 @@ impl Args {
                 }
                 Opt::Long("insecure") => out.insecure = true,
                 Opt::Long("dummy_attestation_report") => out.dummy_attestation_report = true,
-                _ => continue,
+                Opt::Long("disable_check_report_metadata") => out.check_report_metadata = false,
+                opt => {
+                    glog::warn!("unknown opt: {:?}", opt);
+                    continue
+                },
             }
         }
         out

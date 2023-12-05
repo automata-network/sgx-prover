@@ -14,6 +14,7 @@ ata-sgx-builder = { git = "https://github.com/automata-network/sgxlib" }
 
 [dependencies]
 glog = { git = "https://github.com/automata-network/glog-rs" }
+hex = { git = "https://github.com/automata-network/hex-rs" }
 apps = { path = "../../../src/apps" }
 sgxlib-enclave = { git = "https://github.com/automata-network/sgxlib" }
 sgxlib-ra = { git = "https://github.com/automata-network/sgxlib-ra", default-features = false, features = ["std", "dcap_std"] }

@@ -30,7 +30,6 @@ async function main() {
     console.log("configureTcbInfoJson");
   }
 
-
   const verifier = await ethers.deployContract("SGXVerifier", [attestationAddr, parseInt(chainId)], {
     // value: lockedAmount,
   });
