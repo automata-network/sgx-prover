@@ -100,11 +100,12 @@ contract SGXVerifier {
         bytes32 reportHash = keccak256(reportBytes);
         uint vote = reports[reportHash].votes[attestor];
         require(vote != 0, "invalid votes");
-        bool approve = verifyAttestation(reportBytes);
+        address prover = reports[reportHash].prover;
+        bool approve = verifyAttestation(prover, reportBytes);
         require(vote == 1 && !approve, "invalid challenge");
 
         // revoke the prover and can't be reused
-        attestedProvers[reports[reportHash].prover] = 1;
+        attestedProvers[prover] = 1;
         // remove the attestor
         attestors[attestor] = false;
     }
@@ -170,7 +171,27 @@ contract SGXVerifier {
         return dcapAttestation.verifyMrSigner(_mrsigner);
     }
 
-    function verifyAttestation(bytes calldata data) view public returns (bool) {
-        return dcapAttestation.verifyAttestation(data);
+    function verifyAttestation(address prover, bytes calldata data) view public returns (bool) {
+        (bool succ, bytes memory reportData) = dcapAttestation.verifyAttestation(data);
+        if (!succ) {
+            return false;
+        }
+
+        address expectedProver = bytes64ToAddress(reportData);
+        if (expectedProver != prover) {
+            return false;
+        }
+
+        return true;
+    }
+
+    function bytes64ToAddress(bytes memory b) private pure returns (address) {
+        require(b.length >= 64, "Bytes array too short");
+
+        uint160 addr;
+        assembly {
+            addr := mload(add(b, 64))
+        }
+        return address(addr);
     }
 }

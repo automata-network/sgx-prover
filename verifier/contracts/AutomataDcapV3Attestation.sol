@@ -144,7 +144,7 @@ contract AutomataDcapV3Attestation is IAttestation {
     function _verify(
         bytes calldata quote
     ) view public returns (bool, bytes memory) {
-        bytes memory retData = abi.encodePacked(INVALID_EXIT_CODE);
+        bytes memory reportData = new bytes(64);
 
         // Step 1: Parse the quote input = 152k gas
         (
@@ -155,8 +155,9 @@ contract AutomataDcapV3Attestation is IAttestation {
             V3Struct.ECDSAQuoteV3AuthData memory authDataV3
         ) = V3Parser.parseInput(quote);
         if (!successful) {
-            return (false, retData);
+            return (false, reportData);
         }
+        reportData = localEnclaveReport.reportData;
 
         // Step 2: Verify application enclave report MRENCLAVE and MRSIGNER
         {
@@ -170,7 +171,7 @@ contract AutomataDcapV3Attestation is IAttestation {
                 ];
 
                 if (!mrEnclaveIsTrusted || !mrSignerIsTrusted) {
-                    return (false, retData);
+                    return (false, reportData);
                 }
             }
         }
@@ -188,7 +189,7 @@ contract AutomataDcapV3Attestation is IAttestation {
                 qeTcbStatus
             ) = _verifyQEReportWithIdentity(qeEnclaveReport);
             if (!verifiedEnclaveIdSuccessfully) {
-                return (false, retData);
+                return (false, reportData);
             }
             if (
                 !verifiedEnclaveIdSuccessfully ||
@@ -197,7 +198,7 @@ contract AutomataDcapV3Attestation is IAttestation {
                     .EnclaveIdStatus
                     .SGX_ENCLAVE_REPORT_ISVSVN_REVOKED
             ) {
-                return (false, retData);
+                return (false, reportData);
             }
         }
 
@@ -214,7 +215,7 @@ contract AutomataDcapV3Attestation is IAttestation {
                     3
                 );
             if (!certParsedSuccessfully) {
-                return (false, retData);
+                return (false, reportData);
             }
 
             // 536k gas
@@ -226,7 +227,7 @@ contract AutomataDcapV3Attestation is IAttestation {
                 (certDecodedSuccessfully, parsedQuoteCerts[i]) = pemCertLib
                     .decodeCert(quoteCerts[i], isPckCert);
                 if (!certDecodedSuccessfully) {
-                    return (false, retData);
+                    return (false, reportData);
                 }
             }
         }
@@ -243,7 +244,7 @@ contract AutomataDcapV3Attestation is IAttestation {
                 fetchedTcbInfo.fmspc
             );
             if (!tcbConfigured) {
-                return (false, retData);
+                return (false, reportData);
             }
 
             IPEMCertChainLib.ECSha256Certificate
@@ -253,7 +254,7 @@ contract AutomataDcapV3Attestation is IAttestation {
                 fetchedTcbInfo.pceid
             );
             if (!pceidMatched) {
-                return (false, retData);
+                return (false, reportData);
             }
         }
 
@@ -267,7 +268,7 @@ contract AutomataDcapV3Attestation is IAttestation {
                 fetchedTcbInfo
             );
             if (!tcbVerified) {
-                return (false, retData);
+                return (false, reportData);
             }
         }
 
@@ -276,7 +277,7 @@ contract AutomataDcapV3Attestation is IAttestation {
             // 2.7M gas (rootCA pubkey is trusted)
             bool pckCertChainVerified = _verifyCertChain(parsedQuoteCerts);
             if (!pckCertChainVerified) {
-                return (false, retData);
+                return (false, reportData);
             }
         }
 
@@ -289,13 +290,11 @@ contract AutomataDcapV3Attestation is IAttestation {
                 qeEnclaveReport
             );
             if (!enclaveReportSigsVerified) {
-                return (false, retData);
+                return (false, reportData);
             }
         }
 
-        retData = abi.encodePacked(sha256(quote), tcbStatus);
-
-        return (_attestationTcbIsValid(tcbStatus), retData);
+        return (_attestationTcbIsValid(tcbStatus), reportData);
     }
 
     function _verifyQEReportWithIdentity(
@@ -462,8 +461,8 @@ contract AutomataDcapV3Attestation is IAttestation {
         } else return false;
     }
 
-    function verifyAttestation(bytes calldata data) view public returns (bool) {
-        (bool success, ) = _verify(data);
-        return success;
+    function verifyAttestation(bytes calldata data) view public returns (bool, bytes memory) {
+        (bool success, bytes memory reportData) = _verify(data);
+        return (success, reportData);
     }
 }

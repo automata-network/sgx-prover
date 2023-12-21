@@ -93,18 +93,20 @@ impl apps::App for App {
                 let signer = cfg.relay_account;
                 let prover = self.prover.get(self);
                 let check_report_metadata = self.args.get(self).check_report_metadata;
+                
                 move || {
                     prover.monitor_attested(
                         &signer,
                         &verifier,
-                        |_prvkey| -> Result<Vec<u8>, String> {
+                        |prvkey| -> Result<Vec<u8>, String> {
+                            let mut report_data = [0_u8; 64];
+                            let prover_key = SH160::from(prvkey.public().eth_accountid());
+                            report_data[44..].copy_from_slice(prover_key.as_bytes());
+                            
                             if !dummy_attestation_report {
                                 #[cfg(feature = "tstd")]
                                 {
-                                    let quote = sgxlib_ra::dcap_generate_quote(
-                                        _prvkey.public().to_raw_bytes(),
-                                    )
-                                    .map_err(debug)?;
+                                    let quote = sgxlib_ra::dcap_generate_quote(report_data).map_err(debug)?;
                                     if check_report_metadata {
                                         let pass_mrenclave = verifier
                                             .verify_mrenclave(quote.get_mr_enclave())
@@ -125,6 +127,8 @@ impl apps::App for App {
                                         }
                                     }
                                     let data = serde_json::to_vec(&quote).map_err(debug)?;
+
+                                    verifier.verify_report_on_chain(&prover_key, &data).map_err(debug)?;
                                     return Ok(data);
                                 }
                             }

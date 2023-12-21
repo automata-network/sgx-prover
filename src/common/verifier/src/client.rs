@@ -255,32 +255,35 @@ impl Client {
     fn verify_quote(
         &self,
         _check_report_metadata: bool,
-        _prover: &SH160,
-        _report: &[u8],
+        prover: &SH160,
+        report: &[u8],
     ) -> Result<(), String> {
+        self.verify_report_on_chain(prover, report).map_err(debug)?;
+
         #[cfg(feature = "sgx")]
         {
-            use crypto::Secp256k1PublicKey;
-            let quote: sgxlib_ra::SgxQuote = serde_json::from_slice(_report).map_err(debug)?;
+            let quote: sgxlib_ra::SgxQuote = serde_json::from_slice(report).map_err(debug)?;
 
             sgxlib_ra::RaFfi::dcap_verify_quote(&quote)?;
             if _check_report_metadata {
                 let trusted_mrenclave = self.verify_mrenclave(quote.get_mr_enclave())?;
                 let trusted_mrsigner = self.verify_mrsigner(quote.get_mr_signer())?;
-                if (!trusted_mrenclave || !trusted_mrsigner) {
+                if !trusted_mrenclave || !trusted_mrsigner {
                     return Err(format!(
                         "report metadata validation fail: mrenclave: {}, mrsigner: {}",
                         trusted_mrenclave, trusted_mrsigner
                     ));
                 }
             }
+
             let report_data = quote.get_report_body().report_data;
-            let mut pubkey = Secp256k1PublicKey::from_raw_bytes(&report_data.d);
-            let report_prover_key: SH160 = pubkey.eth_accountid().into();
-            if &report_prover_key != _prover {
+
+            let mut report_prover_key: SH160 = SH160::default();
+            report_prover_key.as_bytes_mut().copy_from_slice(&report_data.d[44..]);
+            if &report_prover_key != prover {
                 return Err(format!(
                     "prover account not match: want={:?}, got={:?}",
-                    _prover, report_prover_key
+                    prover, report_prover_key
                 ));
             }
         }
@@ -394,8 +397,9 @@ impl Client {
         Ok(receipt.transaction_hash)
     }
 
-    pub fn verify_report_on_chain(&self, report: &[u8]) -> Result<bool, RpcError> {
+    pub fn verify_report_on_chain(&self, prover: &SH160, report: &[u8]) -> Result<bool, RpcError> {
         let mut encoder = solidity::Encoder::new("verifyAttestation");
+        encoder.add(prover);
         encoder.add(report);
 
         let call = EthCall {
