@@ -48,37 +48,38 @@ impl apps::App for App {
             );
         }
 
-        let batch_commiter_thread = base::thread::spawn("BatchCommiter".into(), {
-            let alive = self.alive.clone();
-            let cfg = cfg.clone();
-            let prover = prover.clone();
-            let verifier = self.verifier.get(self);
-            let l2 = self.l2_el.get(self);
-            let insecure = self.args.get(self).insecure;
-            move || {
-                let commiter = BatchCommiter::new(&alive, cfg.scroll_chain.clone());
-                let receiver = commiter.run().unwrap();
-                for task in alive.recv_iter(&receiver, Duration::from_secs(1)) {
-                    glog::info!("task: {:?}", task);
-                    while !prover.is_attested() && !insecure {
-                        glog::info!("prover not attested, stall task: {:?}", task.batch_id);
-                        if !alive.sleep_ms(1000) {
-                            break;
-                        }
-                    }
+        // disable sending commit batch tx (done in the operator)
+        // let batch_commiter_thread = base::thread::spawn("BatchCommiter".into(), {
+        //     let alive = self.alive.clone();
+        //     let cfg = cfg.clone();
+        //     let prover = prover.clone();
+        //     let verifier = self.verifier.get(self);
+        //     let l2 = self.l2_el.get(self);
+        //     let insecure = self.args.get(self).insecure;
+        //     move || {
+        //         let commiter = BatchCommiter::new(&alive, cfg.scroll_chain.clone());
+        //         let receiver = commiter.run().unwrap();
+        //         for task in alive.recv_iter(&receiver, Duration::from_secs(1)) {
+        //             glog::info!("task: {:?}", task);
+        //             while !prover.is_attested() && !insecure {
+        //                 glog::info!("prover not attested, stall task: {:?}", task.batch_id);
+        //                 if !alive.sleep_ms(1000) {
+        //                     break;
+        //                 }
+        //             }
 
-                    let result = Self::commit_batch(
-                        &alive,
-                        &l2,
-                        &prover,
-                        &cfg.relay_account,
-                        &verifier,
-                        task,
-                    );
-                    glog::info!("submit batch: {:?}", result);
-                }
-            }
-        });
+        //             let result = Self::commit_batch(
+        //                 &alive,
+        //                 &l2,
+        //                 &prover,
+        //                 &cfg.relay_account,
+        //                 &verifier,
+        //                 task,
+        //             );
+        //             glog::info!("submit batch: {:?}", result);
+        //         }
+        //     }
+        // });
 
         let handle = base::thread::spawn("jsonrpc-server".into(), {
             move || {
@@ -87,72 +88,73 @@ impl apps::App for App {
             }
         });
 
-        if !self.args.get(self).insecure {
-            let dummy_attestation_report = self.args.get(self).dummy_attestation_report;
-            let prover_status_monitor = base::thread::spawn("prover-status-monitor".into(), {
-                let verifier = self.verifier.get(self);
-                let signer = cfg.relay_account;
-                let prover = self.prover.get(self);
+        // disable automatically sending attestation report for now (done in the operator)
+        // if !self.args.get(self).insecure {
+        //     let dummy_attestation_report = self.args.get(self).dummy_attestation_report;
+        //     let prover_status_monitor = base::thread::spawn("prover-status-monitor".into(), {
+        //         let verifier = self.verifier.get(self);
+        //         let signer = cfg.relay_account;
+        //         let prover = self.prover.get(self);
 
-                #[cfg(feature = "tstd")]
-                let check_report_metadata = self.args.get(self).check_report_metadata;
+        //         #[cfg(feature = "tstd")]
+        //         let check_report_metadata = self.args.get(self).check_report_metadata;
 
-                move || {
-                    prover.monitor_attested(
-                        &signer,
-                        &verifier,
-                        |prvkey| -> Result<Vec<u8>, String> {
-                            let mut report_data = [0_u8; 64];
-                            let prover_key = SH160::from(prvkey.public().eth_accountid());
-                            report_data[44..].copy_from_slice(prover_key.as_bytes());
+        //         move || {
+        //             prover.monitor_attested(
+        //                 &signer,
+        //                 &verifier,
+        //                 |prvkey| -> Result<Vec<u8>, String> {
+        //                     let mut report_data = [0_u8; 64];
+        //                     let prover_key = SH160::from(prvkey.public().eth_accountid());
+        //                     report_data[44..].copy_from_slice(prover_key.as_bytes());
 
-                            if !dummy_attestation_report {
-                                #[cfg(feature = "tstd")]
-                                {
-                                    let quote = sgxlib_ra::dcap_generate_quote(report_data)
-                                        .map_err(debug)?;
-                                    if check_report_metadata {
-                                        let pass_mrenclave = verifier
-                                            .verify_mrenclave(quote.get_mr_enclave())
-                                            .map_err(debug)?;
-                                        let pass_mrsigner = verifier
-                                            .verify_mrsigner(quote.get_mr_signer())
-                                            .map_err(debug)?;
-                                        if !pass_mrenclave || !pass_mrsigner {
-                                            glog::info!(
-                                                "mrenclave: {}, mrsigner: {}",
-                                                HexBytes::from(&quote.get_mr_enclave()[..]),
-                                                HexBytes::from(&quote.get_mr_signer()[..])
-                                            );
-                                            return Err(format!(
-                                                "mrenclave[{}] or mr_signer[{}] not trusted",
-                                                pass_mrenclave, pass_mrsigner
-                                            ));
-                                        }
-                                    }
-                                    let data = serde_json::to_vec(&quote).map_err(debug)?;
+        //                     if !dummy_attestation_report {
+        //                         #[cfg(feature = "tstd")]
+        //                         {
+        //                             let quote = sgxlib_ra::dcap_generate_quote(report_data)
+        //                                 .map_err(debug)?;
+        //                             if check_report_metadata {
+        //                                 let pass_mrenclave = verifier
+        //                                     .verify_mrenclave(quote.get_mr_enclave())
+        //                                     .map_err(debug)?;
+        //                                 let pass_mrsigner = verifier
+        //                                     .verify_mrsigner(quote.get_mr_signer())
+        //                                     .map_err(debug)?;
+        //                                 if !pass_mrenclave || !pass_mrsigner {
+        //                                     glog::info!(
+        //                                         "mrenclave: {}, mrsigner: {}",
+        //                                         HexBytes::from(&quote.get_mr_enclave()[..]),
+        //                                         HexBytes::from(&quote.get_mr_signer()[..])
+        //                                     );
+        //                                     return Err(format!(
+        //                                         "mrenclave[{}] or mr_signer[{}] not trusted",
+        //                                         pass_mrenclave, pass_mrsigner
+        //                                     ));
+        //                                 }
+        //                             }
+        //                             let data = serde_json::to_vec(&quote).map_err(debug)?;
 
-                                    verifier
-                                        .verify_report_on_chain(&prover_key, &data)
-                                        .map_err(debug)?;
-                                    return Ok(data);
-                                }
-                            }
+        //                             verifier
+        //                                 .verify_report_on_chain(&prover_key, &data)
+        //                                 .map_err(debug)?;
+        //                             return Ok(data);
+        //                         }
+        //                     }
 
-                            {
-                                let mut report = [0_u8; 5 << 10];
-                                crypto::read_rand(&mut report);
-                                Ok(report.into())
-                            }
-                        },
-                    );
-                }
-            });
+        //                     {
+        //                         let mut report = [0_u8; 5 << 10];
+        //                         crypto::read_rand(&mut report);
+        //                         Ok(report.into())
+        //                     }
+        //                 },
+        //             );
+        //         }
+        //     });
 
-            prover_status_monitor.join().unwrap();
-        }
+        //     prover_status_monitor.join().unwrap();
+        // }
         handle.join().unwrap();
-        batch_commiter_thread.join().unwrap();
+        // batch_commiter_thread.join().unwrap();
 
         Ok(())
     }
