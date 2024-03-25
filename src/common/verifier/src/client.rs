@@ -110,96 +110,96 @@ impl Client {
         Ok(val)
     }
 
-    pub fn subscribe_vote_request(
-        &self,
-        start: Option<u64>,
-        signer: &Secp256k1PrivateKey,
-        check_report_metadata: bool,
-    ) -> Result<(), RpcError> {
-        let log_trace = eth_client::LogTrace::new(self.alive.clone(), self.el.clone(), 10, 0);
-        let sig = solidity::encode_eventsig("VoteAttestationReport(address,bytes32)");
-        let filter = LogFilter {
-            address: vec![self.to],
-            topics: vec![vec![sig]],
-            ..Default::default()
-        };
-        let client = self.clone();
-        let start = start.unwrap_or(0);
-        log_trace.subscribe("subscribe_vote_request", start, filter, move |logs| {
-            glog::info!("scan vote request: {:?}", logs);
-            for log in logs {
-                let attestor = solidity::parse_h160(0, &log.data);
-                let hash = solidity::parse_h256(32, &log.data);
-                glog::info!(
-                    "validate vote request: sender:{:?},report:{:?}",
-                    attestor,
-                    hash
-                );
-                if let Ok(Some(report)) = client.fetch_report(&hash) {
-                    // validate
-                    let mut pass = false;
-                    if let Ok(prover) = self.get_report_prover(&hash) {
-                        pass = self
-                            .verify_quote(check_report_metadata, &prover, &report)
-                            .is_ok();
-                    }
+    // pub fn subscribe_vote_request(
+    //     &self,
+    //     start: Option<u64>,
+    //     signer: &Secp256k1PrivateKey,
+    //     check_report_metadata: bool,
+    // ) -> Result<(), RpcError> {
+    //     let log_trace = eth_client::LogTrace::new(self.alive.clone(), self.el.clone(), 10, 0);
+    //     let sig = solidity::encode_eventsig("VoteAttestationReport(address,bytes32)");
+    //     let filter = LogFilter {
+    //         address: vec![self.to],
+    //         topics: vec![vec![sig]],
+    //         ..Default::default()
+    //     };
+    //     let client = self.clone();
+    //     let start = start.unwrap_or(0);
+    //     log_trace.subscribe("subscribe_vote_request", start, filter, move |logs| {
+    //         glog::info!("scan vote request: {:?}", logs);
+    //         for log in logs {
+    //             let attestor = solidity::parse_h160(0, &log.data);
+    //             let hash = solidity::parse_h256(32, &log.data);
+    //             glog::info!(
+    //                 "validate vote request: sender:{:?},report:{:?}",
+    //                 attestor,
+    //                 hash
+    //             );
+    //             if let Ok(Some(report)) = client.fetch_report(&hash) {
+    //                 // validate
+    //                 let mut pass = false;
+    //                 if let Ok(prover) = self.get_report_prover(&hash) {
+    //                     pass = self
+    //                         .verify_quote(check_report_metadata, &prover, &report)
+    //                         .is_ok();
+    //                 }
 
-                    if !pass {
-                        let result = client.challenge_vote(&attestor, signer, &report);
-                        glog::info!("challenge report[{}]: {:?}", hash, result);
-                    }
-                }
-            }
-            Ok(())
-        })?;
-        Ok(())
-    }
+    //                 if !pass {
+    //                     let result = client.challenge_vote(&attestor, signer, &report);
+    //                     glog::info!("challenge report[{}]: {:?}", hash, result);
+    //                 }
+    //             }
+    //         }
+    //         Ok(())
+    //     })?;
+    //     Ok(())
+    // }
 
-    pub fn subscribe_attestation_request(
-        &self,
-        start: Option<u64>,
-        signer: &Secp256k1PrivateKey,
-        insecure: bool,
-        check_report_metadata: bool,
-    ) -> Result<(), RpcError> {
-        let log_trace = eth_client::LogTrace::new(self.alive.clone(), self.el.clone(), 10, 0);
-        let sig = solidity::encode_eventsig("RequestAttestation(bytes32)");
-        let filter = LogFilter {
-            address: vec![self.to],
-            topics: vec![vec![sig]],
-            ..Default::default()
-        };
-        let client = self.clone();
-        let start = start.unwrap_or(0);
-        log_trace.subscribe(
-            "subscribe_attestation_request",
-            start,
-            filter,
-            move |logs| {
-                glog::info!("scan attestaion request: {:?}", logs);
-                for log in logs {
-                    let tx = client
-                        .el
-                        .get_transaction(&log.transaction_hash)
-                        .map_err(debug)?;
-                    let prover = solidity::parse_h160(0, &tx.input[4..]);
-                    let report = solidity::parse_bytes(32, &tx.input[4..]);
-                    glog::info!("tx: {:?} -> {}", prover, HexBytes::from(report.as_slice()));
-                    if let Err(err) = client.validate_and_vote_report(
-                        signer,
-                        prover,
-                        report,
-                        insecure,
-                        check_report_metadata,
-                    ) {
-                        glog::error!("validate fail: {}, don't vote", err);
-                    }
-                }
-                Ok(())
-            },
-        )?;
-        Ok(())
-    }
+    // pub fn subscribe_attestation_request(
+    //     &self,
+    //     start: Option<u64>,
+    //     signer: &Secp256k1PrivateKey,
+    //     insecure: bool,
+    //     check_report_metadata: bool,
+    // ) -> Result<(), RpcError> {
+    //     let log_trace = eth_client::LogTrace::new(self.alive.clone(), self.el.clone(), 10, 0);
+    //     let sig = solidity::encode_eventsig("RequestAttestation(bytes32)");
+    //     let filter = LogFilter {
+    //         address: vec![self.to],
+    //         topics: vec![vec![sig]],
+    //         ..Default::default()
+    //     };
+    //     let client = self.clone();
+    //     let start = start.unwrap_or(0);
+    //     log_trace.subscribe(
+    //         "subscribe_attestation_request",
+    //         start,
+    //         filter,
+    //         move |logs| {
+    //             glog::info!("scan attestaion request: {:?}", logs);
+    //             for log in logs {
+    //                 let tx = client
+    //                     .el
+    //                     .get_transaction(&log.transaction_hash)
+    //                     .map_err(debug)?;
+    //                 let prover = solidity::parse_h160(0, &tx.input[4..]);
+    //                 let report = solidity::parse_bytes(32, &tx.input[4..]);
+    //                 glog::info!("tx: {:?} -> {}", prover, HexBytes::from(report.as_slice()));
+    //                 if let Err(err) = client.validate_and_vote_report(
+    //                     signer,
+    //                     prover,
+    //                     report,
+    //                     insecure,
+    //                     check_report_metadata,
+    //                 ) {
+    //                     glog::error!("validate fail: {}, don't vote", err);
+    //                 }
+    //             }
+    //             Ok(())
+    //         },
+    //     )?;
+    //     Ok(())
+    // }
 
     fn challenge_vote(
         &self,
@@ -255,10 +255,10 @@ impl Client {
     fn verify_quote(
         &self,
         _check_report_metadata: bool,
-        prover: &SH160,
+        user_data: &[u8; 64],
         report: &[u8],
     ) -> Result<(), String> {
-        self.verify_report_on_chain(prover, report).map_err(debug)?;
+        self.verify_report_on_chain(user_data, report).map_err(debug)?;
 
         #[cfg(feature = "sgx")]
         {
@@ -279,7 +279,9 @@ impl Client {
             let report_data = quote.get_report_body().report_data;
 
             let mut report_prover_key: SH160 = SH160::default();
-            report_prover_key.as_bytes_mut().copy_from_slice(&report_data.d[44..]);
+            report_prover_key
+                .as_bytes_mut()
+                .copy_from_slice(&report_data.d[44..]);
             if &report_prover_key != prover {
                 return Err(format!(
                     "prover account not match: want={:?}, got={:?}",
@@ -290,27 +292,27 @@ impl Client {
         Ok(())
     }
 
-    #[allow(unused_variables)]
-    fn validate_and_vote_report(
-        &self,
-        signer: &Secp256k1PrivateKey,
-        prover: SH160,
-        report: Vec<u8>,
-        insecure: bool,
-        check_report_metadata: bool,
-    ) -> Result<(), String> {
-        if !insecure {
-            self.verify_quote(check_report_metadata, &prover, &report)?;
-        }
+    // #[allow(unused_variables)]
+    // fn validate_and_vote_report(
+    //     &self,
+    //     signer: &Secp256k1PrivateKey,
+    //     prover: SH160,
+    //     report: Vec<u8>,
+    //     insecure: bool,
+    //     check_report_metadata: bool,
+    // ) -> Result<(), String> {
+    //     if !insecure {
+    //         self.verify_quote(check_report_metadata, &prover, &report)?;
+    //     }
 
-        let hash: SH256 = keccak_hash(&report).into();
-        let mut encoder = solidity::Encoder::new("voteAttestationReport");
-        encoder.add(&hash);
-        encoder.add(&true);
+    //     let hash: SH256 = keccak_hash(&report).into();
+    //     let mut encoder = solidity::Encoder::new("voteAttestationReport");
+    //     encoder.add(&hash);
+    //     encoder.add(&true);
 
-        let _ = self.send_tx("vote_attestation_report", signer, encoder.encode())?;
-        Ok(())
-    }
+    //     let _ = self.send_tx("vote_attestation_report", signer, encoder.encode())?;
+    //     Ok(())
+    // }
 
     pub fn get_voted(&self, report: &SH256, addr: &SH160) -> Result<SU256, RpcError> {
         let mut encoder = solidity::Encoder::new("getVote");
@@ -397,9 +399,19 @@ impl Client {
         Ok(receipt.transaction_hash)
     }
 
-    pub fn verify_report_on_chain(&self, prover: &SH160, report: &[u8]) -> Result<bool, RpcError> {
+    pub fn verify_report_on_chain(
+        &self,
+        user_data: &[u8],
+        report: &[u8],
+    ) -> Result<bool, RpcError> {
+        let mut x = SH256::default();
+        let mut y = SH256::default();
+        x.0.copy_from_slice(&user_data[..32]);
+        y.0.copy_from_slice(&user_data[32..]);
+
         let mut encoder = solidity::Encoder::new("verifyAttestation");
-        encoder.add(prover);
+        encoder.add(&x);
+        encoder.add(&y);
         encoder.add(report);
 
         let call = EthCall {

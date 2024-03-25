@@ -5,7 +5,7 @@ use apps::{Getter, Var, VarMutex};
 use base::{format::debug, trace::Alive};
 use crypto::Secp256k1PrivateKey;
 use eth_client::ExecutionClient;
-use eth_types::{HexBytes, SH160, SH256};
+use eth_types::{SH160, SH256};
 use jsonrpc::{MixRpcClient, RpcServer};
 use prover::{Database, Pob, Prover};
 use scroll_types::Poe;
@@ -19,6 +19,7 @@ pub struct App {
     pub cfg: Var<Config>,
 
     pub l2_el: Var<ExecutionClient>,
+    pub l1_el: Var<L1ExecutionClient>,
     pub verifier: Var<verifier::Client>,
     pub prover: Var<Prover>,
     pub srv: VarMutex<RpcServer<PublicApi>>,
@@ -92,8 +93,10 @@ impl apps::App for App {
                 let verifier = self.verifier.get(self);
                 let signer = cfg.relay_account;
                 let prover = self.prover.get(self);
+
+                #[cfg(feature = "tstd")]
                 let check_report_metadata = self.args.get(self).check_report_metadata;
-                
+
                 move || {
                     prover.monitor_attested(
                         &signer,
@@ -102,11 +105,12 @@ impl apps::App for App {
                             let mut report_data = [0_u8; 64];
                             let prover_key = SH160::from(prvkey.public().eth_accountid());
                             report_data[44..].copy_from_slice(prover_key.as_bytes());
-                            
+
                             if !dummy_attestation_report {
                                 #[cfg(feature = "tstd")]
                                 {
-                                    let quote = sgxlib_ra::dcap_generate_quote(report_data).map_err(debug)?;
+                                    let quote = sgxlib_ra::dcap_generate_quote(report_data)
+                                        .map_err(debug)?;
                                     if check_report_metadata {
                                         let pass_mrenclave = verifier
                                             .verify_mrenclave(quote.get_mr_enclave())
@@ -128,7 +132,9 @@ impl apps::App for App {
                                     }
                                     let data = serde_json::to_vec(&quote).map_err(debug)?;
 
-                                    verifier.verify_report_on_chain(&prover_key, &data).map_err(debug)?;
+                                    verifier
+                                        .verify_report_on_chain(&prover_key, &data)
+                                        .map_err(debug)?;
                                     return Ok(data);
                                 }
                             }
@@ -157,14 +163,12 @@ impl apps::App for App {
 }
 
 impl App {
-    pub fn commit_batch(
+    pub fn generate_poe(
         alive: &Alive,
         l2: &ExecutionClient,
         prover: &Prover,
-        relay_acc: &Secp256k1PrivateKey,
-        verifier: &verifier::Client,
         task: BatchTask,
-    ) -> Result<SH256, String> {
+    ) -> Result<Poe, String> {
         let mut reports = Vec::new();
         let mut chunks = BatchChunkBuilder::new(task.chunks.clone());
 
@@ -202,7 +206,20 @@ impl App {
             .sign_poe(task.batch_hash, &reports)
             .ok_or(format!("fail to gen poe"))?;
 
-        verifier.commit_batch(relay_acc, &task.batch_id, &poe.encode())
+        Ok(poe)
+    }
+
+    pub fn commit_batch(
+        alive: &Alive,
+        l2: &ExecutionClient,
+        prover: &Prover,
+        relay_acc: &Secp256k1PrivateKey,
+        verifier: &verifier::Client,
+        task: BatchTask,
+    ) -> Result<SH256, String> {
+        let batch_id = task.batch_id.clone();
+        let poe = Self::generate_poe(alive, l2, prover, task)?;
+        verifier.commit_batch(relay_acc, &batch_id, &poe.encode())
     }
 
     fn execute_block(
@@ -257,6 +274,32 @@ impl Getter<verifier::Client> for App {
         let cfg = self.cfg.get(self);
 
         verifier::Client::new(&self.alive, cfg.verifier.clone())
+    }
+}
+
+pub struct L1ExecutionClient(ExecutionClient);
+
+impl std::ops::Deref for L1ExecutionClient {
+    type Target = ExecutionClient;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl std::ops::DerefMut for L1ExecutionClient {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl Getter<L1ExecutionClient> for App {
+    fn generate(&self) -> L1ExecutionClient {
+        let cfg = self.cfg.get(self);
+        let mut mix = MixRpcClient::new(None);
+        mix.add_endpoint(&self.alive, &[cfg.scroll_chain.endpoint.clone()])
+            .unwrap();
+        L1ExecutionClient(ExecutionClient::new(mix))
     }
 }
 
