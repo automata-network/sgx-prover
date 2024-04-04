@@ -258,7 +258,8 @@ impl Client {
         user_data: &[u8; 64],
         report: &[u8],
     ) -> Result<(), String> {
-        self.verify_report_on_chain(user_data, report).map_err(debug)?;
+        self.verify_report_on_chain(user_data, report)
+            .map_err(debug)?;
 
         #[cfg(feature = "sgx")]
         {
@@ -277,15 +278,10 @@ impl Client {
             }
 
             let report_data = quote.get_report_body().report_data;
-
-            let mut report_prover_key: SH160 = SH160::default();
-            report_prover_key
-                .as_bytes_mut()
-                .copy_from_slice(&report_data.d[44..]);
-            if &report_prover_key != prover {
+            if &report_data.d != user_data {
                 return Err(format!(
-                    "prover account not match: want={:?}, got={:?}",
-                    prover, report_prover_key
+                    "report_data not match: want={:?}, got={:?}",
+                    report_data.d, user_data
                 ));
             }
         }

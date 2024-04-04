@@ -10,6 +10,7 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 
 use super::BeaconSlot;
+use eth_types::TxTrait;
 
 #[derive(Clone)]
 pub struct HashPool(Arc<Mutex<LruMap<SH256, HashPoolTrace>>>);

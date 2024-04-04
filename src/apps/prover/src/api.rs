@@ -3,10 +3,11 @@ use std::prelude::v1::*;
 use std::fs::read_to_string;
 
 use apps::Getter;
+use base::format::debug;
 use base::trace::Alive;
 use crypto::Secp256k1PrivateKey;
 use eth_client::ExecutionClient;
-use eth_types::HexBytes;
+use eth_types::{HexBytes, SU256};
 use eth_types::{SH256, SU64};
 use jsonrpc::{JsonrpcErrorObj, RpcArgs, RpcServer, RpcServerConfig};
 use prover::{Database, Prover};
@@ -41,6 +42,35 @@ impl PublicApi {
         Ok(())
     }
 
+    fn get_poe(&self, arg: RpcArgs<(SH256,)>) -> Result<Poe, JsonrpcErrorObj> {
+        let tx = self
+            .l1_el
+            .get_transaction(&arg.params.0)
+            .map_err(JsonrpcErrorObj::unknown)?;
+        let receipt = self
+            .l1_el
+            .get_receipt(&arg.params.0)
+            .map_err(JsonrpcErrorObj::unknown)?
+            .ok_or_else(|| JsonrpcErrorObj::client("tx missing receipt".into()))?;
+        let topic = solidity::encode_eventsig("CommitBatch(uint256,bytes32)");
+
+        let log = receipt
+            .logs
+            .into_iter()
+            .find(|log| log.topics.len() > 0 && log.topics[0] == topic)
+            .ok_or_else(|| JsonrpcErrorObj::client("invalid tx".into()))?;
+
+        let batch_id = SU256::from_big_endian(log.topics[1].as_bytes());
+        let batch_hash = log.topics[2];
+        let batch_task = BatchTask::from_calldata(batch_id, batch_hash, &tx.input[4..])
+            .map_err(JsonrpcErrorObj::unknown)?;
+
+        let poe = App::generate_poe(&self.alive, &self.l2_el, &self.prover, batch_task)
+            .map_err(JsonrpcErrorObj::unknown)?;
+
+        Ok(poe)
+    }
+
     fn generate_attestation_report(
         &self,
         arg: RpcArgs<(HexBytes,)>,
@@ -53,50 +83,39 @@ impl PublicApi {
         {
             let mut report_data = [0_u8; 64];
             report_data.copy_from_slice(&arg.params.0);
-            let quote = sgxlib_ra::dcap_generate_quote(report_data).map_err(debug)?;
-            if check_report_metadata {
-                let pass_mrenclave = verifier
+            let quote =
+                sgxlib_ra::dcap_generate_quote(report_data).map_err(JsonrpcErrorObj::unknown)?;
+            if self.check_report_metadata {
+                let pass_mrenclave = self
+                    .verifier
                     .verify_mrenclave(quote.get_mr_enclave())
-                    .map_err(debug)?;
-                let pass_mrsigner = verifier
+                    .map_err(JsonrpcErrorObj::unknown)?;
+                let pass_mrsigner = self
+                    .verifier
                     .verify_mrsigner(quote.get_mr_signer())
-                    .map_err(debug)?;
+                    .map_err(JsonrpcErrorObj::unknown)?;
                 if !pass_mrenclave || !pass_mrsigner {
                     glog::info!(
                         "mrenclave: {}, mrsigner: {}",
                         HexBytes::from(&quote.get_mr_enclave()[..]),
                         HexBytes::from(&quote.get_mr_signer()[..])
                     );
-                    return Err(format!(
+                    return Err(JsonrpcErrorObj::unknown(format!(
                         "mrenclave[{}] or mr_signer[{}] not trusted",
                         pass_mrenclave, pass_mrsigner
-                    ));
+                    )));
                 }
             }
-            let data = serde_json::to_vec(&quote).map_err(debug)?;
+            let data = serde_json::to_vec(&quote).map_err(JsonrpcErrorObj::unknown)?;
 
-            verifier
+            self.verifier
                 .verify_report_on_chain(&report_data, &data)
-                .map_err(debug)?;
-            return Ok(data);
+                .map_err(JsonrpcErrorObj::unknown)?;
+            return Ok(data.into());
         }
         return Err(JsonrpcErrorObj::unknown(
             "generate attestation report is unsupported",
         ));
-    }
-
-    fn get_poe(&self, arg: RpcArgs<(SH256,)>) -> Result<Poe, JsonrpcErrorObj> {
-        let tx_hash = &arg.params.0;
-        let tx = self
-            .l1_el
-            .get_transaction(tx_hash)
-            .map_err(JsonrpcErrorObj::unknown)?;
-        let batch_hash = SH256::default();
-        let batch_task = BatchTask::from_calldata(0.into(), batch_hash, &tx.input)
-            .map_err(JsonrpcErrorObj::unknown)?;
-        let poe = App::generate_poe(&self.alive, &self.l2_el, &self.prover, batch_task)
-            .map_err(JsonrpcErrorObj::unknown)?;
-        Ok(poe)
     }
 
     // validate a block and generate a execution report
@@ -212,6 +231,7 @@ impl Getter<RpcServer<PublicApi>> for App {
             "generateAttestationReport",
             PublicApi::generate_attestation_report,
         );
+        srv.jsonrpc("getPoe", PublicApi::get_poe);
 
         srv
     }
