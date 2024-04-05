@@ -22,6 +22,7 @@ scroll_types = { path = "../scroll_types", default-features = false }
 eth_client = { path = "../eth_client", default-features = false }
 statedb = { path = "../statedb", default-features = false }
 base = { git = "https://github.com/automata-network/base-rs", default-features = false }
+scale-info-derive = "=2.10"
 
 evm = { git = "https://github.com/automata-network/evm-rs", default-features = false }
 num-bigint = { git = "https://github.com/automata-network/sgxlib-thirdparty", default-features = false }

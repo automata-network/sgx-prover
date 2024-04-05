@@ -817,6 +817,7 @@ dependencies = [
  "lazy_static",
  "num-bigint 0.1.0",
  "ripemd160",
+ "scale-info-derive 2.10.0",
  "scroll_types",
  "sgxlib",
  "statedb",
@@ -2060,7 +2061,7 @@ dependencies = [
  "cfg-if 1.0.0",
  "derive_more",
  "parity-scale-codec 3.1.5",
- "scale-info-derive 2.11.1",
+ "scale-info-derive 2.10.0",
 ]
 
 [[package]]
@@ -2088,9 +2089,9 @@ dependencies = [
 
 [[package]]
 name = "scale-info-derive"
-version = "2.11.1"
+version = "2.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7dc2f4e8bc344b9fc3d5f74f72c2e55bfc38d28dc2ebc69c194a3df424e4d9ac"
+checksum = "abf2c68b89cafb3b8d918dd07b42be0da66ff202cf1155c5739a4e0c1ea0dc19"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2 1.0.79",
