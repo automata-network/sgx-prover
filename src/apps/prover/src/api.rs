@@ -22,7 +22,7 @@ pub struct PublicApi {
     pub verifier: Arc<verifier::Client>,
     pub l2_el: Arc<ExecutionClient>,
     pub l1_el: Arc<L1ExecutionClient>,
-    pub relay: Secp256k1PrivateKey,
+    pub relay: Option<Secp256k1PrivateKey>,
     pub insecure: bool,
     pub check_report_metadata: bool,
     pub task_mgr: TaskManager,
@@ -131,9 +131,9 @@ impl PublicApi {
 
             let data = quote.to_bytes();
 
-            // self.verifier
-            //     .verify_report_on_chain(&report_data, &data)
-            //     .map_err(JsonrpcErrorObj::unknown)?;
+            self.verifier
+                .verify_report_on_chain(&report_data, &data)
+                .map_err(JsonrpcErrorObj::unknown)?;
             return Ok(data.into());
         }
         return Err(JsonrpcErrorObj::unknown(

@@ -38,8 +38,8 @@ impl apps::App for App {
         let srv = self.srv.get(self);
 
         let prover = self.prover.get(self);
-        {
-            let relay_acc: SH160 = cfg.relay_account.public().eth_accountid().into();
+        if let Some(relay) = cfg.relay_account {
+            let relay_acc: SH160 = relay.public().eth_accountid().into();
             let relay_balance = prover.balance(&relay_acc).map_err(debug)?;
             glog::info!(
                 "prove relay account: {:?}, balance: {}",

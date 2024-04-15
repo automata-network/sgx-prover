@@ -11,10 +11,11 @@ use serde::{Deserialize, Serialize};
 pub struct Config {
     pub verifier: verifier::Config,
     pub scroll_chain: ScrollChain,
+    #[serde(default)]
     pub server: ServerConfig,
     pub l2: String,
 
-    pub relay_account: Secp256k1PrivateKey,
+    pub relay_account: Option<Secp256k1PrivateKey>,
 }
 
 #[derive(Debug, Serialize)]
@@ -43,9 +44,30 @@ pub struct ProveResult {
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct ServerConfig {
+    #[serde(default)]
     pub tls: String,
+    #[serde(default = "default_body_limit")]
     pub body_limit: usize,
+    #[serde(default = "default_worker")]
     pub workers: usize,
+}
+
+impl Default for ServerConfig {
+    fn default() -> Self {
+        Self {
+            tls: "".into(),
+            body_limit: default_body_limit(),
+            workers: default_worker(),
+        }
+    }
+}
+
+fn default_body_limit() -> usize {
+    2097152
+}
+
+fn default_worker() -> usize {
+    10
 }
 
 #[derive(Debug)]
@@ -90,8 +112,8 @@ impl Args {
                 Opt::Long("disable_check_report_metadata") => out.check_report_metadata = false,
                 opt => {
                     glog::warn!("unknown opt: {:?}", opt);
-                    continue
-                },
+                    continue;
+                }
             }
         }
         out
