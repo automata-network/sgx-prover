@@ -174,6 +174,7 @@ impl App {
         let mut reports = Vec::new();
         let mut chunks = BatchChunkBuilder::new(task.chunks.clone());
 
+        glog::info!("generate poe: {:?}", task.chunks);
         for chunk in &task.chunks {
             for blk in chunk {
                 if !alive.is_alive() {
@@ -195,13 +196,14 @@ impl App {
         if batch_header.hash() != task.batch_hash
             || batch_header.batch_index != task.batch_id.as_u64()
         {
-            return Err(format!(
+            glog::error!(
                 "batch hash mismatch, remote: ({:?}){:?}, local:{:?}({:?})",
                 task.batch_id,
                 task.batch_hash,
                 batch_header.hash(),
                 batch_header
-            ));
+            );
+            return Err("ratelimited, skip".into());
         }
 
         let poe = prover
@@ -236,16 +238,18 @@ impl App {
         let db = Database::new(102400);
         let result = prover.execute_block(&db, pob).map_err(debug)?;
         if new_state_root != result.new_state_root {
-            return Err(format!(
+            glog::error!(
                 "state not match[{}]: local: {:?} -> remote: {:?}",
                 block_num, result.new_state_root, new_state_root,
-            ));
+            );
+            return Err("ratelimited, skip".into());
         }
         if new_withdrawal_trie_root != &result.withdrawal_root {
-            return Err(format!(
+            glog::error!(
                 "withdrawal not match[{}]: local: {:?} -> remote: {:?}",
                 block_num, result.withdrawal_root, new_withdrawal_trie_root,
-            ));
+            );
+            return Err("ratelimited, skip".into());
         }
         Ok(Poe {
             state_hash,

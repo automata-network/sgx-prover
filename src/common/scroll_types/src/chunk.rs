@@ -23,7 +23,7 @@ pub fn decode_block_numbers(mut data: &[u8]) -> Option<Vec<u64>> {
     Some(numbers)
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq)]
 pub struct BatchHeader {
     pub version: u8,
     pub batch_index: u64,

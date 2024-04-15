@@ -1,4 +1,5 @@
 target/
+build/
 .vscode
 bin/sgx/target/
 verifier/node_modules

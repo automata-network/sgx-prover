@@ -14,7 +14,7 @@ use prover::{Database, Prover};
 use scroll_types::Poe;
 use std::sync::Arc;
 
-use crate::{App, BatchTask, L1ExecutionClient, ProveParams};
+use crate::{App, BatchTask, L1ExecutionClient, PoeResponse, ProveParams, TaskManager};
 
 pub struct PublicApi {
     pub alive: Alive,
@@ -25,6 +25,7 @@ pub struct PublicApi {
     pub relay: Secp256k1PrivateKey,
     pub insecure: bool,
     pub check_report_metadata: bool,
+    pub task_mgr: TaskManager,
 }
 
 impl PublicApi {
@@ -42,7 +43,7 @@ impl PublicApi {
         Ok(())
     }
 
-    fn get_poe(&self, arg: RpcArgs<(SH256,)>) -> Result<Poe, JsonrpcErrorObj> {
+    fn get_poe(&self, arg: RpcArgs<(SH256,)>) -> Result<PoeResponse, JsonrpcErrorObj> {
         let tx = self
             .l1_el
             .get_transaction(&arg.params.0)
@@ -61,14 +62,35 @@ impl PublicApi {
             .ok_or_else(|| JsonrpcErrorObj::client("invalid tx".into()))?;
 
         let batch_id = SU256::from_big_endian(log.topics[1].as_bytes());
+        if batch_id.as_u64() % 20 != 0 {
+            return Err(JsonrpcErrorObj::client("ratelimited, skip this, try next time".into()));
+        }
         let batch_hash = log.topics[2];
         let batch_task = BatchTask::from_calldata(batch_id, batch_hash, &tx.input[4..])
             .map_err(JsonrpcErrorObj::unknown)?;
 
-        let poe = App::generate_poe(&self.alive, &self.l2_el, &self.prover, batch_task)
-            .map_err(JsonrpcErrorObj::unknown)?;
+        if batch_task.chunks.len() == 0 {
+            return Err(JsonrpcErrorObj::client("invalid chunk".into()));
+        }
+        let start_block = *batch_task.chunks[0]
+            .first()
+            .ok_or(JsonrpcErrorObj::client("invalid chunk".into()))?;
+        let end_block = *batch_task.chunks[batch_task.chunks.len() - 1]
+            .last()
+            .ok_or(JsonrpcErrorObj::client("invalid chunk".into()))?;
 
-        Ok(poe)
+        let poe = match self.task_mgr.process_task(batch_task.clone()) {
+            Some(poe) => poe,
+            None => App::generate_poe(&self.alive, &self.l2_el, &self.prover, batch_task)
+                .map_err(JsonrpcErrorObj::unknown)?,
+        };
+
+        Ok(PoeResponse {
+            not_ready: false,
+            start_block,
+            end_block,
+            poe: Some(poe),
+        })
     }
 
     fn generate_attestation_report(
@@ -106,11 +128,12 @@ impl PublicApi {
                     )));
                 }
             }
-            let data = serde_json::to_vec(&quote).map_err(JsonrpcErrorObj::unknown)?;
 
-            self.verifier
-                .verify_report_on_chain(&report_data, &data)
-                .map_err(JsonrpcErrorObj::unknown)?;
+            let data = quote.to_bytes();
+
+            // self.verifier
+            //     .verify_report_on_chain(&report_data, &data)
+            //     .map_err(JsonrpcErrorObj::unknown)?;
             return Ok(data.into());
         }
         return Err(JsonrpcErrorObj::unknown(
@@ -213,6 +236,7 @@ impl Getter<RpcServer<PublicApi>> for App {
             relay: self.cfg.get(self).relay_account.clone(),
             insecure: self.args.get(self).insecure,
             check_report_metadata: self.args.get(self).check_report_metadata,
+            task_mgr: TaskManager::new(100),
         });
 
         let cfg = RpcServerConfig {

@@ -17,6 +17,14 @@ pub struct Config {
     pub relay_account: Secp256k1PrivateKey,
 }
 
+#[derive(Debug, Serialize)]
+pub struct PoeResponse {
+    pub not_ready: bool,
+    pub start_block: u64,
+    pub end_block: u64,
+    pub poe: Option<Poe>,
+}
+
 impl Config {}
 
 #[derive(Clone, Serialize, Deserialize, Debug)]

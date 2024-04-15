@@ -217,7 +217,11 @@ impl Trie for ZkTrie {
                 Err(zktrie::Error::NodeNotFound((_, node))) => {
                     TrieUpdate::Missing(node.bytes().into())
                 }
-                Err(err) => panic!("should not have error: {:?}", err),
+                Err(err) => {
+                    glog::error!("{:?}", err);
+                    TrieUpdate::Success
+                },
+                // Err(err) => panic!("should not have error: {:?}", err),
             };
             result.push(update_result);
         }

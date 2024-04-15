@@ -1,16 +1,82 @@
 use core::time::Duration;
 use std::prelude::v1::*;
 
+use base::thread;
 use base::{format::debug, trace::Alive};
 use crypto::keccak_hash;
 use eth_client::LogFilter;
 use eth_client::{ExecutionClient, LogTrace};
 use eth_types::{HexBytes, SH256, SU256};
 use jsonrpc::MixRpcClient;
-use scroll_types::{decode_block_numbers, BatchHeader, BlockTrace, TraceTx};
-use std::sync::{mpsc, Arc};
+use scroll_types::{decode_block_numbers, BatchHeader, BlockTrace, Poe, TraceTx};
+use std::collections::btree_map::Entry;
+use std::collections::BTreeMap;
+use std::sync::{mpsc, Arc, Mutex};
 
 use crate::ScrollChain;
+
+pub struct TaskManager {
+    tasks: Mutex<(BTreeMap<BatchTask, TaskContext>, Vec<BatchTask>)>,
+    cap: usize,
+}
+
+impl TaskManager {
+    pub fn new(cap: usize) -> TaskManager {
+        Self {
+            tasks: Mutex::new((BTreeMap::new(), Vec::new())),
+            cap,
+        }
+    }
+
+    fn add_task(&self, task: BatchTask) -> Option<TaskContext> {
+        let mut tasks = self.tasks.lock().unwrap();
+        let result = match tasks.0.entry(task.clone()) {
+            Entry::Occupied(entry) => Some(entry.get().clone()),
+            Entry::Vacant(entry) => {
+                entry.insert(TaskContext { result: None });
+                tasks.1.push(task);
+                None
+            }
+        };
+        while tasks.1.len() > self.cap {
+            let task = tasks.1.remove(0);
+            tasks.0.remove(&task);
+        }
+        result
+    }
+
+    pub fn process_task(&self, task: BatchTask) -> Option<Poe> {
+        loop {
+            match self.add_task(task.clone()) {
+                Some(tc) => match tc.result {
+                    Some(poe) => return Some(poe),
+                    None => {
+                        glog::info!("polling task result: {:?}", task);
+                        thread::sleep_ms(5000);
+                        continue;
+                    }
+                },
+                None => return None,
+            }
+        }
+    }
+
+    pub fn update_task(&self, task: BatchTask, poe: Poe) -> bool {
+        let mut tasks = self.tasks.lock().unwrap();
+        match tasks.0.entry(task) {
+            Entry::Occupied(mut entry) => {
+                entry.get_mut().result = Some(poe);
+                true
+            }
+            Entry::Vacant(entry) => false,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct TaskContext {
+    pub result: Option<Poe>,
+}
 
 pub struct BatchChunkBuilder {
     numbers: Vec<Vec<u64>>,
@@ -214,7 +280,7 @@ impl From<&TraceTx> for BatchChunkBlockTx {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq)]
 pub struct BatchTask {
     pub batch_id: SU256,
     pub batch_hash: SH256,
