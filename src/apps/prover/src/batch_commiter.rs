@@ -45,7 +45,7 @@ impl TaskManager {
         result
     }
 
-    pub fn process_task(&self, task: BatchTask) -> Option<Poe> {
+    pub fn process_task(&self, task: BatchTask) -> Option<Result<Poe, String>> {
         let alive = Alive::new();
         let alive = alive.fork_with_timeout(Duration::from_secs(120));
         
@@ -62,9 +62,10 @@ impl TaskManager {
                 None => return None,
             }
         }
+        None
     }
 
-    pub fn update_task(&self, task: BatchTask, poe: Poe) -> bool {
+    pub fn update_task(&self, task: BatchTask, poe: Result<Poe, String>) -> bool {
         let mut tasks = self.tasks.lock().unwrap();
         match tasks.0.entry(task) {
             Entry::Occupied(mut entry) => {
@@ -78,7 +79,7 @@ impl TaskManager {
 
 #[derive(Clone, Debug)]
 pub struct TaskContext {
-    pub result: Option<Poe>,
+    pub result: Option<Result<Poe, String>>,
 }
 
 pub struct BatchChunkBuilder {

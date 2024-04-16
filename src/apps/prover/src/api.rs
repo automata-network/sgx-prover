@@ -63,7 +63,9 @@ impl PublicApi {
 
         let batch_id = SU256::from_big_endian(log.topics[1].as_bytes());
         if batch_id.as_u64() % 20 != 0 {
-            return Err(JsonrpcErrorObj::client("ratelimited, skip this, try next time".into()));
+            return Err(JsonrpcErrorObj::client(
+                "ratelimited, skip this, try next time".into(),
+            ));
         }
         let batch_hash = log.topics[2];
         let batch_task = BatchTask::from_calldata(batch_id, batch_hash, &tx.input[4..])
@@ -81,9 +83,15 @@ impl PublicApi {
 
         let poe = match self.task_mgr.process_task(batch_task.clone()) {
             Some(poe) => poe,
-            None => App::generate_poe(&self.alive, &self.l2_el, &self.prover, batch_task)
-                .map_err(JsonrpcErrorObj::unknown)?,
-        };
+            None => {
+                let result =
+                    App::generate_poe(&self.alive, &self.l2_el, &self.prover, batch_task.clone());
+                self.task_mgr
+                    .update_task(batch_task.clone(), result.clone());
+                result
+            }
+        }
+        .map_err(JsonrpcErrorObj::unknown)?;
 
         Ok(PoeResponse {
             not_ready: false,
