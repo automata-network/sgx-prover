@@ -46,13 +46,16 @@ impl TaskManager {
     }
 
     pub fn process_task(&self, task: BatchTask) -> Option<Poe> {
-        loop {
+        let alive = Alive::new();
+        let alive = alive.fork_with_timeout(Duration::from_secs(120));
+        
+        while alive.is_alive() {
             match self.add_task(task.clone()) {
                 Some(tc) => match tc.result {
                     Some(poe) => return Some(poe),
                     None => {
                         glog::info!("polling task result: {:?}", task);
-                        thread::sleep_ms(5000);
+                        alive.sleep_ms(5000);
                         continue;
                     }
                 },
@@ -80,7 +83,7 @@ pub struct TaskContext {
 
 pub struct BatchChunkBuilder {
     numbers: Vec<Vec<u64>>,
-    chunks: Vec<BatchChunk>,
+    pub chunks: Vec<BatchChunk>,
     current_chunk_id: usize,
     current_block_id: usize,
 }
@@ -139,6 +142,7 @@ impl BatchChunkBuilder {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct BatchChunk {
     blocks: Vec<BatchChunkBlock>,
 }
@@ -208,6 +212,7 @@ impl BatchChunk {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct BatchChunkBlock {
     number: u64,
     timestamp: u64,
@@ -262,6 +267,7 @@ impl BatchChunkBlock {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct BatchChunkBlockTx {
     l1_msg: bool,
     nonce: u64,

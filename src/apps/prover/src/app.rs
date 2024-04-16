@@ -2,6 +2,7 @@ use std::prelude::v1::*;
 
 use crate::{Args, BatchChunkBuilder, BatchCommiter, BatchTask, Config, PublicApi};
 use apps::{Getter, Var, VarMutex};
+use base::time::Time;
 use base::{format::debug, trace::Alive};
 use crypto::Secp256k1PrivateKey;
 use eth_client::ExecutionClient;
@@ -9,8 +10,9 @@ use eth_types::{SH160, SH256};
 use jsonrpc::{MixRpcClient, RpcServer};
 use prover::{Database, Pob, Prover};
 use scroll_types::Poe;
-use std::sync::Arc;
-use std::time::Duration;
+use std::collections::BTreeMap;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
 #[derive(Default)]
 pub struct App {
@@ -167,32 +169,85 @@ impl apps::App for App {
 impl App {
     pub fn generate_poe(
         alive: &Alive,
-        l2: &ExecutionClient,
-        prover: &Prover,
+        l2: &Arc<ExecutionClient>,
+        prover: &Arc<Prover>,
         task: BatchTask,
     ) -> Result<Poe, String> {
-        let mut reports = Vec::new();
-        let mut chunks = BatchChunkBuilder::new(task.chunks.clone());
+        let mut batch_chunk = BatchChunkBuilder::new(task.chunks.clone());
+        let ctx = Arc::new(Mutex::new((Vec::<Poe>::new(), BTreeMap::new())));
 
         glog::info!("generate poe: {:?}", task.chunks);
-        for chunk in &task.chunks {
-            for blk in chunk {
-                if !alive.is_alive() {
-                    return Err("Canceled".into());
-                }
-                let block_trace = l2.get_block_trace((*blk).into()).map_err(debug)?;
+        let block_numbers = task
+            .chunks
+            .clone()
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>();
+
+        let now = Instant::now();
+        base::thread::parallel(alive, block_numbers.clone(), 8, {
+            let ctx = ctx.clone();
+            let prover = prover.clone();
+            let l2 = l2.clone();
+            move |blk| {
+                let now = Instant::now();
+                let block_trace = l2.get_block_trace(blk.into()).map_err(debug)?;
                 prover.check_chain_id(block_trace.chain_id)?;
-                chunks.add_block(&block_trace)?;
                 let codes = prover.fetch_codes(&l2, &block_trace).map_err(debug)?;
                 let withdrawal_root = block_trace.withdraw_trie_root.unwrap_or_default();
-                let pob = prover.generate_pob(block_trace, codes);
-                reports.push(Self::execute_block(&prover, pob, &withdrawal_root)?);
-                glog::info!("executed block: {}", blk);
+                let pob = prover.generate_pob(block_trace.clone(), codes);
+                let poe = Self::execute_block(&prover, pob, &withdrawal_root)?;
+                let mut ctx = ctx.lock().unwrap();
+                ctx.0.push(poe);
+                ctx.1.insert(blk, block_trace);
+                glog::info!("executed block: {} -> {:?}", blk, now.elapsed());
+                Ok(())
+            }
+        });
+
+        {
+            let ctx = ctx.lock().unwrap();
+            for chunk in &task.chunks {
+                for blk in chunk {
+                    let block_trace = ctx
+                        .1
+                        .get(blk)
+                        .ok_or_else(|| format!("blockTrace#{} should exists", blk))?;
+                    batch_chunk.add_block(block_trace)?;
+                }
             }
         }
-        let chunks = chunks.chunks();
 
-        let batch_header = task.build_header(&chunks)?;
+        // let execute_now = Instant::now();
+        // base::thread::parallel(alive, block_numbers.clone(), 8, {
+        //     let prover = prover.clone();
+        //     let l2 = l2.clone();
+        //     let ctx = ctx.clone();
+        //     move |blk| {
+        //         let block_trace = ctx.lock().unwrap().1.remove(&blk).unwrap();
+
+        //         prover.check_chain_id(block_trace.chain_id)?;
+        //         let codes = prover.fetch_codes(&l2, &block_trace).map_err(debug)?;
+        //         let withdrawal_root = block_trace.withdraw_trie_root.unwrap_or_default();
+        //         let pob = prover.generate_pob(block_trace, codes);
+        //         let poe = Self::execute_block(&prover, pob, &withdrawal_root)?;
+        //         ctx.lock().unwrap().0.push(poe);
+        //         glog::info!("executed block: {}", blk);
+        //         Ok(())
+        //     }
+        // });
+        let execute_time = now.elapsed();
+        glog::info!(
+            "batch#{}: execute_time: {:?}, avg: {:?}",
+            task.batch_id,
+            execute_time,
+            execute_time / (block_numbers.len() as u32)
+        );
+
+        let ctx = ctx.lock().unwrap();
+        let reports = &ctx.0;
+
+        let batch_header = task.build_header(&batch_chunk.chunks)?;
         if batch_header.hash() != task.batch_hash
             || batch_header.batch_index != task.batch_id.as_u64()
         {
@@ -215,8 +270,8 @@ impl App {
 
     pub fn commit_batch(
         alive: &Alive,
-        l2: &ExecutionClient,
-        prover: &Prover,
+        l2: &Arc<ExecutionClient>,
+        prover: &Arc<Prover>,
         relay_acc: &Secp256k1PrivateKey,
         verifier: &verifier::Client,
         task: BatchTask,
