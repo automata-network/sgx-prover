@@ -97,6 +97,7 @@ impl PublicApi {
             not_ready: false,
             start_block,
             end_block,
+            batch_id: batch_id.as_u64(),
             poe: Some(poe),
         })
     }

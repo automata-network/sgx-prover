@@ -21,6 +21,7 @@ pub struct Config {
 #[derive(Debug, Serialize)]
 pub struct PoeResponse {
     pub not_ready: bool,
+    pub batch_id: u64,
     pub start_block: u64,
     pub end_block: u64,
     pub poe: Option<Poe>,
