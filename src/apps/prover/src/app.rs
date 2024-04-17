@@ -1,6 +1,6 @@
 use std::prelude::v1::*;
 
-use crate::{Args, BatchChunkBuilder, BatchCommiter, BatchTask, Config, PublicApi};
+use crate::{get_timeout, Args, BatchChunkBuilder, BatchCommiter, BatchTask, Config, PublicApi};
 use apps::{Getter, Var, VarMutex};
 use base::time::Time;
 use base::{format::debug, trace::Alive};
@@ -357,7 +357,7 @@ impl std::ops::DerefMut for L1ExecutionClient {
 impl Getter<L1ExecutionClient> for App {
     fn generate(&self) -> L1ExecutionClient {
         let cfg = self.cfg.get(self);
-        let mut mix = MixRpcClient::new(None);
+        let mut mix = MixRpcClient::new(get_timeout(cfg.scroll_chain.timeout_secs));
         mix.add_endpoint(&self.alive, &[cfg.scroll_chain.endpoint.clone()])
             .unwrap();
         L1ExecutionClient(ExecutionClient::new(mix))
@@ -368,7 +368,7 @@ impl Getter<L1ExecutionClient> for App {
 impl Getter<ExecutionClient> for App {
     fn generate(&self) -> ExecutionClient {
         let cfg = self.cfg.get(self);
-        let mut mix = MixRpcClient::new(None);
+        let mut mix = MixRpcClient::new(get_timeout(cfg.l2_timeout_secs));
         mix.add_endpoint(&self.alive, &[cfg.l2.clone()]).unwrap();
         ExecutionClient::new(mix)
     }
@@ -381,7 +381,7 @@ impl Getter<Prover> for App {
         let prover_cfg = prover::Config {
             l2_chain_id: l2.chain_id().unwrap().into(),
         };
-        let mut mix = MixRpcClient::new(None);
+        let mut mix = MixRpcClient::new(get_timeout(cfg.verifier.timeout_secs));
         mix.add_endpoint(&self.alive, &[cfg.verifier.endpoint.clone()])
             .unwrap();
         Prover::new(

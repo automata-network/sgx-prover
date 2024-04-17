@@ -1210,7 +1210,6 @@ dependencies = [
 [[package]]
 name = "jsonrpc"
 version = "0.1.0"
-source = "git+https://github.com/automata-network/jsonrpc-rs#83a8b467a60e1e4b4c45608587c0a0cf4fe7e1b6"
 dependencies = [
  "base",
  "glog",

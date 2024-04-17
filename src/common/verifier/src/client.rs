@@ -14,6 +14,12 @@ use std::sync::Arc;
 pub struct Config {
     pub addr: SH160,
     pub endpoint: String,
+    #[serde(default = "default_verifier_timeout")]
+    pub timeout_secs: u64,
+}
+
+fn default_verifier_timeout() -> u64 {
+    10
 }
 
 #[derive(Clone)]
@@ -26,7 +32,12 @@ pub struct Client {
 
 impl Client {
     pub fn new(alive: &Alive, cfg: Config) -> Self {
-        let mut mix = MixRpcClient::new(None);
+        let timeout = if cfg.timeout_secs > 0 {
+            Some(Duration::from_secs(cfg.timeout_secs))
+        } else {
+            None
+        };
+        let mut mix = MixRpcClient::new(timeout);
         mix.add_endpoint(alive, &[cfg.endpoint.clone()]).unwrap();
 
         let el = ExecutionClient::new(Arc::new(mix));

@@ -1,3 +1,4 @@
+use core::time::Duration;
 use std::prelude::v1::*;
 
 use apps::getargs::{Opt, Options};
@@ -14,8 +15,22 @@ pub struct Config {
     #[serde(default)]
     pub server: ServerConfig,
     pub l2: String,
+    #[serde(default = "default_l2_timeout_secs")]
+    pub l2_timeout_secs: u64,
 
     pub relay_account: Option<Secp256k1PrivateKey>,
+}
+
+pub fn get_timeout(timeout_secs: u64) -> Option<Duration> {
+    if timeout_secs > 0 {
+        Some(Duration::from_secs(timeout_secs))
+    } else {
+        None
+    }
+}
+
+fn default_l2_timeout_secs() -> u64 {
+    60
 }
 
 #[derive(Debug, Serialize)]
@@ -35,6 +50,12 @@ pub struct ScrollChain {
     pub endpoint: String,
     pub wait_block: u64,
     pub max_block: u64,
+    #[serde(default = "default_scroll_timeout")]
+    pub timeout_secs: u64,
+}
+
+fn default_scroll_timeout() -> u64 {
+    60
 }
 
 #[derive(Serialize, Deserialize, Debug)]
