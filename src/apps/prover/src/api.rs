@@ -4,6 +4,7 @@ use std::fs::read_to_string;
 
 use apps::Getter;
 use base::format::debug;
+use base::fs::read_file;
 use base::trace::Alive;
 use crypto::Secp256k1PrivateKey;
 use eth_client::ExecutionClient;
@@ -231,8 +232,8 @@ impl Getter<RpcServer<PublicApi>> for App {
         let (tls_cert, tls_key) = match cfg.server.tls.as_str() {
             "" => (Vec::new(), Vec::new()),
             path => (
-                read_to_string(format!("{}.crt", path)).unwrap().into(),
-                read_to_string(format!("{}.key", path)).unwrap().into(),
+                read_file(&format!("{}.crt", path)).unwrap(),
+                read_file(&format!("{}.key", path)).unwrap(),
             ),
         };
 
