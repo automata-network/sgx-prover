@@ -26,6 +26,7 @@ pub struct PublicApi {
     pub relay: Option<Secp256k1PrivateKey>,
     pub insecure: bool,
     pub check_report_metadata: bool,
+    pub sampling: Option<u64>,
     pub task_mgr: TaskManager,
 }
 
@@ -63,10 +64,12 @@ impl PublicApi {
             .ok_or_else(|| JsonrpcErrorObj::client("invalid tx".into()))?;
 
         let batch_id = SU256::from_big_endian(log.topics[1].as_bytes());
-        if batch_id.as_u64() % 20 != 0 {
-            return Err(JsonrpcErrorObj::client(
-                "ratelimited, skip this, try next time".into(),
-            ));
+        if let Some(sampling) = self.sampling {
+            if batch_id.as_u64() % sampling != 0 {
+                return Err(JsonrpcErrorObj::client(
+                    "ratelimited, skip this, try next time".into(),
+                ));
+            }
         }
         let batch_hash = log.topics[2];
         let batch_task = BatchTask::from_calldata(batch_id, batch_hash, &tx.input[4..])
@@ -246,6 +249,7 @@ impl Getter<RpcServer<PublicApi>> for App {
             relay: self.cfg.get(self).relay_account.clone(),
             insecure: self.args.get(self).insecure,
             check_report_metadata: self.args.get(self).check_report_metadata,
+            sampling: self.args.get(self).sampling,
             task_mgr: TaskManager::new(100),
         });
 

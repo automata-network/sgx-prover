@@ -7,7 +7,7 @@ use base::{format::debug, trace::Alive};
 use crypto::Secp256k1PrivateKey;
 use eth_client::ExecutionClient;
 use eth_types::{SH160, SH256};
-use jsonrpc::{MixRpcClient, RpcServer};
+use jsonrpc::{Batchable, JsonrpcRawRequest, MixRpcClient, RpcClient, RpcServer};
 use prover::{Database, Pob, Prover};
 use scroll_types::Poe;
 use std::collections::BTreeMap;
@@ -29,6 +29,19 @@ pub struct App {
 
 impl apps::App for App {
     fn run(&self, env: apps::AppEnv) -> Result<(), String> {
+        // let mut mix = MixRpcClient::new(get_timeout(10));
+        // mix.add_endpoint(&self.alive, &[format!("https://mainnet.optimism.io")])
+        //     .unwrap();
+        // while self.alive.is_alive() {
+        //     glog::info!("try");
+        //     let response = mix.rpc_call(Batchable::Single(
+        //         JsonrpcRawRequest::new(1, "test", &()).unwrap(),
+        //     ));
+        //     glog::info!("{:?}", response);
+        //     self.alive.sleep_ms(300000); // 300
+        // }
+        // return Ok(());
+
         self.args.set(Args::from_args(env.args));
         #[cfg(feature = "std")]
         assert!(
@@ -295,14 +308,18 @@ impl App {
         if new_state_root != result.new_state_root {
             glog::error!(
                 "state not match[{}]: local: {:?} -> remote: {:?}",
-                block_num, result.new_state_root, new_state_root,
+                block_num,
+                result.new_state_root,
+                new_state_root,
             );
             return Err("ratelimited, skip".into());
         }
         if new_withdrawal_trie_root != &result.withdrawal_root {
             glog::error!(
                 "withdrawal not match[{}]: local: {:?} -> remote: {:?}",
-                block_num, result.withdrawal_root, new_withdrawal_trie_root,
+                block_num,
+                result.withdrawal_root,
+                new_withdrawal_trie_root,
             );
             return Err("ratelimited, skip".into());
         }

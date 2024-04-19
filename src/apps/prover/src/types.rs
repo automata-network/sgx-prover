@@ -101,6 +101,7 @@ pub struct Args {
     pub insecure: bool,
     pub dummy_attestation_report: bool,
     pub check_report_metadata: bool,
+    pub sampling: Option<u64>,
 }
 
 impl Default for Args {
@@ -111,6 +112,7 @@ impl Default for Args {
             insecure: false,
             dummy_attestation_report: false,
             check_report_metadata: true,
+            sampling: None,
             cfg: "config/prover.json".into(),
         }
     }
@@ -128,6 +130,9 @@ impl Args {
                 }
                 Opt::Short('c') => {
                     out.cfg = opts.value().unwrap().parse().unwrap();
+                }
+                Opt::Long("sampling") => {
+                    out.sampling = Some(opts.value().unwrap().parse().unwrap());
                 }
                 Opt::Long("insecure") => out.insecure = true,
                 Opt::Long("dummy_attestation_report") => out.dummy_attestation_report = true,
