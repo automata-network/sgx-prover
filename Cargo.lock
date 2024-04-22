@@ -476,7 +476,7 @@ checksum = "7a81dae078cea95a014a339291cec439d2f232ebe854a9d672b796c6afafa9b7"
 [[package]]
 name = "crypto"
 version = "0.1.0"
-source = "git+https://github.com/automata-network/crypto-rs#1c360473aa6700443b1b8a539e6c3a9f84e8482b"
+source = "git+https://github.com/automata-network/crypto-rs#7496a3641a587b5935bb3fbac01309ca7332746b"
 dependencies = [
  "aes-gcm",
  "blst",
