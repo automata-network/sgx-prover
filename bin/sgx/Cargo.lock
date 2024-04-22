@@ -130,9 +130,10 @@ dependencies = [
 [[package]]
 name = "ata-sgx-builder"
 version = "0.1.0"
+source = "git+https://github.com/automata-network/sgxlib#974295bf08d9a7bde099dddfdc8dda9f0813ea1f"
 dependencies = [
  "cargo_toml",
- "cc 0.0.1",
+ "cc",
  "home",
  "lazy_static",
  "openssl",
@@ -201,7 +202,7 @@ checksum = "d27c3610c36aee21ce8ac510e6224498de4228ad772a171ed65643a24693a5a8"
 [[package]]
 name = "base64"
 version = "0.1.0"
-source = "git+https://github.com/automata-network/sgxlib-thirdparty#58058f9442900ada805cbda3e174be803491a4ba"
+source = "git+https://github.com/automata-network/sgxlib-thirdparty#303b84ab61d64c00ea71910c40b390690c7b240d"
 dependencies = [
  "base64 0.13.0",
  "base64 0.13.1",
@@ -295,8 +296,9 @@ checksum = "8d696c370c750c948ada61c69a0ee2cbbb9c50b1019ddb86d9317157a99c2cae"
 [[package]]
 name = "blst"
 version = "0.3.10"
+source = "git+https://github.com/automata-network/sgxlib-thirdparty#303b84ab61d64c00ea71910c40b390690c7b240d"
 dependencies = [
- "cc 0.0.1",
+ "cc",
  "hex 0.4.3",
  "zeroize",
 ]
@@ -347,7 +349,7 @@ checksum = "e3b5ca7a04898ad4bcd41c90c5285445ff5b791899bb1b0abdd2a2aa791211d7"
 [[package]]
 name = "byteorder"
 version = "0.1.0"
-source = "git+https://github.com/automata-network/sgxlib-thirdparty#58058f9442900ada805cbda3e174be803491a4ba"
+source = "git+https://github.com/automata-network/sgxlib-thirdparty#303b84ab61d64c00ea71910c40b390690c7b240d"
 dependencies = [
  "byteorder 1.3.4",
 ]
@@ -394,15 +396,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "0.0.1"
+version = "1.0.94"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "adf486da8994fc25f4da025e41477f1e52ad983457cc8c191898e3c56c97120d"
-
-[[package]]
-name = "cc"
-version = "1.0.95"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d32a725bc159af97c3e629873bb9f88fb8cf8a4867175f76dc987815ea07c83b"
+checksum = "17f6e324229dc011159fcc089755d1e2e216a90d43a7dea6853ca740b84f35e7"
 
 [[package]]
 name = "cexpr"
@@ -473,10 +469,12 @@ checksum = "7a81dae078cea95a014a339291cec439d2f232ebe854a9d672b796c6afafa9b7"
 [[package]]
 name = "crypto"
 version = "0.1.0"
-source = "git+https://github.com/automata-network/crypto-rs#0af04da3e5dc86dd918345592d8f2edb283fe5a0"
+source = "git+https://github.com/automata-network/crypto-rs#1c360473aa6700443b1b8a539e6c3a9f84e8482b"
 dependencies = [
  "aes-gcm",
  "blst",
+ "byteorder 1.4.3",
+ "cc",
  "curve25519-dalek 2.1.3",
  "hex 0.1.0",
  "primitive-types 0.9.1",
@@ -624,7 +622,7 @@ dependencies = [
 [[package]]
 name = "env_logger"
 version = "0.1.0"
-source = "git+https://github.com/automata-network/sgxlib-thirdparty#58058f9442900ada805cbda3e174be803491a4ba"
+source = "git+https://github.com/automata-network/sgxlib-thirdparty#303b84ab61d64c00ea71910c40b390690c7b240d"
 dependencies = [
  "env_logger 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.7.1 (git+https://github.com/mesalock-linux/env_logger-sgx)",
@@ -985,7 +983,7 @@ dependencies = [
 [[package]]
 name = "gsrs"
 version = "0.1.4"
-source = "git+https://github.com/automata-network/sgxlib-thirdparty#58058f9442900ada805cbda3e174be803491a4ba"
+source = "git+https://github.com/automata-network/sgxlib-thirdparty#303b84ab61d64c00ea71910c40b390690c7b240d"
 dependencies = [
  "sgxlib",
 ]
@@ -1076,8 +1074,8 @@ dependencies = [
 [[package]]
 name = "http_req"
 version = "0.1.0"
+source = "git+https://github.com/automata-network/sgxlib-thirdparty#303b84ab61d64c00ea71910c40b390690c7b240d"
 dependencies = [
- "cc 0.0.1",
  "http_req 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "http_req 0.7.2 (git+https://github.com/mesalock-linux/http_req-sgx?tag=sgx_1.1.3)",
 ]
@@ -1252,7 +1250,7 @@ checksum = "830d08ce1d1d941e6b30645f1a0eb5643013d835ce3779a5fc208261dbe10f55"
 [[package]]
 name = "libc"
 version = "0.1.0"
-source = "git+https://github.com/automata-network/sgxlib-thirdparty#58058f9442900ada805cbda3e174be803491a4ba"
+source = "git+https://github.com/automata-network/sgxlib-thirdparty#303b84ab61d64c00ea71910c40b390690c7b240d"
 dependencies = [
  "libc 0.2.153",
  "sgxlib",
@@ -1277,7 +1275,7 @@ dependencies = [
 [[package]]
 name = "log"
 version = "0.1.0"
-source = "git+https://github.com/automata-network/sgxlib-thirdparty#58058f9442900ada805cbda3e174be803491a4ba"
+source = "git+https://github.com/automata-network/sgxlib-thirdparty#303b84ab61d64c00ea71910c40b390690c7b240d"
 dependencies = [
  "log 0.4.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.14 (git+https://github.com/mesalock-linux/log-sgx)",
@@ -1386,7 +1384,7 @@ dependencies = [
 [[package]]
 name = "net2"
 version = "0.1.0"
-source = "git+https://github.com/automata-network/sgxlib-thirdparty#58058f9442900ada805cbda3e174be803491a4ba"
+source = "git+https://github.com/automata-network/sgxlib-thirdparty#303b84ab61d64c00ea71910c40b390690c7b240d"
 dependencies = [
  "net2 0.2.33",
  "net2 0.2.37",
@@ -1420,7 +1418,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "83450fe6a6142ddd95fb064b746083fc4ef1705fe81f64a64e1d4b39f54a1055"
 dependencies = [
  "bitflags",
- "cc 1.0.95",
+ "cc",
  "cfg-if 0.1.10",
  "libc 0.2.153",
 ]
@@ -1438,7 +1436,7 @@ dependencies = [
 [[package]]
 name = "num-bigint"
 version = "0.1.0"
-source = "git+https://github.com/automata-network/sgxlib-thirdparty#58058f9442900ada805cbda3e174be803491a4ba"
+source = "git+https://github.com/automata-network/sgxlib-thirdparty#303b84ab61d64c00ea71910c40b390690c7b240d"
 dependencies = [
  "num-bigint 0.2.5",
 ]
@@ -1563,7 +1561,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9d5fd19fb3e0a8191c1e34935718976a3e70c112ab9a24af6d7cadccd9d90bc0"
 dependencies = [
  "autocfg 1.2.0",
- "cc 1.0.95",
+ "cc",
  "libc 0.2.153",
  "pkg-config",
  "vcpkg",
@@ -1916,7 +1914,7 @@ name = "ring"
 version = "0.16.19"
 source = "git+https://github.com/mesalock-linux/ring-sgx?tag=v0.16.5#844efe271ed78a399d803b2579f5f2424d543c9f"
 dependencies = [
- "cc 1.0.95",
+ "cc",
  "sgx_tstd",
  "spin",
  "untrusted",
@@ -1928,7 +1926,7 @@ version = "0.16.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3053cf52e236a3ed746dfc745aa9cacf1b791d846bdaf412f60a8d7d6e17c8fc"
 dependencies = [
- "cc 1.0.95",
+ "cc",
  "libc 0.2.153",
  "once_cell",
  "spin",
@@ -1984,7 +1982,7 @@ checksum = "3e75f6a532d0fd9f7f13144f392b6ad56a32696bfcd9c78f797f16bbb6f072d6"
 [[package]]
 name = "rustls"
 version = "0.1.0"
-source = "git+https://github.com/automata-network/sgxlib-thirdparty#58058f9442900ada805cbda3e174be803491a4ba"
+source = "git+https://github.com/automata-network/sgxlib-thirdparty#303b84ab61d64c00ea71910c40b390690c7b240d"
 dependencies = [
  "rustls 0.19.0 (git+https://github.com/mesalock-linux/rustls?tag=sgx_1.1.3)",
  "rustls 0.19.1",
@@ -2184,13 +2182,13 @@ version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "70a129b9e9efbfb223753b9163c4ab3b13cff7fd9c7f010fbac25ab4099fa07e"
 dependencies = [
- "cc 1.0.95",
+ "cc",
 ]
 
 [[package]]
 name = "serde"
 version = "0.1.0"
-source = "git+https://github.com/automata-network/sgxlib-thirdparty#58058f9442900ada805cbda3e174be803491a4ba"
+source = "git+https://github.com/automata-network/sgxlib-thirdparty#303b84ab61d64c00ea71910c40b390690c7b240d"
 dependencies = [
  "serde 1.0.118",
  "serde 1.0.198",
@@ -2217,7 +2215,7 @@ dependencies = [
 [[package]]
 name = "serde-big-array"
 version = "0.1.0"
-source = "git+https://github.com/automata-network/sgxlib-thirdparty#58058f9442900ada805cbda3e174be803491a4ba"
+source = "git+https://github.com/automata-network/sgxlib-thirdparty#303b84ab61d64c00ea71910c40b390690c7b240d"
 dependencies = [
  "serde 0.1.0",
  "serde-big-array 0.3.0",
@@ -2267,7 +2265,7 @@ dependencies = [
 [[package]]
 name = "serde_json"
 version = "0.1.0"
-source = "git+https://github.com/automata-network/sgxlib-thirdparty#58058f9442900ada805cbda3e174be803491a4ba"
+source = "git+https://github.com/automata-network/sgxlib-thirdparty#303b84ab61d64c00ea71910c40b390690c7b240d"
 dependencies = [
  "serde 0.1.0",
  "serde_json 1.0.116",
@@ -2398,7 +2396,7 @@ name = "sgx_backtrace_sys"
 version = "1.1.4"
 source = "git+https://github.com/automata-network/incubator-teaclave-sgx-sdk?tag=v1.1.4#a1dd97696ce8dff0f3fceadaefb39af92f10d20c"
 dependencies = [
- "cc 1.0.95",
+ "cc",
  "sgx_build_helper",
  "sgx_libc",
 ]
@@ -2633,7 +2631,7 @@ checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
 [[package]]
 name = "ssz"
 version = "0.2.0"
-source = "git+https://github.com/automata-network/sgxlib-thirdparty#58058f9442900ada805cbda3e174be803491a4ba"
+source = "git+https://github.com/automata-network/sgxlib-thirdparty#303b84ab61d64c00ea71910c40b390690c7b240d"
 dependencies = [
  "blst",
  "bm-le",
@@ -2764,7 +2762,7 @@ dependencies = [
 [[package]]
 name = "thiserror"
 version = "0.1.0"
-source = "git+https://github.com/automata-network/sgxlib-thirdparty#58058f9442900ada805cbda3e174be803491a4ba"
+source = "git+https://github.com/automata-network/sgxlib-thirdparty#303b84ab61d64c00ea71910c40b390690c7b240d"
 dependencies = [
  "thiserror 1.0.59",
  "thiserror 1.0.9",
@@ -2821,7 +2819,7 @@ dependencies = [
 [[package]]
 name = "threadpool"
 version = "0.1.0"
-source = "git+https://github.com/automata-network/sgxlib-thirdparty#58058f9442900ada805cbda3e174be803491a4ba"
+source = "git+https://github.com/automata-network/sgxlib-thirdparty#303b84ab61d64c00ea71910c40b390690c7b240d"
 dependencies = [
  "threadpool 1.8.0",
  "threadpool 1.8.1",
@@ -3078,7 +3076,7 @@ dependencies = [
 [[package]]
 name = "webpki"
 version = "0.1.0"
-source = "git+https://github.com/automata-network/sgxlib-thirdparty#58058f9442900ada805cbda3e174be803491a4ba"
+source = "git+https://github.com/automata-network/sgxlib-thirdparty#303b84ab61d64c00ea71910c40b390690c7b240d"
 dependencies = [
  "webpki 0.21.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "webpki 0.21.4 (git+https://github.com/mesalock-linux/webpki?branch=mesalock_sgx)",
