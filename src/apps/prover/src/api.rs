@@ -260,6 +260,7 @@ impl Getter<RpcServer<PublicApi>> for App {
             http_max_body_length: Some(cfg.server.body_limit),
             ws_frame_size: 64 << 10,
             threads: cfg.server.workers,
+            max_idle_secs: Some(60),
         };
         let mut srv = RpcServer::new(self.alive.clone(), cfg, api.clone()).unwrap();
         srv.jsonrpc("prove", PublicApi::prove);
