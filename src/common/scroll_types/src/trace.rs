@@ -1,6 +1,6 @@
 use std::prelude::v1::*;
 
-use eth_types::{HexBytes, LegacyTx, SH160, SH256, SU256};
+use eth_types::{AccessListTx, DynamicFeeTx, HexBytes, LegacyTx, Nilable, TransactionAccessTuple, SH160, SH256, SU256};
 use rlp_derive::{RlpDecodable, RlpEncodable};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -11,7 +11,9 @@ use crate::{BlockHeader, Transaction, TransactionInner, L1_MESSAGE_TX_TYPE};
 #[serde(rename_all = "camelCase")]
 pub struct BlockTrace {
     #[serde(rename = "chainID")]
+    #[serde(default)]
     pub chain_id: u64,
+    #[serde(default)]
     pub version: String,
     pub coinbase: AccountWrapper,
     pub header: BlockHeader,
@@ -20,9 +22,10 @@ pub struct BlockTrace {
     #[serde(default)]
     pub tx_storage_traces: Vec<StorageTrace>,
     pub execution_results: Vec<ExecutionResult>,
-    pub mptwitness: Option<String>,
+    // pub mptwitness: Option<String>,
     #[serde(rename = "withdraw_trie_root")]
     pub withdraw_trie_root: Option<SH256>,
+    #[serde(default)]
     pub start_l1_queue_index: u64,
 }
 
@@ -57,8 +60,11 @@ pub struct AccountWrapper {
     pub address: SH160,
     pub nonce: u64,
     pub balance: SU256,
+    #[serde(default)]
     pub keccak_code_hash: SH256,
+    #[serde(default)]
     pub poseidon_code_hash: SH256,
+    #[serde(default)]
     pub code_size: u64,
     pub storage: Option<StorageWrapper>,
 }
@@ -114,6 +120,7 @@ pub struct ExecutionResult {
     // `PoseidonCodeHash` only exists when tx is a contract call.
     pub poseidon_code_hash: Option<SH256>,
     // If it is a contract call, the contract code is returned.
+    #[serde(default)]
     pub byte_code: HexBytes,
     // we don't need it for now
     // pub struct_logs: Vec<StructLogRes>,
@@ -171,7 +178,7 @@ pub struct ExtraData {
 }
 
 #[derive(
-    Default, Clone, Debug, Deserialize, Serialize, RlpEncodable, RlpDecodable, PartialEq, Eq,
+    Default, Clone, Debug, Deserialize, Serialize, PartialEq, Eq,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct TraceTx {
@@ -180,12 +187,15 @@ pub struct TraceTx {
     pub tx_hash: SH256,
     pub gas: u64,
     pub gas_price: SU256,
+    pub gas_tip_cap: Option<SU256>,
+    pub gas_fee_cap: Option<SU256>,
     pub from: SH160,
     pub to: Option<SH160>,
     pub chain_id: SU256,
     pub value: SU256,
     pub data: HexBytes,
     pub is_create: bool,
+    pub access_list: Option<Vec<TransactionAccessTuple>>,
     pub v: SU256,
     pub r: SU256,
     pub s: SU256,
@@ -218,17 +228,48 @@ impl TraceTx {
     }
 
     pub fn to_rlp_encoding(&self) -> Vec<u8> {
-        let tx = TransactionInner::Legacy(LegacyTx {
-            nonce: self.nonce.into(),
-            to: self.to.into(),
-            value: self.value,
-            gas: self.gas.into(),
-            gas_price: self.gas_price,
-            data: self.data.clone(),
-            v: self.v,
-            r: self.r,
-            s: self.s,
-        });
+        let tx = match self.r#type {
+            0 => TransactionInner::Legacy(LegacyTx {
+                nonce: self.nonce.into(),
+                to: self.to.into(),
+                value: self.value,
+                gas: self.gas.into(),
+                gas_price: self.gas_price,
+                data: self.data.clone(),
+                v: self.v,
+                r: self.r,
+                s: self.s,
+            }),
+            1 => TransactionInner::AccessList(AccessListTx{
+                chain_id: self.chain_id,
+                nonce: self.nonce.into(),
+                to: self.to.into(),
+                value: self.value,
+                gas: self.gas.into(),
+                gas_price: self.gas_price.into(),
+                data: self.data.clone(),
+                access_list: self.access_list.clone().unwrap(),
+                v: self.v,
+                r: self.r,
+                s: self.s,
+            }),
+            2 => TransactionInner::DynamicFee(DynamicFeeTx{
+                chain_id: self.chain_id.into(),
+                nonce: self.nonce.into(),
+                max_priority_fee_per_gas: self.gas_tip_cap.unwrap().into(),
+                max_fee_per_gas: self.gas_fee_cap.unwrap().into(),
+                gas: self.gas.into(),
+                to: self.to.into(),
+                value: self.value,
+                data: self.data.clone(),
+                access_list: self.access_list.clone().unwrap(),
+                v: self.v,
+                r: self.r,
+                s: self.s,
+            }),
+            126 => return Vec::new(),
+            ty => unreachable!("unknown tx type: {}", ty),
+        };
         tx.to_bytes()
     }
 }

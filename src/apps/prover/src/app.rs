@@ -1,18 +1,17 @@
 use std::prelude::v1::*;
 
-use crate::{get_timeout, Args, BatchChunkBuilder, BatchCommiter, BatchTask, Config, PublicApi};
+use crate::{get_timeout, Args, Config, PublicApi};
 use apps::{Getter, Var, VarMutex};
-use base::time::Time;
 use base::{format::debug, trace::Alive};
 use crypto::Secp256k1PrivateKey;
 use eth_client::ExecutionClient;
 use eth_types::{SH160, SH256};
-use jsonrpc::{Batchable, JsonrpcRawRequest, MixRpcClient, RpcClient, RpcServer};
+use jsonrpc::{MixRpcClient, RpcServer};
 use prover::{Database, Pob, Prover};
-use scroll_types::Poe;
+use scroll_types::{BatchChunkBuilder, BatchTask, Poe};
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 #[derive(Default)]
 pub struct App {
@@ -231,24 +230,6 @@ impl App {
             }
         }
 
-        // let execute_now = Instant::now();
-        // base::thread::parallel(alive, block_numbers.clone(), 8, {
-        //     let prover = prover.clone();
-        //     let l2 = l2.clone();
-        //     let ctx = ctx.clone();
-        //     move |blk| {
-        //         let block_trace = ctx.lock().unwrap().1.remove(&blk).unwrap();
-
-        //         prover.check_chain_id(block_trace.chain_id)?;
-        //         let codes = prover.fetch_codes(&l2, &block_trace).map_err(debug)?;
-        //         let withdrawal_root = block_trace.withdraw_trie_root.unwrap_or_default();
-        //         let pob = prover.generate_pob(block_trace, codes);
-        //         let poe = Self::execute_block(&prover, pob, &withdrawal_root)?;
-        //         ctx.lock().unwrap().0.push(poe);
-        //         glog::info!("executed block: {}", blk);
-        //         Ok(())
-        //     }
-        // });
         let execute_time = now.elapsed();
         glog::info!(
             "batch#{}: execute_time: {:?}, avg: {:?}",
@@ -260,9 +241,9 @@ impl App {
         let ctx = ctx.lock().unwrap();
         let reports = &ctx.0;
 
-        let batch_header = task.build_header(&batch_chunk.chunks)?;
+        let batch_header = task.build_header(1, &batch_chunk.chunks).map_err(debug)?;
         if batch_header.hash() != task.batch_hash
-            || batch_header.batch_index != task.batch_id.as_u64()
+            || batch_header.batch_index() != task.batch_id.as_u64()
         {
             glog::error!(
                 "batch hash mismatch, remote: ({:?}){:?}, local:{:?}({:?})",

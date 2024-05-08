@@ -24,5 +24,8 @@ pub use trace::*;
 mod chunk;
 pub use chunk::*;
 
+mod batch;
+pub use batch::*;
+
 mod poe;
 pub use poe::*;

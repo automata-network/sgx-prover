@@ -7,8 +7,8 @@ license = "Apache-2.0"
 
 [features]
 default = ["std"]
-std = ["glog/std", "eth_types/std", "serde/std", "crypto/std", "base/std"]
-tstd = ["sgxlib/tstd", "glog/tstd", "eth_types/tstd", "serde/tstd", "crypto/tstd", "base/tstd"]
+std = ["glog/std", "eth_types/std", "serde/std", "crypto/std", "base/std", "jsonrpc/std"]
+tstd = ["sgxlib/tstd", "glog/tstd", "eth_types/tstd", "serde/tstd", "crypto/tstd", "base/tstd", "jsonrpc/tstd"]
 
 [dependencies]
 sgxlib = { git = "https://github.com/automata-network/sgxlib", default-features = false }

@@ -2,9 +2,9 @@ use std::prelude::v1::*;
 
 use base::{format::debug, trace::Alive};
 use core::time::Duration;
-use crypto::{keccak_hash, Secp256k1PrivateKey};
+use crypto::Secp256k1PrivateKey;
 use eth_client::{EthCall, ExecutionClient, LogFilter, TxSender};
-use eth_types::{BlockSelector, HexBytes, Receipt, SH160, SH256, SU256};
+use eth_types::{BlockSelector, Receipt, SH160, SH256, SU256};
 use jsonrpc::{MixRpcClient, RpcError};
 use serde::Deserialize;
 use solidity::{EncodeArg, Encoder};

@@ -1,9 +1,6 @@
 use std::prelude::v1::*;
 
-use std::fs::read_to_string;
-
 use apps::Getter;
-use base::format::debug;
 use base::fs::read_file;
 use base::trace::Alive;
 use crypto::Secp256k1PrivateKey;
@@ -12,10 +9,10 @@ use eth_types::{HexBytes, SU256};
 use eth_types::{SH256, SU64};
 use jsonrpc::{JsonrpcErrorObj, RpcArgs, RpcServer, RpcServerConfig};
 use prover::{Database, Prover};
-use scroll_types::Poe;
+use scroll_types::{Poe, BatchTask};
 use std::sync::Arc;
 
-use crate::{App, BatchTask, L1ExecutionClient, PoeResponse, ProveParams, TaskManager};
+use crate::{App, L1ExecutionClient, PoeResponse, ProveParams, TaskManager};
 
 pub struct PublicApi {
     pub alive: Alive,
