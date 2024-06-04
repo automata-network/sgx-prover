@@ -26,6 +26,10 @@ pub trait Getter<T> {
     fn generate(&self) -> T;
 }
 
+pub trait OptionGetter<T> {
+    fn generate(&self) -> Option<T>;
+}
+
 pub type VarMutex<T> = Var<Mutex<T>>;
 
 #[macro_export]
@@ -59,8 +63,21 @@ impl<T: Default> Const<T> {
     }
 }
 
+#[derive(Debug)]
+enum RawVal<T> {
+    Unloaded,
+    None,
+    Some(T),
+}
+
+impl<T> Default for RawVal<T> {
+    fn default() -> Self {
+        Self::Unloaded
+    }
+}
+
 pub struct Var<T> {
-    val: Mutex<Option<Arc<T>>>,
+    val: Mutex<RawVal<Arc<T>>>,
 }
 
 impl<T, C> Getter<Mutex<T>> for C
@@ -75,7 +92,7 @@ where
 impl<T> Default for Var<T> {
     fn default() -> Self {
         Self {
-            val: Mutex::new(None),
+            val: Mutex::new(RawVal::Unloaded),
         }
     }
 }
@@ -84,8 +101,8 @@ impl<T: std::fmt::Debug> std::fmt::Debug for Var<T> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let val = self.val.lock().unwrap();
         match val.deref() {
-            Some(val) => write!(f, "{:?}", val),
-            None => write!(f, "{}(None)", std::any::type_name::<T>()),
+            RawVal::Some(val) => write!(f, "{:?}", val),
+            RawVal::Unloaded | RawVal::None => write!(f, "{}(None)", std::any::type_name::<T>()),
         }
     }
 }
@@ -118,13 +135,13 @@ impl<T> Var<Mutex<T>> {
 impl<T> Var<T> {
     pub fn set(&self, t: T) {
         let mut val = self.val.lock().unwrap();
-        *val = Some(Arc::new(t));
+        *val = RawVal::Some(Arc::new(t));
     }
 
     pub fn unwrap(&self) -> Arc<T> {
         {
             let val = self.val.lock().unwrap();
-            if let Some(val) = val.deref() {
+            if let RawVal::Some(val) = val.deref() {
                 return val.clone();
             }
         }
@@ -137,13 +154,37 @@ impl<T> Var<T> {
     {
         {
             let val = self.val.lock().unwrap();
-            if let Some(val) = val.deref() {
+            if let RawVal::Some(val) = val.deref() {
                 return val.clone();
             }
         }
         let val = Arc::new(ctx.generate());
         let mut raw = self.val.lock().unwrap();
-        *raw = Some(val.clone());
+        *raw = RawVal::Some(val.clone());
+        val
+    }
+
+    pub fn option_get<C>(&self, ctx: &C) -> Option<Arc<T>>
+    where
+        C: OptionGetter<T>,
+    {
+        {
+            let val = self.val.lock().unwrap();
+            match val.deref() {
+                RawVal::None => return None,
+                RawVal::Some(val) => return Some(val.clone()),
+                RawVal::Unloaded => {}
+            }
+        }
+        let val = match ctx.generate() {
+            Some(val) => Some(Arc::new(val)),
+            None => None,
+        };
+        let mut raw = self.val.lock().unwrap();
+        *raw = match val.clone() {
+            Some(val) => RawVal::Some(val),
+            None => RawVal::None,
+        };
         val
     }
 }

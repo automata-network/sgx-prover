@@ -2,24 +2,26 @@ use core::hash::{Hash, Hasher};
 use std::prelude::v1::*;
 
 use crypto::{keccak_hash, sha256_sum};
-use eth_types::{HexBytes, SH256, SU256};
+use eth_types::{SH256, SU256};
+use serde::{Deserialize, Serialize};
 
-use crate::{decode_block_numbers, BatchHeader, BatchHeaderV1, BlockTrace, RollupError, TraceTx};
+use crate::{
+    decode_block_numbers, BatchHeader, BatchHeaderV1, BlockHeader, RollupError, TraceTx,
+    Transaction, TransactionInner, L1_MESSAGE_TX_TYPE_U64,
+};
 
-#[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BatchTask {
-    pub batch_id: SU256,
-    pub batch_hash: SH256,
     pub chunks: Vec<Vec<u64>>,
     pub parent_batch_header: BatchHeader,
 }
 
 impl BatchTask {
-    pub fn from_calldata(
-        batch_id: SU256,
-        batch_hash: SH256,
-        data: &[u8],
-    ) -> Result<BatchTask, RollupError> {
+    pub fn id(&self) -> u64 {
+        self.parent_batch_header.batch_index() + 1
+    }
+
+    pub fn from_calldata(data: &[u8]) -> Result<BatchTask, RollupError> {
         let parent_batch_header_bytes = solidity::parse_bytes(32, data);
         let chunks_bytes = solidity::parse_array_bytes(64, data);
         let parent_batch_header = BatchHeader::from_bytes(&parent_batch_header_bytes)
@@ -32,18 +34,26 @@ impl BatchTask {
             }
         }
         Ok(BatchTask {
-            batch_id,
-            batch_hash,
             chunks: outs,
             parent_batch_header,
         })
     }
 
-    pub fn build_header(
-        &self,
-        version: u8,
-        chunks: &[BatchChunk],
-    ) -> Result<BatchHeader, RollupError> {
+    pub fn block_numbers(&self) -> Vec<u64> {
+        self.chunks.iter().flatten().map(Clone::clone).collect()
+    }
+
+    pub fn start(&self) -> Option<u64> {
+        Some(*self.chunks.get(0)?.get(0)?)
+    }
+
+    pub fn end(&self) -> Option<u64> {
+        Some(*self.chunks.last()?.last()?)
+    }
+
+    pub fn build_header(&self, chunks: &[BatchChunk]) -> Result<BatchHeader, RollupError> {
+        let version = self.parent_batch_header.version();
+        let batch_id = self.parent_batch_header.batch_index() + 1;
         let total_l1_message_popped = self.parent_batch_header.total_l1_message_popped();
         let base_index = total_l1_message_popped;
         let mut next_index = total_l1_message_popped;
@@ -63,7 +73,7 @@ impl BatchTask {
                         return Err(RollupError::InvalidL1Nonce {
                             expect: next_index,
                             current: current_index,
-                            batch_id: self.batch_id.as_usize(),
+                            batch_id,
                             chunk_id,
                             block_id,
                             tx_hash: tx.tx_hash,
@@ -100,7 +110,7 @@ impl BatchTask {
 
         Ok(BatchHeader::V1(BatchHeaderV1 {
             version,
-            batch_index: self.batch_id.as_u64(),
+            batch_index: batch_id,
             l1_message_popped: next_index - total_l1_message_popped,
             total_l1_message_popped: next_index,
             data_hash,
@@ -187,7 +197,7 @@ fn copy<N: AsRef<[u8]>>(dst: &mut [u8], src: N) {
     dst[..src.len()].copy_from_slice(src)
 }
 pub struct BatchChunkBuilder {
-    numbers: Vec<Vec<u64>>,
+    pub numbers: Vec<Vec<u64>>,
     pub chunks: Vec<BatchChunk>,
     current_chunk_id: usize,
     current_block_id: usize,
@@ -207,10 +217,14 @@ impl BatchChunkBuilder {
         self.chunks
     }
 
-    pub fn add_block(&mut self, block: &BlockTrace) -> Result<(), String> {
+    pub fn add_block(
+        &mut self,
+        header: &BlockHeader,
+        txs: Vec<BatchChunkBlockTx>,
+    ) -> Result<(), String> {
         for (chunk_id, chunk) in self.numbers.iter().enumerate() {
             for (block_id, blkno) in chunk.iter().enumerate() {
-                if blkno == &block.header.number.as_u64() {
+                if blkno == &header.number.as_u64() {
                     let mut expect_chunk_id = self.current_chunk_id;
                     let mut expect_block_id = self.current_block_id;
                     if expect_block_id == self.numbers[self.current_chunk_id].len() {
@@ -218,23 +232,21 @@ impl BatchChunkBuilder {
                         expect_block_id = 0;
                     }
                     if expect_block_id != block_id || expect_chunk_id != chunk_id {
-                        return Err("unexpected block".into());
+                        return Err(format!(
+                            "unexpected block, want=[{}.{}], got=[{}.{}]",
+                            expect_block_id, expect_chunk_id, block_id, chunk_id
+                        ));
                     }
                     if block_id == 0 {
                         self.chunks.push(BatchChunk { blocks: Vec::new() });
                     }
                     let chunk = self.chunks.get_mut(chunk_id).unwrap();
-                    let txs = block
-                        .transactions
-                        .iter()
-                        .map(BatchChunkBlockTx::from)
-                        .collect();
                     chunk.blocks.push(BatchChunkBlock {
-                        number: block.header.number.as_u64(),
-                        timestamp: block.header.timestamp.as_u64(),
-                        gas_limit: block.header.gas_limit.as_u64(),
-                        base_fee: block.header.base_fee_per_gas,
-                        hash: block.header.hash(),
+                        number: header.number.as_u64(),
+                        timestamp: header.timestamp.as_u64(),
+                        gas_limit: header.gas_limit.as_u64(),
+                        base_fee: header.base_fee_per_gas,
+                        hash: header.hash(),
                         txs,
                     });
 
@@ -407,6 +419,29 @@ pub struct BatchChunkBlockTx {
     nonce: u64,
     tx_hash: SH256,
     encode: Vec<u8>,
+}
+
+impl From<&TransactionInner> for BatchChunkBlockTx {
+    fn from(tx: &TransactionInner) -> Self {
+        Self {
+            l1_msg: tx.ty() == L1_MESSAGE_TX_TYPE_U64,
+            nonce: tx.nonce(),
+            tx_hash: tx.hash(),
+            encode: tx.to_bytes(),
+        }
+    }
+}
+
+impl From<Transaction> for BatchChunkBlockTx {
+    fn from(tx: Transaction) -> Self {
+        let tx = tx.inner().unwrap();
+        Self {
+            l1_msg: tx.ty() == L1_MESSAGE_TX_TYPE_U64,
+            nonce: tx.nonce(),
+            tx_hash: tx.hash(),
+            encode: tx.to_bytes(),
+        }
+    }
 }
 
 impl From<&TraceTx> for BatchChunkBlockTx {

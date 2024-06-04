@@ -1,5 +1,6 @@
 use std::prelude::v1::*;
 
+use base::format::debug;
 use base::time::Time;
 use base::trace::Alive;
 use core::sync::atomic::{AtomicBool, Ordering};
@@ -9,8 +10,8 @@ use eth_client::ExecutionClient;
 use eth_types::{BlockSelector, HexBytes, SH160, SH256, SU256, SU64};
 use evm_executor::{read_withdral_root, ExecuteError};
 use jsonrpc::{RpcClient, RpcError};
+use scroll_types::TransactionInner;
 use scroll_types::{Block, BlockTrace, Poe, Signer};
-use scroll_types::{Transaction, TransactionInner};
 use serde::Deserialize;
 use statedb::{NodeDB, StateDB};
 use std::collections::BTreeMap;
@@ -27,12 +28,12 @@ pub struct Prover {
     alive: Alive,
     l2_signer: Signer,
     prvkey: Mutex<Secp256k1PrivateKey>,
-    l1_el: Arc<ExecutionClient>,
+    l1_el: Arc<Option<ExecutionClient>>,
     attested: AtomicBool,
 }
 
 impl Prover {
-    pub fn new(alive: Alive, cfg: Config, l1_el: Arc<ExecutionClient>) -> Prover {
+    pub fn new(alive: Alive, cfg: Config, l1_el: Arc<Option<ExecutionClient>>) -> Prover {
         let l2_signer = Signer::new(cfg.l2_chain_id);
         let (prvkey, pubkey) = secp256k1_gen_keypair();
         let prover_pubkey: SH160 = pubkey.eth_accountid().into();
@@ -65,8 +66,11 @@ impl Prover {
         )
     }
 
-    pub fn balance(&self, acc: &SH160) -> Result<SU256, RpcError> {
-        self.l1_el.balance(acc, BlockSelector::Latest)
+    pub fn balance(&self, acc: &SH160) -> Result<SU256, String> {
+        match self.l1_el.as_ref() {
+            Some(l1_el) => l1_el.balance(acc, BlockSelector::Latest).map_err(debug),
+            None => Err("L1 Execution Client is none".into()),
+        }
     }
 
     pub fn check_chain_id(&self, chain_id: u64) -> Result<(), String> {
@@ -76,7 +80,11 @@ impl Prover {
         Ok(())
     }
 
-    pub fn generate_pob(&self, block_trace: BlockTrace, extra_codes: Vec<HexBytes>) -> Pob {
+    pub fn generate_pob(
+        &self,
+        block_trace: BlockTrace,
+        extra_codes: Vec<HexBytes>,
+    ) -> Pob<HexBytes> {
         let mut header = block_trace.header;
         header.miner = block_trace.coinbase.address;
 
@@ -131,6 +139,7 @@ impl Prover {
             mpt_nodes: mpt_nodes.into_keys().collect(),
             codes: codes.into_keys().collect(),
             start_l1_queue_index: block_trace.start_l1_queue_index,
+            withdrawal_root: block_trace.withdraw_trie_root.unwrap(),
         };
 
         Pob::new(block, data)
@@ -139,14 +148,19 @@ impl Prover {
     fn preprocess_txs(
         &self,
         mut start_queue_index: u64,
-        txs: Vec<Transaction>,
+        txs: &[HexBytes],
     ) -> Result<Vec<TransactionInner>, BuildError> {
         let mut allow_l1_msg = true;
         let mut out = Vec::with_capacity(txs.len());
         for tx in txs {
-            let tx = match tx.inner() {
-                Some(tx) => tx,
-                None => return Err(BuildError::InternalError("invalid transaction".into())),
+            let tx = match TransactionInner::from_bytes(tx) {
+                Ok(tx) => tx,
+                Err(err) => {
+                    return Err(BuildError::InternalError(format!(
+                        "invalid transaction: {:?}",
+                        err
+                    )))
+                }
             };
             match &tx {
                 TransactionInner::L1Message(msg) => {
@@ -172,14 +186,18 @@ impl Prover {
         Ok(out)
     }
 
-    pub fn execute_block(&self, db: &Database, pob: Pob) -> Result<ProveResult, BuildError> {
-        let header = Arc::new(pob.block.header);
+    pub fn execute_block(
+        &self,
+        db: &Database,
+        pob: &Pob<HexBytes>,
+    ) -> Result<ProveResult, BuildError> {
+        let header = Arc::new(pob.block.header.clone());
 
         let mut db = db.fork();
         for node in &pob.data.mpt_nodes {
             db.resume_node(&node);
         }
-        for code in pob.data.codes {
+        for code in &pob.data.codes {
             db.resume_code(&code);
         }
         db.commit();
@@ -187,7 +205,7 @@ impl Prover {
         let state_db = new_zktrie_state(pob.data.prev_state_root, db);
 
         assert_eq!(state_db.state_root(), pob.data.prev_state_root);
-        let txs = self.preprocess_txs(pob.data.start_l1_queue_index, pob.block.transactions)?;
+        let txs = self.preprocess_txs(pob.data.start_l1_queue_index, &pob.block.transactions)?;
 
         let mut executor = Executor::new(self.l2_signer, state_db, header);
         let new_state_root = executor.execute(txs).map_err(BuildError::ExecuteError)?;

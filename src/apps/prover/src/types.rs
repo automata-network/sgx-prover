@@ -2,23 +2,21 @@ use core::time::Duration;
 use std::prelude::v1::*;
 
 use apps::getargs::{Opt, Options};
-use crypto::Secp256k1PrivateKey;
-use eth_types::{SH160, SH256};
+use eth_types::{HexBytes, SH160, SH256};
 use prover::Pob;
 use scroll_types::Poe;
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct Config {
-    pub verifier: verifier::Config,
-    pub scroll_chain: ScrollChain,
+    pub verifier: Option<verifier::Config>,
+    pub scroll_chain: Option<ScrollChain>,
     #[serde(default)]
     pub server: ServerConfig,
-    pub l2: String,
+    pub l2: Option<String>,
+    pub l2_chain_id: Option<u64>,
     #[serde(default = "default_l2_timeout_secs")]
     pub l2_timeout_secs: u64,
-
-    pub relay_account: Option<Secp256k1PrivateKey>,
 }
 
 pub fn get_timeout(timeout_secs: u64) -> Option<Duration> {
@@ -44,7 +42,7 @@ pub struct PoeResponse {
 
 impl Config {}
 
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug, Default)]
 pub struct ScrollChain {
     pub contract: SH160,
     pub endpoint: String,
@@ -85,7 +83,7 @@ impl Default for ServerConfig {
 }
 
 fn default_body_limit() -> usize {
-    2097152
+    20971520
 }
 
 fn default_worker() -> usize {
@@ -102,6 +100,7 @@ pub struct Args {
     pub dummy_attestation_report: bool,
     pub check_report_metadata: bool,
     pub sampling: Option<u64>,
+    pub force_with_context: bool,
 }
 
 impl Default for Args {
@@ -114,6 +113,7 @@ impl Default for Args {
             check_report_metadata: true,
             sampling: None,
             cfg: "config/prover.json".into(),
+            force_with_context: false,
         }
     }
 }
@@ -136,6 +136,7 @@ impl Args {
                 }
                 Opt::Long("insecure") => out.insecure = true,
                 Opt::Long("dummy_attestation_report") => out.dummy_attestation_report = true,
+                Opt::Long("force_with_context") => out.force_with_context = true,
                 Opt::Long("disable_check_report_metadata") => out.check_report_metadata = false,
                 opt => {
                     glog::warn!("unknown opt: {:?}", opt);
@@ -149,7 +150,14 @@ impl Args {
 
 #[derive(Debug, Deserialize)]
 pub struct ProveParams {
-    pub pob: Pob,
+    pub pob: Pob<HexBytes>,
     pub withdrawal_root: SH256,
     pub new_state_root: SH256,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ProveTaskParams {
+    pub batch: HexBytes,
+    pub pob_hash: SH256,
+    pub from: Option<serde_json::Value>,
 }

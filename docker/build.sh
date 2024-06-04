@@ -4,4 +4,8 @@ if [[ "$BUILD_TAG" == "" ]]; then
 	exit 1
 fi
 cd $(dirname $0)/..
-docker buildx build -f docker/Dockerfile -t ghcr.io/automata-network/sgx-prover:avs-${BUILD_TAG} --load .
+docker buildx build \
+	-f docker/Dockerfile \
+	-t ghcr.io/automata-network/sgx-prover:avs-${BUILD_TAG} \
+	--load . \
+	--build-arg BUILD_TAG=${BUILD_TAG}

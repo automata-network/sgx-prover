@@ -7,8 +7,8 @@ license = "Apache-2.0"
 
 [features]
 default = ["std"]
-std = ["glog/std", "eth_types/std", "serde/std", "crypto/std", "base/std", "eth_client/std", "solidity/std", "serde_json/std", "evm_executor/std", "statedb/std", "scroll_types/std", "zktrie/std", "poseidon-rs/std", "verifier/std"]
-tstd = ["sgxlib/tstd", "glog/tstd", "eth_types/tstd", "serde/tstd", "crypto/tstd", "base/tstd", "eth_client/tstd", "solidity/tstd", "serde_json/tstd", "evm_executor/tstd", "statedb/tstd", "sgxlib-ra/sgx", "scroll_types/tstd", "zktrie/tstd", "poseidon-rs/tstd", "verifier/tstd"]
+std = ["glog/std", "eth_types/std", "serde/std", "crypto/std", "base/std", "eth_client/std", "solidity/std", "serde_json/std", "evm_executor/std", "statedb/std", "scroll_types/std", "zktrie/std", "poseidon-rs/std", "verifier/std", "libflate/std"]
+tstd = ["sgxlib/tstd", "glog/tstd", "eth_types/tstd", "serde/tstd", "crypto/tstd", "base/tstd", "eth_client/tstd", "solidity/tstd", "serde_json/tstd", "evm_executor/tstd", "statedb/tstd", "sgxlib-ra/sgx", "scroll_types/tstd", "zktrie/tstd", "poseidon-rs/tstd", "verifier/tstd", "libflate/tstd"]
 sgx = ["sgxlib-ra", "sgxlib-ra/sgx", "verifier/sgx"]
 
 [dependencies]
@@ -31,6 +31,8 @@ sgxlib-ra = { git = "https://github.com/automata-network/sgxlib-ra", default-fea
 
 serde = { git = "https://github.com/automata-network/sgxlib-thirdparty", default-features = false }
 serde_json = { git = "https://github.com/automata-network/sgxlib-thirdparty", default-features = false }
+
+libflate = { git = "https://github.com/automata-network/sgxlib-thirdparty", default-features = false }
 
 rlp = { version = "0.5", default-features = false }
 rlp-derive = { version = "0.1" }

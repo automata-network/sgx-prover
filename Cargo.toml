@@ -17,6 +17,7 @@ members = [
     "src/common/solidity",
     "src/common/statedb",
     "src/common/verifier",
+    "src/common/prometheus",
 ]
 
 [patch.'https://github.com/apache/teaclave-sgx-sdk.git']
@@ -35,3 +36,6 @@ sgx_tstd = { git = "https://github.com/automata-network/incubator-teaclave-sgx-s
 sgx_types = { git = "https://github.com/automata-network/incubator-teaclave-sgx-sdk", tag = "v1.1.4" }
 sgx_unwind = { git = "https://github.com/automata-network/incubator-teaclave-sgx-sdk", tag = "v1.1.4" }
 # sgx_urts = { git = "https://github.com/automata-network/incubator-teaclave-sgx-sdk", tag = "v1.1.4" }
+
+[profile.release]
+debug = 1

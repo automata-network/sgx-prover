@@ -2,6 +2,7 @@ use std::prelude::v1::*;
 
 use crypto::keccak_hash;
 use eth_types::{HexBytes, SH256};
+use serde::{Serialize, Deserialize};
 
 base::stack_error! {
     name: RollupError,
@@ -11,7 +12,7 @@ base::stack_error! {
         InvalidBlockNumbers(HexBytes),
         InvalidBlockBytes(HexBytes),
         InvalidNumBlock(usize),
-        InvalidL1Nonce{ expect: u64, current: u64, batch_id: usize, chunk_id: usize, block_id: usize, tx_hash: SH256 },
+        InvalidL1Nonce{ expect: u64, current: u64, batch_id: u64, chunk_id: usize, block_id: usize, tx_hash: SH256 },
         NumL1TxTooLarge,
         NumTxTooLarge,
         OversizedBatchPayload,
@@ -49,7 +50,8 @@ pub fn decode_block_numbers(mut data: &[u8]) -> Option<Vec<u64>> {
     Some(numbers)
 }
 
-#[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
 pub enum BatchHeader {
     V0(BatchHeaderV0),
     V1(BatchHeaderV1),
@@ -100,7 +102,7 @@ impl BatchHeader {
     }
 }
 
-#[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct BatchHeaderV0 {
     pub version: u8,
     pub batch_index: u64,
@@ -160,7 +162,7 @@ impl BatchHeaderV0 {
     }
 }
 
-#[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct BatchHeaderV1 {
     pub version: u8,
     pub batch_index: u64,

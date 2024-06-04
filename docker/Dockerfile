@@ -95,6 +95,9 @@ ENV RELEASE=1
 WORKDIR /workspace
 
 ARG CACHE_DATE=1
+ARG BUILD_TAG
+ENV BUILD_TAG=${BUILD_TAG}
+
 COPY . /workspace/source
 RUN --mount=type=cache,target=/root/.cargo/registry/index \
     --mount=type=cache,target=/root/.cargo/registry/cache \
@@ -107,5 +110,5 @@ RUN cp source/bin/sgx/target/release/sgx_prover_enclave.signed.so /workspace
 RUN cp source/docker/entrypoint.sh /workspace
 RUN rm -r source
 
-ENV RUST_LOG=debug
+ENV RUST_LOG=info
 ENTRYPOINT ["/workspace/entrypoint.sh"]

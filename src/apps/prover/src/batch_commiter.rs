@@ -6,27 +6,37 @@ use eth_client::LogFilter;
 use eth_client::{ExecutionClient, LogTrace};
 use eth_types::SU256;
 use jsonrpc::MixRpcClient;
-use scroll_types::{BatchTask, Poe};
+use scroll_types::BatchTask;
 use std::collections::btree_map::Entry;
 use std::collections::BTreeMap;
 use std::sync::{mpsc, Arc, Mutex};
 
 use crate::ScrollChain;
 
-pub struct TaskManager {
-    tasks: Mutex<(BTreeMap<BatchTask, TaskContext>, Vec<BatchTask>)>,
+pub struct TaskManager<K, V, E>
+where
+    K: Ord + Clone,
+    V: Clone,
+    E: Clone,
+{
+    tasks: Mutex<(BTreeMap<K, TaskContext<V, E>>, Vec<K>)>,
     cap: usize,
 }
 
-impl TaskManager {
-    pub fn new(cap: usize) -> TaskManager {
+impl<K, V, E> TaskManager<K, V, E>
+where
+    K: Ord + Clone + std::fmt::Debug,
+    V: Clone,
+    E: Clone,
+{
+    pub fn new(cap: usize) -> Self {
         Self {
             tasks: Mutex::new((BTreeMap::new(), Vec::new())),
             cap,
         }
     }
 
-    fn add_task(&self, task: BatchTask) -> Option<TaskContext> {
+    fn add_task(&self, task: K) -> Option<TaskContext<V, E>> {
         let mut tasks = self.tasks.lock().unwrap();
         let result = match tasks.0.entry(task.clone()) {
             Entry::Occupied(entry) => Some(entry.get().clone()),
@@ -43,7 +53,7 @@ impl TaskManager {
         result
     }
 
-    pub fn process_task(&self, task: BatchTask) -> Option<Result<Poe, String>> {
+    pub fn process_task(&self, task: K) -> Option<Result<V, E>> {
         let alive = Alive::new();
         let alive = alive.fork_with_timeout(Duration::from_secs(120));
 
@@ -63,7 +73,7 @@ impl TaskManager {
         None
     }
 
-    pub fn update_task(&self, task: BatchTask, poe: Result<Poe, String>) -> bool {
+    pub fn update_task(&self, task: K, poe: Result<V, E>) -> bool {
         let mut tasks = self.tasks.lock().unwrap();
         match tasks.0.entry(task) {
             Entry::Occupied(mut entry) => {
@@ -76,8 +86,8 @@ impl TaskManager {
 }
 
 #[derive(Clone, Debug)]
-pub struct TaskContext {
-    pub result: Option<Result<Poe, String>>,
+pub struct TaskContext<T: Clone, E: Clone> {
+    pub result: Option<Result<T, E>>,
 }
 
 #[derive(Debug, Clone)]
@@ -122,11 +132,7 @@ impl BatchCommiter {
                             let tx = client
                                 .get_transaction(&log.transaction_hash)
                                 .map_err(debug)?;
-                            let task = match BatchTask::from_calldata(
-                                batch_id,
-                                batch_hash,
-                                &tx.input[4..],
-                            ) {
+                            let task = match BatchTask::from_calldata(&tx.input[4..]) {
                                 Ok(task) => task,
                                 Err(_) => continue 'nextLog,
                             };

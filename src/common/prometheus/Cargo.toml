@@ -1,0 +1,22 @@
+[package]
+name = "prometheus"
+version = "0.1.0"
+authors = ["Automata Team"]
+edition = "2021"
+license = "Apache-2.0"
+
+[features]
+default = ["std"]
+std = ["glog/std", "eth_types/std", "serde/std", "base/std", "serde_json/std", "scroll_types/std", "net-http/std"]
+tstd = ["sgxlib/tstd", "glog/tstd", "eth_types/tstd", "serde/tstd", "base/tstd", "serde_json/tstd", "scroll_types/tstd", "net-http/tstd"]
+
+[dependencies]
+sgxlib = { git = "https://github.com/automata-network/sgxlib", default-features = false }
+glog = { git = "https://github.com/automata-network/glog-rs", default-features = false }
+eth_types = { git = "https://github.com/automata-network/eth-types-rs", default-features = false }
+base = { git = "https://github.com/automata-network/base-rs", default-features = false }
+scroll_types = { path = "../scroll_types", default-features = false }
+net-http = { git = "https://github.com/automata-network/net-http-rs", default-features = false }
+
+serde = { git = "https://github.com/automata-network/sgxlib-thirdparty", default-features = false }
+serde_json = { git = "https://github.com/automata-network/sgxlib-thirdparty", default-features = false }

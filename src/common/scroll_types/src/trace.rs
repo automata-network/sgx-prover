@@ -1,7 +1,8 @@
 use std::prelude::v1::*;
 
-use eth_types::{AccessListTx, DynamicFeeTx, HexBytes, LegacyTx, Nilable, TransactionAccessTuple, SH160, SH256, SU256};
-use rlp_derive::{RlpDecodable, RlpEncodable};
+use eth_types::{
+    AccessListTx, DynamicFeeTx, HexBytes, LegacyTx, TransactionAccessTuple, SH160, SH256, SU256,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -177,9 +178,7 @@ pub struct ExtraData {
     pub caller: Vec<AccountWrapper>,
 }
 
-#[derive(
-    Default, Clone, Debug, Deserialize, Serialize, PartialEq, Eq,
-)]
+#[derive(Default, Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct TraceTx {
     pub r#type: u8,
@@ -240,7 +239,7 @@ impl TraceTx {
                 r: self.r,
                 s: self.s,
             }),
-            1 => TransactionInner::AccessList(AccessListTx{
+            1 => TransactionInner::AccessList(AccessListTx {
                 chain_id: self.chain_id,
                 nonce: self.nonce.into(),
                 to: self.to.into(),
@@ -253,7 +252,7 @@ impl TraceTx {
                 r: self.r,
                 s: self.s,
             }),
-            2 => TransactionInner::DynamicFee(DynamicFeeTx{
+            2 => TransactionInner::DynamicFee(DynamicFeeTx {
                 chain_id: self.chain_id.into(),
                 nonce: self.nonce.into(),
                 max_priority_fee_per_gas: self.gas_tip_cap.unwrap().into(),

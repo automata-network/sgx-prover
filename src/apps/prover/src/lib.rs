@@ -13,3 +13,7 @@ mod types;
 pub use types::*;
 mod api;
 pub use api::*;
+mod da;
+pub use da::*;
+mod metric;
+pub use metric::*;
