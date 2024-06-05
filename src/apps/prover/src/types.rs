@@ -13,8 +13,8 @@ pub struct Config {
     pub scroll_chain: Option<ScrollChain>,
     #[serde(default)]
     pub server: ServerConfig,
-    pub l2: Option<String>,
-    pub l2_chain_id: Option<u64>,
+    pub scroll_endpoint: Option<String>,
+    pub scroll_chain_id: Option<u64>,
     #[serde(default = "default_l2_timeout_secs")]
     pub l2_timeout_secs: u64,
 }

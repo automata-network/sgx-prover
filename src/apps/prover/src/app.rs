@@ -389,8 +389,13 @@ impl OptionGetter<L1ExecutionClient> for App {
 impl OptionGetter<ExecutionClient> for App {
     fn generate(&self) -> Option<ExecutionClient> {
         let cfg = self.cfg.get(self);
+        let scroll_endpoint = match &cfg.scroll_endpoint {
+            Some(scroll_endpoint) if scroll_endpoint.is_empty() => return None,
+            None => return None,
+            Some(scroll_endpoint) => scroll_endpoint,
+        };
         let mut mix = MixRpcClient::new(get_timeout(cfg.l2_timeout_secs));
-        mix.add_endpoint(&self.alive, &[cfg.l2.as_ref()?.clone()]).unwrap();
+        mix.add_endpoint(&self.alive, &[scroll_endpoint.clone()]).unwrap();
         Some(ExecutionClient::new(mix))
     }
 }
@@ -402,10 +407,10 @@ impl Getter<L2ChainID> for App {
         let l2 = self.l2_el.option_get(self);
         L2ChainID(match l2.as_ref() {
             Some(l2) => l2.chain_id().unwrap(),
-            None => match self.cfg.get(self).l2_chain_id {
+            None => match self.cfg.get(self).scroll_chain_id {
                 Some(chain_id) => chain_id,
                 None => panic!(
-                    "config error: missing both l2 and l2_chain_id, should at least provide one"
+                    "config error: missing both scroll_endpoint and scroll_chain_id, should at least provide one"
                 ),
             },
         })
