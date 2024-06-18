@@ -119,8 +119,8 @@ impl App {
         pob_list: Arc<Vec<Pob>>,
         worker: usize,
     ) -> Result<Poe, String> {
-        let ctx = Arc::new(Mutex::new(Vec::<Poe>::new()));
         let block_numbers = batch.block_numbers();
+        let ctx = Arc::new(Mutex::new(vec![Poe::default(); block_numbers.len()]));
 
         let mut batch_chunk = BatchChunkBuilder::new(batch.chunks.clone());
         let pob_id_list = pob_list
@@ -135,22 +135,27 @@ impl App {
             }
             batch_chunk.add_block(&pob.block.header, txs)?;
         }
-        let succ = base::thread::parallel(alive, block_numbers.clone(), worker, {
-            let ctx = ctx.clone();
-            let prover = prover.clone();
-            move |blk| {
-                let pob = pob_list
-                    .iter()
-                    .find(|n| n.block.header.number.as_u64() == blk)
-                    .unwrap();
-                let now = Instant::now();
-                let poe = Self::execute_block(&prover, pob, &pob.data.withdrawal_root)?;
-                let mut ctx = ctx.lock().unwrap();
-                ctx.push(poe);
-                glog::info!("generate poe for: {} -> {:?}", blk, now.elapsed());
-                Ok(())
-            }
-        });
+        let succ = base::thread::parallel(
+            alive,
+            block_numbers.clone().into_iter().enumerate().collect(),
+            worker,
+            {
+                let ctx = ctx.clone();
+                let prover = prover.clone();
+                move |(idx, blk)| {
+                    let pob = pob_list
+                        .iter()
+                        .find(|n| n.block.header.number.as_u64() == blk)
+                        .unwrap();
+                    let now = Instant::now();
+                    let poe = Self::execute_block(&prover, pob, &pob.data.withdrawal_root)?;
+                    let mut ctx = ctx.lock().unwrap();
+                    ctx[idx] = poe;
+                    glog::info!("generate poe for: {} -> {:?}", blk, now.elapsed());
+                    Ok(())
+                }
+            },
+        );
         if succ != block_numbers.len() {
             return Err("partial fail: skip".into());
         }
@@ -160,7 +165,7 @@ impl App {
 
         let batch_header = batch.build_header(&batch_chunk.chunks).map_err(debug)?;
         let poe = prover
-            .sign_poe(batch_header.hash(), &reports)
+            .merge_poe(batch_header.hash(), &reports)
             .ok_or(format!("fail to gen poe"))?;
         glog::info!("batch: {:?}", batch_header);
         glog::info!("batch_hash: {:?}", batch_header.hash());
@@ -174,7 +179,6 @@ impl App {
         task: BatchTask,
     ) -> Result<Poe, String> {
         let mut batch_chunk = BatchChunkBuilder::new(task.chunks.clone());
-        let ctx = Arc::new(Mutex::new((Vec::<Poe>::new(), BTreeMap::new())));
 
         glog::info!("generate poe: {:?}", task.chunks);
         let block_numbers = task
@@ -184,26 +188,36 @@ impl App {
             .flatten()
             .collect::<Vec<_>>();
 
+        let ctx = Arc::new(Mutex::new((
+            vec![Poe::default(); block_numbers.len()],
+            BTreeMap::new(),
+        )));
+
         let now = Instant::now();
-        base::thread::parallel(alive, block_numbers.clone(), 8, {
-            let ctx = ctx.clone();
-            let prover = prover.clone();
-            let l2 = l2.clone();
-            move |blk| {
-                let now = Instant::now();
-                let block_trace = l2.get_block_trace(blk.into()).map_err(debug)?;
-                prover.check_chain_id(block_trace.chain_id)?;
-                let codes = prover.fetch_codes(&l2, &block_trace).map_err(debug)?;
-                let withdrawal_root = block_trace.withdraw_trie_root.unwrap_or_default();
-                let pob = prover.generate_pob(block_trace.clone(), codes);
-                let poe = Self::execute_block(&prover, &pob, &withdrawal_root)?;
-                let mut ctx = ctx.lock().unwrap();
-                ctx.0.push(poe);
-                ctx.1.insert(blk, block_trace);
-                glog::info!("executed block: {} -> {:?}", blk, now.elapsed());
-                Ok(())
-            }
-        });
+        base::thread::parallel(
+            alive,
+            block_numbers.clone().into_iter().enumerate().collect(),
+            8,
+            {
+                let ctx = ctx.clone();
+                let prover = prover.clone();
+                let l2 = l2.clone();
+                move |(idx, blk)| {
+                    let now = Instant::now();
+                    let block_trace = l2.get_block_trace(blk.into()).map_err(debug)?;
+                    prover.check_chain_id(block_trace.chain_id)?;
+                    let codes = prover.fetch_codes(&l2, &block_trace).map_err(debug)?;
+                    let withdrawal_root = block_trace.withdraw_trie_root.unwrap_or_default();
+                    let pob = prover.generate_pob(block_trace.clone(), codes);
+                    let poe = Self::execute_block(&prover, &pob, &withdrawal_root)?;
+                    let mut ctx = ctx.lock().unwrap();
+                    ctx.0[idx] = poe;
+                    ctx.1.insert(blk, block_trace);
+                    glog::info!("executed block: {} -> {:?}", blk, now.elapsed());
+                    Ok(())
+                }
+            },
+        );
 
         {
             let ctx = ctx.lock().unwrap();
@@ -237,7 +251,7 @@ impl App {
         let batch_header = task.build_header(&batch_chunk.chunks).map_err(debug)?;
 
         let poe = prover
-            .sign_poe(batch_header.hash(), &reports)
+            .merge_poe(batch_header.hash(), &reports)
             .ok_or(format!("fail to gen poe"))?;
 
         Ok(poe)
@@ -395,7 +409,8 @@ impl OptionGetter<ExecutionClient> for App {
             Some(scroll_endpoint) => scroll_endpoint,
         };
         let mut mix = MixRpcClient::new(get_timeout(cfg.l2_timeout_secs));
-        mix.add_endpoint(&self.alive, &[scroll_endpoint.clone()]).unwrap();
+        mix.add_endpoint(&self.alive, &[scroll_endpoint.clone()])
+            .unwrap();
         Some(ExecutionClient::new(mix))
     }
 }

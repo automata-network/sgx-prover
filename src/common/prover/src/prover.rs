@@ -57,6 +57,10 @@ impl Prover {
         *prvkey = new;
     }
 
+    pub fn merge_poe(&self, batch_hash: SH256, reports: &[Poe]) -> Option<Poe> {
+        Poe::merge(batch_hash, reports)
+    }
+
     pub fn sign_poe(&self, batch_hash: SH256, reports: &[Poe]) -> Option<Poe> {
         Poe::sign(
             &self.l2_signer.chain_id,

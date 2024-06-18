@@ -1,8 +1,8 @@
 use std::prelude::v1::*;
 
 use crypto::{Secp256k1PrivateKey, Secp256k1RecoverableSignature};
-use eth_types::{SH256, HexBytes, SU256, SH160};
-use serde::{Serialize, Deserialize};
+use eth_types::{HexBytes, SH160, SH256, SU256};
+use serde::{Deserialize, Serialize};
 use solidity::EncodeArg;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -16,12 +16,7 @@ pub struct Poe {
 }
 
 impl Poe {
-    pub fn sign(
-        chain_id: &SU256,
-        batch_hash: SH256,
-        reports: &[Self],
-        prvkey: &Secp256k1PrivateKey,
-    ) -> Option<Self> {
+    pub fn merge(batch_hash: SH256, reports: &[Self]) -> Option<Self> {
         if reports.len() < 1 {
             return None;
         }
@@ -35,14 +30,23 @@ impl Poe {
         let prev_state_root = reports.first().unwrap().prev_state_root;
         let new_state_root = reports.last().unwrap().new_state_root;
         let withdrawal_root = reports.last().unwrap().withdrawal_root;
-        let mut report = Self {
+        Some(Self {
             batch_hash,
             state_hash,
             prev_state_root,
             new_state_root,
             withdrawal_root,
             signature: vec![0_u8; 65].into(),
-        };
+        })
+    }
+
+    pub fn sign(
+        chain_id: &SU256,
+        batch_hash: SH256,
+        reports: &[Self],
+        prvkey: &Secp256k1PrivateKey,
+    ) -> Option<Self> {
+        let mut report = Self::merge(batch_hash, reports)?;
         let data = report.sign_msg(chain_id);
 
         let sig = prvkey.sign(&data);

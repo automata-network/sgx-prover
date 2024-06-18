@@ -70,6 +70,8 @@ pub struct ServerConfig {
     pub body_limit: usize,
     #[serde(default = "default_worker")]
     pub workers: usize,
+    #[serde(default = "default_queue_size")]
+    pub queue_size: usize,
 }
 
 impl Default for ServerConfig {
@@ -78,8 +80,13 @@ impl Default for ServerConfig {
             tls: "".into(),
             body_limit: default_body_limit(),
             workers: default_worker(),
+            queue_size: default_queue_size(),
         }
     }
+}
+
+fn default_queue_size() -> usize {
+    256
 }
 
 fn default_body_limit() -> usize {

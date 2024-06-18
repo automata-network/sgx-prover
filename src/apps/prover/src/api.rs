@@ -93,7 +93,7 @@ impl PublicApi {
     }
 
     fn metadata(&self, arg: RpcArgs<()>) -> Result<Metadata, JsonrpcErrorObj> {
-        Ok(Metadata{
+        Ok(Metadata {
             with_context: self.force_with_context || self.l2_el.is_none(),
             version: BUILD_TAG.unwrap_or_default(),
         })
@@ -144,6 +144,44 @@ impl PublicApi {
         Ok(pob_list)
     }
 
+    fn prove_task_without_context(
+        &self,
+        arg: RpcArgs<(SH256, u64)>,
+    ) -> Result<PoeResponse, JsonrpcErrorObj> {
+        let l1_el = match &self.l1_el {
+            Some(el) => el,
+            None => {
+                return Err(JsonrpcErrorObj::client(format!(
+                    "missing config for scroll_chain"
+                )))
+            }
+        };
+
+        let tx = l1_el
+            .get_transaction(&arg.params.0)
+            .map_err(JsonrpcErrorObj::unknown)?;
+
+        let batch_task =
+            BatchTask::from_calldata(&tx.input[4..]).map_err(JsonrpcErrorObj::unknown)?;
+
+        let pob_list = self.generate_context(arg.map(|_| {
+            (
+                batch_task.start().unwrap(),
+                batch_task.end().unwrap(),
+                arg.params.1,
+            )
+        }))?;
+
+        let arg = arg.map(|_| {
+            (ProveTaskParams {
+                batch: tx.input[4..].into(),
+                pob_hash: pob_list.hash,
+                from: None,
+            },)
+        });
+        self.prove_task(arg)
+    }
+
     fn prove_task(&self, arg: RpcArgs<(ProveTaskParams,)>) -> Result<PoeResponse, JsonrpcErrorObj> {
         let params = arg.params.0;
         let batch = BatchTask::from_calldata(&params.batch).map_err(JsonrpcErrorObj::unknown)?;
@@ -175,13 +213,22 @@ impl PublicApi {
             .unwrap()
             .inc(["scroll".into()]);
 
-        Ok(PoeResponse {
+        let response = PoeResponse {
             not_ready: false,
             batch_id: batch.id(),
             start_block: start,
             end_block: end,
             poe: Some(poe),
-        })
+        };
+
+        glog::info!(
+            "batchTask: {:?}, from: {:?}, response: {:?}",
+            batch,
+            params.from,
+            response
+        );
+
+        Ok(response)
     }
 
     fn get_poe(&self, arg: RpcArgs<(SH256,)>) -> Result<PoeResponse, JsonrpcErrorObj> {
@@ -189,7 +236,7 @@ impl PublicApi {
             Some(el) => el,
             None => {
                 return Err(JsonrpcErrorObj::client(format!(
-                    "missing config for verifier"
+                    "missing config for scroll_chain"
                 )))
             }
         };
@@ -197,7 +244,7 @@ impl PublicApi {
             Some(l2_el) => l2_el,
             None => {
                 return Err(JsonrpcErrorObj::client(format!(
-                    "server config error: missing config l2"
+                    "server config error: missing config scroll_endpoint"
                 )))
             }
         };
@@ -329,7 +376,7 @@ impl PublicApi {
             Some(l2_el) => l2_el,
             None => {
                 return Err(JsonrpcErrorObj::client(format!(
-                    "server config error: missing config l2"
+                    "server config error: missing config scroll_endpoint"
                 )))
             }
         };
@@ -440,6 +487,7 @@ impl Getter<RpcServer<PublicApi>> for App {
             http_max_body_length: Some(cfg.server.body_limit),
             ws_frame_size: 64 << 10,
             threads: cfg.server.workers,
+            queue_size: cfg.server.workers * 16,
             max_idle_secs: Some(60),
         };
         let mut srv = RpcServer::new(self.alive.clone(), cfg, api.clone()).unwrap();
@@ -455,6 +503,10 @@ impl Getter<RpcServer<PublicApi>> for App {
         srv.jsonrpc("prover_proveTask", PublicApi::prove_task);
         srv.jsonrpc("prover_genContext", PublicApi::generate_context);
         srv.jsonrpc("prover_metadata", PublicApi::metadata);
+        srv.jsonrpc(
+            "prover_proveTaskWithoutContext",
+            PublicApi::prove_task_without_context,
+        );
         srv.jsonrpc("da_putPob", PublicApi::da_put_pob);
         srv.jsonrpc("da_tryLock", PublicApi::da_try_lock);
         srv.http_get("/metrics", PublicApi::metric);
