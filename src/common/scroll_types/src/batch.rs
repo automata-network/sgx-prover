@@ -6,9 +6,52 @@ use eth_types::{SH256, SU256};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    decode_block_numbers, BatchHeader, BatchHeaderV1, BlockHeader, RollupError, TraceTx,
-    Transaction, TransactionInner, L1_MESSAGE_TX_TYPE_U64,
+    compress_scroll_batch_bytes, decode_block_numbers, BatchHeader, BatchHeaderV1, BlockHeader,
+    RollupError, TraceTx, Transaction, TransactionInner, L1_MESSAGE_TX_TYPE_U64,
 };
+
+#[derive(Debug, Clone, Copy)]
+pub enum ScrollFork {
+    Bernoulli,
+    Curie,
+}
+
+impl ScrollFork {
+    pub fn is_bernoulli(&self) -> bool {
+        matches!(self, ScrollFork::Bernoulli)
+    }
+
+    pub fn is_curie(&self) -> bool {
+        matches!(self, ScrollFork::Curie)
+    }
+
+    pub fn version(&self) -> u8 {
+        match self {
+            Self::Bernoulli => 1,
+            Self::Curie => 2,
+        }
+    }
+}
+
+pub fn get_fork(chain_id: u64, blk: u64) -> ScrollFork {
+    match chain_id {
+        534351 => {
+            if blk >= 4740239 {
+                ScrollFork::Curie
+            } else {
+                ScrollFork::Bernoulli
+            }
+        }
+        534352 => {
+            if blk >= 7096836 {
+                ScrollFork::Curie
+            } else {
+                ScrollFork::Bernoulli
+            }
+        }
+        _ => ScrollFork::Curie,
+    }
+}
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BatchTask {
@@ -51,8 +94,12 @@ impl BatchTask {
         Some(*self.chunks.last()?.last()?)
     }
 
-    pub fn build_header(&self, chunks: &[BatchChunk]) -> Result<BatchHeader, RollupError> {
-        let version = self.parent_batch_header.version();
+    pub fn build_header(
+        &self,
+        fork: ScrollFork,
+        chunks: &[BatchChunk],
+    ) -> Result<BatchHeader, RollupError> {
+        let version = fork.version();
         let batch_id = self.parent_batch_header.batch_index() + 1;
         let total_l1_message_popped = self.parent_batch_header.total_l1_message_popped();
         let base_index = total_l1_message_popped;
@@ -107,8 +154,7 @@ impl BatchTask {
         }
 
         let blob_versioned_hash = self.construct_blob_payload(version, chunks)?;
-
-        Ok(BatchHeader::V1(BatchHeaderV1 {
+        let header = BatchHeaderV1 {
             version,
             batch_index: batch_id,
             l1_message_popped: next_index - total_l1_message_popped,
@@ -117,7 +163,13 @@ impl BatchTask {
             parent_batch_hash: self.parent_batch_header.hash(),
             blob_versioned_hash,
             skipped_l1_message_bitmap: bitmap_bytes,
-        }))
+        };
+
+        Ok(match version {
+            1 => BatchHeader::V1(header),
+            2 => BatchHeader::V2(header),
+            v => return Err(RollupError::UnknownBatchVersion(v)),
+        })
     }
 
     fn construct_blob_payload(
@@ -125,11 +177,17 @@ impl BatchTask {
         version: u8,
         chunks: &[BatchChunk],
     ) -> Result<SH256, RollupError> {
-        const MAX_NUM_CHUNKS: usize = 15;
-        const METADATA_LEN: usize = 2 + MAX_NUM_CHUNKS * 4;
+        const MAX_NUM_CHUNKS_V1: usize = 15;
+        const MAX_NUM_CHUNKS_V2: usize = 45;
+        let max_num_chunks = if version <= 1 {
+            MAX_NUM_CHUNKS_V1
+        } else {
+            MAX_NUM_CHUNKS_V2
+        };
+        let metadata_len: usize = 2 + max_num_chunks * 4;
 
-        let mut blob_bytes = vec![0_u8; METADATA_LEN];
-        let mut challenge_preimage = vec![0_u8; (1 + MAX_NUM_CHUNKS + 1) * 32];
+        let mut blob_bytes = vec![0_u8; metadata_len];
+        let mut challenge_preimage = vec![0_u8; (1 + max_num_chunks + 1) * 32];
         copy(&mut blob_bytes, (chunks.len() as u16).to_be_bytes());
 
         let mut chunk_data_hash = SH256::default();
@@ -157,22 +215,26 @@ impl BatchTask {
             );
         }
 
-        for chunk_id in chunks.len()..MAX_NUM_CHUNKS {
+        for chunk_id in chunks.len()..max_num_chunks {
             copy(
                 &mut challenge_preimage[32 + chunk_id * 32..],
                 chunk_data_hash,
             );
         }
 
-        let hash = keccak_hash(&blob_bytes[..METADATA_LEN]);
+        let hash = keccak_hash(&blob_bytes[..metadata_len]);
         copy(&mut challenge_preimage, hash);
 
+        if version >= 2 {
+            blob_bytes =
+                compress_scroll_batch_bytes(&blob_bytes).map_err(RollupError::ZstdEncode)?;
+        }
         let blob = Self::make_blob_canonical(&blob_bytes)?;
 
         let kzg_settings = &c_kzg::BUILDIN_TRUSTED_SETTING;
         let c = c_kzg::KzgCommitment::blob_to_kzg_commitment(&blob, kzg_settings)?;
 
-        Ok(calc_blob_hash(version, &c.to_bytes()))
+        Ok(calc_blob_hash(1, &c.to_bytes()))
     }
 
     fn make_blob_canonical(blob_bytes: &[u8]) -> Result<c_kzg::Blob, RollupError> {
@@ -474,8 +536,6 @@ mod test {
         let mut builder = BatchChunkBuilder::new(chunk_numbers.clone());
         builder.add_block(&block_trace).unwrap();
         let mut task = BatchTask {
-            batch_id: 0.into(),
-            batch_hash: SH256::default(),
             chunks: chunk_numbers,
             parent_batch_header: BatchHeader::V1(BatchHeaderV1 {
                 version: 1,

@@ -495,9 +495,9 @@ impl Transaction {
             2 => TransactionInner::DynamicFee(DynamicFeeTx {
                 chain_id: self.chain_id?,
                 nonce: self.nonce,
-                max_priority_fee_per_gas: self.max_priority_fee_per_gas?,
-                max_fee_per_gas: self.max_fee_per_gas?,
-                access_list: self.access_list?,
+                max_priority_fee_per_gas: self.max_priority_fee_per_gas.or(self.gas_price)?,
+                max_fee_per_gas: self.max_fee_per_gas.or(self.gas_price)?,
+                access_list: self.access_list.unwrap_or_default(),
                 gas: self.gas,
                 to: self.to.into(),
                 value: self.value,

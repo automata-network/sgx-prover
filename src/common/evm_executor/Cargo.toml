@@ -10,8 +10,8 @@ resolver = "2"
 [features]
 default = ["std"]
 
-std = ["num-bigint/std", "evm/std", "glog/std", "crypto/std", "eth_types/std", "statedb/std", "base/std", "eth_client/std", "scroll_types/std"]
-tstd = ["sgxlib/tstd", "num-bigint/tstd", "evm/tstd", "glog/tstd", "crypto/tstd", "eth_types/tstd", "statedb/tstd", "base/tstd", "eth_client/tstd", "scroll_types/tstd"]
+std = ["num-bigint/std", "evm/std", "glog/std", "crypto/std", "eth_types/std", "statedb/std", "base/std", "eth_client/std", "scroll_types/std", "serde/std", "serde_json/std"]
+tstd = ["sgxlib/tstd", "num-bigint/tstd", "evm/tstd", "glog/tstd", "crypto/tstd", "eth_types/tstd", "statedb/tstd", "base/tstd", "eth_client/tstd", "scroll_types/tstd", "serde/tstd", "serde_json/tstd"]
 
 [dependencies]
 sgxlib = { git = "https://github.com/automata-network/sgxlib", default-features = false }
@@ -25,7 +25,12 @@ base = { git = "https://github.com/automata-network/base-rs", default-features =
 scale-info-derive = "=2.10"
 
 evm = { git = "https://github.com/automata-network/evm-rs", default-features = false }
+serde = { git = "https://github.com/automata-network/sgxlib-thirdparty", default-features = false }
+serde_json = { git = "https://github.com/automata-network/sgxlib-thirdparty", default-features = false }
 num-bigint = { git = "https://github.com/automata-network/sgxlib-thirdparty", default-features = false }
+p256 = { version = "0.11.1", default-features = false, features = [
+    "ecdsa",
+] }
 # revm = { path = "../../revm/crates/revm", default-features = false }
 
 bn = { package = "substrate-bn", version = "0.6", default-features = false }

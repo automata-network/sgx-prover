@@ -10,9 +10,10 @@ use evm::{
         IsPrecompileResult, PrecompileFailure, PrecompileHandle, PrecompileOutput,
         PrecompileSet as EvmPrecompileSet,
     },
-    ExitFatal, ExitSucceed,
+    ExitError, ExitFatal, ExitSucceed,
 };
 use num_bigint::BigUint;
+use p256::ecdsa::signature::Signature;
 
 pub type PrecompileResult = Result<PrecompileOutput, PrecompileFailure>;
 
@@ -72,17 +73,23 @@ impl PrecompileSet {
         def
     }
 
+    pub fn scroll_curie() -> Self {
+        let mut set = Self::scroll();
+        set.add(256, PrecompileSecp256r1 {});
+        set
+    }
+
     pub fn get_addresses(&self) -> Vec<H160> {
         self.fns.keys().map(|k| k.clone()).collect()
     }
 
-    fn add<P>(&mut self, idx: u8, p: P)
+    fn add<P>(&mut self, idx: u16, p: P)
     where
         P: PrecompiledContract + Send + Sync + 'static,
     {
         let mut addr = H160::default();
 
-        addr.0[addr.0.len() - 1] = idx;
+        addr[18..].copy_from_slice(&idx.to_be_bytes());
         self.fns.insert(addr.clone(), Box::new(p));
     }
 }
@@ -120,7 +127,7 @@ pub trait PrecompiledContract: core::fmt::Debug {
 
 #[derive(Debug)]
 pub struct PrecompileUnimplemented {
-    addr: u8,
+    addr: u16,
 }
 
 impl PrecompiledContract for PrecompileUnimplemented {
@@ -296,7 +303,9 @@ impl PrecompiledContract for PrecompilePairIstanbul {
                         G1::zero()
                     } else {
                         G1::from(
-                            AffineG1::new(ax, ay).unwrap(), //.map_err(|_| Error::Bn128AffineGFailedToCreate)?,
+                            AffineG1::new(ax, ay).map_err(|err| PrecompileFailure::Error {
+                                exit_status: ExitError::Other("bn256: malformed point".into()),
+                            })?,
                         )
                     }
                 };
@@ -308,7 +317,9 @@ impl PrecompiledContract for PrecompilePairIstanbul {
                         G2::zero()
                     } else {
                         G2::from(
-                            AffineG2::new(ba, bb).unwrap(), //.map_err(|_| Error::Bn128AffineGFailedToCreate)?,
+                            AffineG2::new(ba, bb).map_err(|err| PrecompileFailure::Error {
+                                exit_status: ExitError::Other("bn256: malformed point".into()),
+                            })?,
                         )
                     }
                 };
@@ -487,6 +498,59 @@ impl PrecompiledContract for PrecompileRipemd160Hash {
 // }
 
 #[derive(Debug)]
+pub struct PrecompileSecp256r1 {}
+
+impl PrecompileSecp256r1 {
+    pub fn verify_impl(input: &[u8]) -> Option<()> {
+        use p256::ecdsa::{signature::hazmat::PrehashVerifier, Signature, VerifyingKey};
+
+        if input.len() != 160 {
+            return None;
+        }
+
+        // msg signed (msg is already the hash of the original message)
+        let msg = &input[..32];
+        // r, s: signature
+        let sig = &input[32..96];
+        // x, y: public key
+        let pk = &input[96..160];
+
+        // prepend 0x04 to the public key: uncompressed form
+        let mut uncompressed_pk = [0u8; 65];
+        uncompressed_pk[0] = 0x04;
+        uncompressed_pk[1..].copy_from_slice(pk);
+
+        // Can fail only if the input is not exact length.
+        let signature = Signature::from_bytes(sig).ok()?;
+        // Can fail if the input is not valid, so we have to propagate the error.
+        let public_key = VerifyingKey::from_sec1_bytes(&uncompressed_pk).ok()?;
+
+        public_key.verify_prehash(msg, &signature).ok()
+    }
+}
+
+impl PrecompiledContract for PrecompileSecp256r1 {
+    fn required_gas(&self, input: &[u8]) -> u64 {
+        3450
+    }
+
+    fn run(&self, input: &[u8]) -> PrecompileResult {
+        let result = match Self::verify_impl(input) {
+            Some(_) => {
+                let mut out = vec![0_u8; 32];
+                out[31] = 1;
+                out
+            }
+            None => Vec::new(),
+        };
+        Ok(PrecompileOutput {
+            exit_status: ExitSucceed::Returned,
+            output: result,
+        })
+    }
+}
+
+#[derive(Debug)]
 pub struct PrecompileBigModExp {
     // testcase 0x6baf80b76832ff53cd551d3d607c04596ec45dd098dc7c0ac292f6a1264c1337
     eip2565: bool,
@@ -592,7 +656,14 @@ impl PrecompiledContract for PrecompileBigModExp {
                 || modulus_length > length_limit
             {
                 return Err(PrecompileFailure::Fatal {
-                    exit_status: ExitFatal::Other("ModexpUnsupportedInput".into()),
+                    exit_status: ExitFatal::Other(
+                        format!(
+                            "modexp temporarily only accepts inputs of {} bytes ({} bits) or less",
+                            length_limit,
+                            length_limit * 8
+                        )
+                        .into(),
+                    ),
                 });
             }
         }
@@ -643,6 +714,7 @@ impl PrecompiledContract for PrecompileBigModExp {
 #[cfg(test)]
 mod test {
     use super::*;
+    use serde::Deserialize;
 
     #[test]
     fn test_ecrecover() {
@@ -655,6 +727,11 @@ mod test {
         )
         .unwrap();
         assert_eq!(expect, result);
+
+        run_testcase(
+            &PrecompileEcrecover {},
+            include_bytes!("../testdata/ecRecover.json"),
+        );
     }
 
     #[test]
@@ -681,9 +758,72 @@ mod test {
             b"0x05c3ed0c6f6ac6dd647c9ba3e4721c1eb14011ea3d174c52d7981c5b8145aa75",
         )
         .unwrap();
-        let contract = PrecompileBigModExp { eip2565: true };
+        let contract = PrecompileBigModExp {
+            eip2565: true,
+            length_limit: None,
+        };
         let output: HexBytes = contract.run(&input).unwrap().output.into();
         assert_eq!(expect, output);
         assert_eq!(contract.required_gas(&input), 200); // 16
+
+        let contract = PrecompileBigModExp {
+            eip2565: true,
+            length_limit: Some(32),
+        };
+        run_testcase(&contract, include_bytes!("../testdata/modexp_eip2565.json"));
+        run_testcase(
+            &contract,
+            include_bytes!("../testdata/fail-modexp_eip2565.json"),
+        );
+    }
+
+    #[test]
+    fn test_secp256r1() {
+        glog::init_test();
+        run_testcase(
+            &PrecompileSecp256r1 {},
+            include_bytes!("../testdata/p256Verify.json"),
+        );
+    }
+
+    fn run_testcase<P: PrecompiledContract>(contract: &P, data: &[u8]) {
+        #[derive(Debug, Deserialize)]
+        #[serde(rename_all = "PascalCase")]
+        struct Testcase {
+            pub input: HexBytes,
+            pub expected: Option<HexBytes>,
+            pub expected_error: Option<String>,
+            pub gas: Option<u64>,
+            pub name: String,
+        }
+        let testcases: Vec<Testcase> = serde_json::from_slice(data).unwrap();
+        for testcase in testcases {
+            match contract.run(&testcase.input) {
+                Ok(result) => {
+                    let output: HexBytes = result.output.into();
+                    let expected = testcase.expected.as_ref().unwrap();
+                    if expected != &output {
+                        glog::warn!("testcase: {:?}", testcase);
+                    }
+                    assert_eq!(expected, &output);
+                    assert_eq!(
+                        testcase.gas.unwrap(),
+                        contract.required_gas(&testcase.input)
+                    );
+                }
+                Err(err) => {
+                    let expected_error = testcase.expected_error.unwrap();
+
+                    if let PrecompileFailure::Fatal {
+                        exit_status: ExitFatal::Other(n),
+                    } = err
+                    {
+                        assert_eq!(n, expected_error);
+                    } else {
+                        assert_eq!(format!("{:?}", err), expected_error);
+                    }
+                }
+            }
+        }
     }
 }

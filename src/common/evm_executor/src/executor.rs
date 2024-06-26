@@ -2,6 +2,7 @@ use std::prelude::v1::*;
 
 use super::{Context, StateProxy};
 use base::format::parse_ether;
+use base::thread::PanicContext;
 use eth_types::{HexBytes, Log, Receipt, SH256, SU256, SU64};
 use statedb::StateDB;
 
@@ -42,6 +43,8 @@ impl<'a, D: StateDB> Executor<'a, D> {
         state_db: &'a mut D,
         tx_idx: u64,
     ) -> Result<Receipt, ExecuteError> {
+        let _panic_ctx = PanicContext(ctx.tx.tx.hash());
+
         let mut result = Executor::new(ctx.clone(), state_db).run(false)?;
         for log in &mut result.logs {
             log.transaction_hash = ctx.tx.hash;
@@ -72,10 +75,13 @@ impl<'a, D: StateDB> Executor<'a, D> {
         let config = self.ctx.cfg;
         let tx = &self.ctx.tx.tx;
         let mut base_fee = self.ctx.header.base_fee_per_gas;
-        let gas_fee_cap = tx.max_fee_per_gas();
+        let mut gas_fee_cap = tx.max_fee_per_gas();
 
         if tx.can_check_nonce() {
             self.check_nonce(true, dry_run)?;
+        }
+        if !tx.cost_gas() {
+            base_fee = None;
         }
 
         if let Some(fee) = &base_fee {
@@ -257,9 +263,11 @@ impl<'a, D: StateDB> Executor<'a, D> {
             }
         }
 
-        let gas_tip_cap = tx.max_priority_fee_per_gas();
-        let gas_fee_cap = tx.max_fee_per_gas();
+        let mut gas_tip_cap = tx.max_priority_fee_per_gas();
         if let Some(base_fee) = &base_fee {
+            if !tx.cost_gas() {
+                gas_tip_cap = base_fee;
+            }
             if base_fee > gas_fee_cap {
                 glog::info!(
                     "invalid tx: {:?}, base_fee:{:?}, gas_fee_cap:{:?}",
@@ -269,7 +277,14 @@ impl<'a, D: StateDB> Executor<'a, D> {
                 )
             }
         }
-        let effective_tip = (*gas_tip_cap).min(*gas_fee_cap - base_fee.unwrap_or(SU256::zero()));
+
+        let mut effective_tip =
+            (*gas_tip_cap).min(*gas_fee_cap - base_fee.unwrap_or(SU256::zero()));
+        if !self.ctx.burn_base_fee {
+            if let Some(base_fee) = base_fee {
+                effective_tip += base_fee;
+            }
+        }
         let miner = if dry_run {
             eth_types::zero_addr()
         } else {

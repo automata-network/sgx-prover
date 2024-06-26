@@ -17,6 +17,7 @@ base::stack_error! {
         NumTxTooLarge,
         OversizedBatchPayload,
         KzgError(String),
+        ZstdEncode(String),
     },
     stack: {
         ParseBatchTaskFromCalldata(),
@@ -55,6 +56,7 @@ pub fn decode_block_numbers(mut data: &[u8]) -> Option<Vec<u64>> {
 pub enum BatchHeader {
     V0(BatchHeaderV0),
     V1(BatchHeaderV1),
+    V2(BatchHeaderV1),
 }
 
 impl BatchHeader {
@@ -62,6 +64,7 @@ impl BatchHeader {
         match self {
             Self::V0(v0) => v0.total_l1_message_popped,
             Self::V1(v1) => v1.total_l1_message_popped,
+            Self::V2(v2) => v2.total_l1_message_popped,
         }
     }
 
@@ -69,6 +72,7 @@ impl BatchHeader {
         match self {
             Self::V0(v0) => v0.version,
             Self::V1(v1) => v1.version,
+            Self::V2(v2) => v2.version,
         }
     }
 
@@ -76,6 +80,7 @@ impl BatchHeader {
         match self {
             Self::V0(v0) => v0.batch_index,
             Self::V1(v1) => v1.batch_index,
+            Self::V2(v2) => v2.batch_index,
         }
     }
 
@@ -83,6 +88,7 @@ impl BatchHeader {
         match self {
             BatchHeader::V0(v0) => v0.hash(),
             BatchHeader::V1(v1) => v1.hash(),
+            BatchHeader::V2(v2) => v2.hash(),
         }
     }
 
@@ -90,6 +96,7 @@ impl BatchHeader {
         match self {
             BatchHeader::V0(v0) => v0.encode(),
             BatchHeader::V1(v1) => v1.encode(),
+            BatchHeader::V2(v2) => v2.encode(),
         }
     }
 
@@ -97,6 +104,7 @@ impl BatchHeader {
         Ok(match data[0] {
             0 => Self::V0(BatchHeaderV0::from_bytes(data)),
             1 => Self::V1(BatchHeaderV1::from_bytes(data)),
+            2 => Self::V2(BatchHeaderV1::from_bytes(data)),
             v => return Err(RollupError::UnknownBatchVersion(v)),
         })
     }
@@ -169,8 +177,8 @@ pub struct BatchHeaderV1 {
     pub l1_message_popped: u64,
     pub total_l1_message_popped: u64,
     pub data_hash: SH256,
-    pub parent_batch_hash: SH256,
     pub blob_versioned_hash: SH256,
+    pub parent_batch_hash: SH256,
     pub skipped_l1_message_bitmap: Vec<u8>,
 }
 

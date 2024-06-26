@@ -67,7 +67,7 @@ pub struct AccountWrapper {
     pub poseidon_code_hash: SH256,
     #[serde(default)]
     pub code_size: u64,
-    pub storage: Option<StorageWrapper>,
+    // pub storage: Option<StorageWrapper>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -211,6 +211,8 @@ impl TraceTx {
         tx.nonce = self.nonce.into();
         tx.gas = self.gas.into();
         tx.gas_price = self.gas_price.into();
+        tx.max_priority_fee_per_gas = self.gas_tip_cap;
+        tx.max_fee_per_gas = self.gas_fee_cap;
         tx.to = self.to;
         tx.chain_id = Some(self.chain_id);
         tx.value = self.value;
@@ -223,6 +225,8 @@ impl TraceTx {
             tx.queue_index = Some(self.nonce.into());
             tx.sender = Some(self.from);
         }
+        
+        assert_eq!(tx.clone().inner().unwrap().hash(), self.tx_hash, "tx convert failed");
         tx
     }
 

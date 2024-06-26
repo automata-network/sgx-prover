@@ -27,6 +27,7 @@ pub struct PublicApi {
     pub prover: Arc<Prover>,
     pub verifier: Option<Arc<verifier::Client>>,
     pub l2_el: Option<Arc<ExecutionClient>>,
+    pub l2_chain_id: u64,
     pub l1_el: Option<Arc<L1ExecutionClient>>,
     // pub relay: Option<Secp256k1PrivateKey>,
     pub insecure: bool,
@@ -194,8 +195,14 @@ impl PublicApi {
             Some(poe) => poe,
             None => {
                 let start = Time::now();
-                let result =
-                    App::generate_poe_by_pob(&self.alive, &self.prover, &batch, pob_list, 4);
+                let result = App::generate_poe_by_pob(
+                    &self.alive,
+                    self.l2_chain_id,
+                    &self.prover,
+                    &batch,
+                    pob_list,
+                    4,
+                );
                 self.pobda_task_mgr.update_task(key, result.clone());
                 self.metrics
                     .gauge_prove_ms
@@ -289,14 +296,23 @@ impl PublicApi {
         let poe = match self.task_mgr.process_task(batch_task.clone()) {
             Some(poe) => poe,
             None => {
-                let result =
-                    App::generate_poe(&self.alive, l2_el, &self.prover, batch_task.clone());
+                let result = App::generate_poe(
+                    &self.alive,
+                    self.l2_chain_id,
+                    l2_el,
+                    &self.prover,
+                    batch_task.clone(),
+                );
                 self.task_mgr
                     .update_task(batch_task.clone(), result.clone());
                 result
             }
         }
         .map_err(JsonrpcErrorObj::unknown)?;
+
+        if poe.batch_hash != batch_hash {
+            return Err(JsonrpcErrorObj::client("batch hash mismatch, skip".into()));
+        }
 
         Ok(PoeResponse {
             not_ready: false,
@@ -467,6 +483,7 @@ impl Getter<RpcServer<PublicApi>> for App {
         let api = Arc::new(PublicApi {
             alive: self.alive.clone(),
             l2_el: self.l2_el.option_get(self),
+            l2_chain_id: self.l2_chain_id.get(self).0,
             l1_el: self.l1_el.option_get(self),
             prover: self.prover.get(self),
             verifier: self.verifier.option_get(self),

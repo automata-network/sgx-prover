@@ -119,8 +119,9 @@ impl Prover {
         for (idx, ts) in block_trace.tx_storage_traces.iter().enumerate() {
             glog::debug!(
                 target: "tx_state_root",
-                "state_root [{}] {:?} -> {:?}",
+                "state_root [{}: {:?}] {:?} -> {:?}",
                 idx,
+                block_trace.transactions[idx].tx_hash,
                 ts.root_before,
                 ts.root_after
             );

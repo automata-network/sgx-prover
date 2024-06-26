@@ -3,35 +3,47 @@ use std::prelude::v1::*;
 use base::format::parse_ether;
 use eth_types::{SH256, SU256};
 use evm_executor::{calculate_l1_data_fee, ExecuteError, PrecompileSet};
-use scroll_types::{BlockHeader, PoolTx, Signer, TransactionInner};
+use scroll_types::{get_fork, BlockHeader, PoolTx, ScrollFork, Signer, TransactionInner};
 use statedb::StateDB;
 use std::sync::Arc;
 
 pub struct Executor<S: StateDB> {
     signer: Signer,
+    fork: ScrollFork,
     cfg: evm_executor::Config,
     precompile_set: PrecompileSet,
     header: Arc<BlockHeader>,
     state_db: S,
 }
 
-pub fn scroll_evm_config() -> evm_executor::Config {
+pub fn scroll_evm_config(fork: ScrollFork) -> evm_executor::Config {
     let mut cfg = evm_executor::Config::shanghai();
     // SputnikVM doesn't have the option to disable the SELFDESTRUCT,
     // however, we can raise a OutOfGas error to stop the execution
     cfg.gas_suicide = 1_000_000_000;
 
-    cfg.has_base_fee = false;
+    if fork.is_bernoulli() {
+        cfg.has_base_fee = false;
+    } else {
+        cfg.has_transient_storage = true;
+        cfg.has_mcopy = true;
+    }
     cfg
 }
 
 impl<S: StateDB> Executor<S> {
     pub fn new(signer: Signer, state_db: S, header: Arc<BlockHeader>) -> Self {
-        let precompile_set = PrecompileSet::scroll();
-        let cfg = scroll_evm_config();
+        let fork = get_fork(signer.chain_id.as_u64(), header.number.as_u64());
+        let precompile_set = match fork {
+            ScrollFork::Bernoulli => PrecompileSet::scroll(),
+            ScrollFork::Curie => PrecompileSet::scroll_curie(),
+        };
+
+        let cfg = scroll_evm_config(fork);
 
         Self {
             signer,
+            fork,
             cfg,
             precompile_set,
             header,
@@ -66,10 +78,17 @@ impl<S: StateDB> Executor<S> {
     }
 
     fn execute_tx(&mut self, tx_idx: u64, tx: TransactionInner) -> Result<(), ExecuteError> {
-        self.effective_gas_tip(&tx)?;
+        if tx.cost_gas() {
+            self.effective_gas_tip(&tx)?;
+        }
         let caller = tx.sender(&self.signer);
         let l1_fee = if tx.extra_fee() {
-            Some(calculate_l1_data_fee(&self.cfg, &tx, &mut self.state_db)?)
+            Some(calculate_l1_data_fee(
+                self.fork,
+                &self.cfg,
+                &tx,
+                &mut self.state_db,
+            )?)
         } else {
             None
         };
@@ -83,9 +102,12 @@ impl<S: StateDB> Executor<S> {
             tx: &tx,
             header: &self.header,
             extra_fee: l1_fee,
+            burn_base_fee: false,
         };
 
         let _receipt = evm_executor::Executor::apply(exec_ctx, &mut self.state_db, tx_idx)?;
+
+        // glog::info!("receipt: {:?}", _receipt);
 
         // env.use_gas(receipt.gas_used.as_u64());
         Ok(())

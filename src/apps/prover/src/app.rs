@@ -9,7 +9,7 @@ use eth_types::SH256;
 use jsonrpc::{MixRpcClient, RpcServer};
 use prometheus::CollectorRegistry;
 use prover::{Database, Pob, Prover};
-use scroll_types::{BatchChunkBlockTx, BatchChunkBuilder, BatchTask, Poe, TransactionInner};
+use scroll_types::{BatchChunkBlockTx, BatchChunkBuilder, BatchTask, Poe, TransactionInner, get_fork};
 use std::collections::btree_map::Entry;
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
@@ -114,6 +114,7 @@ impl App {
 
     pub fn generate_poe_by_pob(
         alive: &Alive,
+        chain_id: u64,
         prover: &Arc<Prover>,
         batch: &BatchTask,
         pob_list: Arc<Vec<Pob>>,
@@ -162,8 +163,11 @@ impl App {
 
         let reports = Arc::try_unwrap(ctx).unwrap();
         let reports = reports.into_inner().unwrap();
+        let version = get_fork(chain_id, block_numbers[0]);
 
-        let batch_header = batch.build_header(&batch_chunk.chunks).map_err(debug)?;
+        let batch_header = batch
+            .build_header(version, &batch_chunk.chunks)
+            .map_err(debug)?;
         let poe = prover
             .merge_poe(batch_header.hash(), &reports)
             .ok_or(format!("fail to gen poe"))?;
@@ -174,6 +178,7 @@ impl App {
 
     pub fn generate_poe(
         alive: &Alive,
+        chain_id: u64,
         l2: &Arc<ExecutionClient>,
         prover: &Arc<Prover>,
         task: BatchTask,
@@ -247,8 +252,11 @@ impl App {
 
         let ctx = ctx.lock().unwrap();
         let reports = &ctx.0;
+        let fork = get_fork(chain_id, block_numbers[0]);
 
-        let batch_header = task.build_header(&batch_chunk.chunks).map_err(debug)?;
+        let batch_header = task
+            .build_header(fork, &batch_chunk.chunks)
+            .map_err(debug)?;
 
         let poe = prover
             .merge_poe(batch_header.hash(), &reports)
@@ -260,13 +268,14 @@ impl App {
     pub fn commit_batch(
         alive: &Alive,
         l2: &Arc<ExecutionClient>,
+        chain_id: u64,
         prover: &Arc<Prover>,
         relay_acc: &Secp256k1PrivateKey,
         verifier: &verifier::Client,
         task: BatchTask,
     ) -> Result<SH256, String> {
         let batch_id = task.id().into();
-        let poe = Self::generate_poe(alive, l2, prover, task)?;
+        let poe = Self::generate_poe(alive, chain_id, l2, prover, task)?;
         verifier.commit_batch(relay_acc, &batch_id, &poe.encode())
     }
 
@@ -415,7 +424,7 @@ impl OptionGetter<ExecutionClient> for App {
     }
 }
 
-pub struct L2ChainID(u64);
+pub struct L2ChainID(pub u64);
 
 impl Getter<L2ChainID> for App {
     fn generate(&self) -> L2ChainID {

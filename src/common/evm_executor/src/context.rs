@@ -12,4 +12,5 @@ pub struct Context<'a> {
     pub tx: &'a PoolTx,
     pub header: &'a BlockHeader,
     pub extra_fee: Option<SU256>,
+    pub burn_base_fee: bool,
 }

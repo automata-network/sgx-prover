@@ -29,3 +29,6 @@ pub use batch::*;
 
 mod poe;
 pub use poe::*;
+
+mod zstd;
+pub use crate::zstd::*;
