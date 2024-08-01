@@ -1,0 +1,25 @@
+[package]
+name = "zktrie"
+version = "0.1.0"
+authors = ["Automata Team"]
+edition = "2021"
+license = "Apache-2.0"
+
+[features]
+default = ["std"]
+std = ["serde/std", "mimc/std", "crypto/std", "eth_types/std", "serde_json/std", "glog/std", "base/std"]
+tstd = ["sgxlib/tstd", "serde/tstd", "mimc/tstd", "crypto/tstd", "eth_types/tstd", "serde_json/tstd", "glog/tstd", "base/tstd"]
+
+[dependencies]
+sgxlib = { git = "https://github.com/automata-network/sgxlib", default-features = false }
+mimc = { path = "../mimc", default-features = false }
+base = { git = "https://github.com/automata-network/base-rs", default-features = false }
+crypto = { git = "https://github.com/automata-network/crypto-rs", default-features = false }
+glog = { git = "https://github.com/automata-network/glog-rs", default-features = false }
+eth_types = { git = "https://github.com/automata-network/eth-types-rs", default-features = false }
+
+lazy_static = { version = "1.4.0", default-features = false, features = ["spin_no_std"] }
+rlp = { version = "0.5", default-features = false }
+rlp-derive = { version = "0.1", default-features = false }
+serde = { git = "https://github.com/automata-network/sgxlib-thirdparty", default-features = false }
+serde_json = { git = "https://github.com/automata-network/sgxlib-thirdparty", default-features = false }
