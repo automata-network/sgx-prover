@@ -1,0 +1,8 @@
+[package]
+name = "clients"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+alloy = { version = "0.2", default-features = false, features = ["std", "providers", "reqwest-rustls-tls"] }
+scroll-executor.workspace = true

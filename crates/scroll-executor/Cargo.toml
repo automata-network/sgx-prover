@@ -1,0 +1,11 @@
+[package]
+name = "scroll-executor"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+scroll-revm.workspace = true
+mpt-zktrie = { git = "https://github.com/scroll-tech/zkevm-circuits", branch = "feat/rkyv" }
+zktrie.workspace = true
+eth-types = { git = "https://github.com/scroll-tech/zkevm-circuits", features = ["scroll"], branch = "feat/rkyv" }
+serde.workspace = true

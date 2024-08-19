@@ -1,0 +1,64 @@
+[workspace]
+resolver = "2"
+members = ["bin/*", "crates/base", "crates/clients", "crates/prover", "crates/scroll-executor", "crates/scroll-verifier", "crates/prover-types"]
+
+[workspace.package]
+edition = "2021"
+version = "0.1.0"
+authors = ["Automata Team"]
+homepage = "https://www.ata.network/"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[workspace.dependencies]
+serde = { version = "=1.0.197", features = ["derive"] }
+serde_json = { version = "1" }
+automata-sgx-builder = { git = "https://github.com/automata-network/automata-sgx-builder", branch = "main" }
+blst = { version = "=0.3.11" }
+scroll-executor = { path = "crates/scroll-executor" }
+scroll-verifier = { path = "crates/scroll-verifier" }
+clients = { path = "crates/clients" }
+base = { path = "crates/base" }
+prover-types = { path = "crates/prover-types" }
+
+scroll-revm = { package = "revm", git = "https://github.com/automata-network/scroll-revm", branch = "scroll-evm-executor/v40", default-features = false, features = ["scroll-default-handler", "std", "optional_no_base_fee", "scroll-poseidon-codehash"] }
+# scroll-revm = { package = "revm", path = "../revm/crates/revm", default-features = false, features = ["scroll-default-handler", "std", "optional_no_base_fee", "scroll-poseidon-codehash"] }
+lazy_static = "1.5.0"
+
+env_logger = { version = "0.11" }
+log = { version = "0.4" }
+zktrie = { git = "https://github.com/scroll-tech/zktrie.git", branch = "main", features= ["rs_zktrie"] }
+
+# rpc
+jsonrpsee = "0.23"
+jsonrpsee-core = "0.23"
+jsonrpsee-types = "0.23"
+jsonrpsee-http-client = "0.23"
+scroll-zstd = { git = "https://github.com/scroll-tech/da-codec" }
+scroll-zstd-encoder = { git = "https://github.com/scroll-tech/da-codec", package = "encoder" }
+alloy-primitives = { version = "0.7", features = [] }
+async-trait = "0.1.73"
+c-kzg = "1"
+hex = "0.4.3"
+
+[patch.crates-io]
+blst = { git = "https://github.com/automata-network/blst", rev = "2ec67be" }
+ethers-core = { git = "https://github.com/scroll-tech/ethers-rs.git", branch = "feat/rkyv" }
+ethers-signers  = { git = "https://github.com/scroll-tech/ethers-rs.git", branch = "feat/rkyv" }
+halo2curves = { git = "https://github.com/scroll-tech/halo2curves", branch = "v0.1.0" }
+primitive-types = { git = "https://github.com/scroll-tech/parity-common.git", branch = "feat/rkyv" }
+ethereum-types = { git = "https://github.com/scroll-tech/parity-common.git", branch = "feat/rkyv" }
+
+ring = { git = "https://github.com/automata-network/ring-sgx" }
+
+
+[patch."https://github.com/privacy-scaling-explorations/bls12_381"]
+bls12_381 = { git = "https://github.com/scroll-tech/bls12_381", branch = "feat/impl_scalar_field" }
+
+[patch.'https://github.com/scroll-tech/zstd-rs']
+zstd = { git = "https://github.com/automata-network/scroll-zstd-rs", branch = "hack/mul-block-2.0"}
+
+
+[profile.release]
+debug-assertions = true
+
