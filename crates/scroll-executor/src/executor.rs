@@ -30,6 +30,7 @@ pub trait Context {
     fn difficulty(&self) -> U256;
     fn prevrandao(&self) -> Option<B256>;
     fn old_state_root(&self) -> B256;
+    fn state_root(&self) -> B256;
 
     fn tx_env(&self, tx_idx: usize, rlp: Vec<u8>) -> TxEnv;
 
@@ -60,7 +61,7 @@ where
         }
     }
 
-    pub fn handle_block<C: Context>(&mut self, ctx: &C) -> H256 {
+    pub fn handle_block<C: Context>(&mut self, ctx: &C) -> B256 {
         let mut env = Box::<Env>::default();
         env.cfg.chain_id = ctx.chain_id();
         env.block = ctx.block_env();
@@ -87,7 +88,7 @@ where
         let mut zktrie = self.memdb.new_trie(&ctx.old_state_root().0).unwrap();
         self.commit_changes(&mut zktrie);
 
-        H256::from(zktrie.root())
+        B256::from(zktrie.root())
     }
 
     fn commit_changes(&self, zktrie: &mut ZkTrie) {

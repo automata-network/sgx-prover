@@ -38,6 +38,7 @@ impl ScrollBatchVerifier {
             let db = ctx.db(memdb.clone());
             let spec_id = ctx.spec_id();
             let new_root = ScrollEvmExecutor::new(&db, memdb, spec_id).handle_block(&ctx);
+            assert_eq!(new_root, ctx.state_root());
             Ok(new_root)
         })
         .await?;

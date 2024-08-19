@@ -1,0 +1,37 @@
+[package]
+name = "linea"
+version = "0.1.0"
+authors = ["Automata Team"]
+edition = "2021"
+license = "Apache-2.0"
+
+[features]
+default = ["std"]
+
+std = ["base/std", "eth_types/std", "glog/std", "eth-tools/std", "crypto/std", "statedb/std", "mpt/std", "evm-executor/std", "evm/std", "solidity/std", "zktrie/std", "serde/std", "bytes/std", "evm-runtime/std", "evm-gasometer/std"]
+tstd = ["base/tstd", "eth_types/tstd", "glog/tstd", "eth-tools/tstd", "crypto/tstd", "statedb/tstd", "mpt/tstd", "evm-executor/tstd", "evm/tstd", "solidity/tstd", "sgxlib-ra/tstd", "zktrie/tstd", "serde/tstd", "bytes/tstd", "evm-runtime/tstd"]
+sgx = ["sgxlib-ra", "sgxlib-ra/sgx", "sgxlib-ra/dcap"]
+
+[dependencies]
+sgxlib = { git = "https://github.com/automata-network/sgxlib", default-features = false }
+eth-tools = { git = "https://github.com/automata-network/eth-tools-rs", default-features = false }
+base = { git = "https://github.com/automata-network/base-rs", default-features = false }
+eth_types = { git = "https://github.com/automata-network/eth-types-rs", default-features = false }
+glog = { git = "https://github.com/automata-network/glog-rs", default-features = false }
+crypto = { git = "https://github.com/automata-network/crypto-rs", default-features = false }
+statedb = { git = "https://github.com/automata-network/statedb-rs", default-features = false, branch = "v2" }
+mpt = { git = "https://github.com/automata-network/mpt-rs", default-features = false }
+evm-executor = { git = "https://github.com/automata-network/evm-executor-rs", default-features = false }
+evm = { git = "https://github.com/automata-network/evm-rs", default-features = false }
+evm-runtime = { git = "https://github.com/automata-network/evm-rs", default-features = false}
+evm-gasometer = { git = "https://github.com/automata-network/evm-rs", default-features = false}
+solidity = { git = "https://github.com/automata-network/solidity-rs", default-features = false }
+bytes = { git = "https://github.com/automata-network/bytes-rs", default-features = false }
+sgxlib-ra = { git = "https://github.com/automata-network/sgxlib-ra", default-features = false, optional = true }
+zktrie = { path = "../zktrie", default-features = false }
+scale-info-derive = "=2.10"
+serde = { git = "https://github.com/automata-network/sgxlib-thirdparty", default-features = false }
+
+lazy_static = { version = "1.4.0", default-features = false, features = ["spin_no_std"] }
+rlp = { version = "0.5", default-features = false }
+rlp-derive = { version = "0.1" }

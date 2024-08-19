@@ -15,10 +15,8 @@ pub struct Pob<T = Bytes> {
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct PobBlock {
-    // pub parent_hash: SH256,
-    // pub sha3_uncles: SH256,
     pub miner: Address,
-    // pub state_root: SH256,
+    pub state_root: B256,
     // pub transactions_root: SH256,
     // pub receipts_root: SH256,
     // pub logs_bloom: HexBytes,

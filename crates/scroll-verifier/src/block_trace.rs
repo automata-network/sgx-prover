@@ -29,6 +29,7 @@ pub fn block_trace_to_pob(trace: BlockTrace) -> Option<Pob<Bytes>> {
 
     let block = PobBlock {
         miner: trace_header.author?.0.into(),
+        state_root: trace_header.state_root.0.into(),
         difficulty: U256::from_limbs(trace_header.difficulty.0),
         number: U64::from_limbs(trace_header.number?.0),
         gas_limit: U64::from_limbs([trace_header.gas_limit.as_u64()]),

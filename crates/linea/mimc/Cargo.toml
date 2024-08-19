@@ -1,0 +1,24 @@
+[package]
+name = "mimc"
+version = "0.1.0"
+authors = ["Automata Team"]
+edition = "2021"
+license = "Apache-2.0"
+
+[features]
+default = ["std"]
+std = ["serde_json/std", "ff/std", "serde/std", "eth_types/std", "glog/std", "crypto/std", "hex/std"]
+tstd = ["sgxlib/tstd", "serde_json/tstd", "ff/tstd", "serde/tstd", "eth_types/tstd", "glog/tstd", "crypto/tstd", "hex/tstd"]
+
+[dependencies]
+ff = { package = "ff_ce", git = "https://github.com/automata-network/ff-rs", default-features = false, features = ["derive"] }
+serde_json = { git = "https://github.com/automata-network/sgxlib-thirdparty", default-features = false }
+sgxlib = { git = "https://github.com/automata-network/sgxlib", default-features = false }
+serde = { git = "https://github.com/automata-network/sgxlib-thirdparty", default-features = false }
+glog = { git = "https://github.com/automata-network/glog-rs", default-features = false }
+eth_types = { git = "https://github.com/automata-network/eth-types-rs", default-features = false }
+crypto = { git = "https://github.com/automata-network/crypto-rs", default-features = false }
+rand = { version = "0.4", default-features = false }
+hex = { git = "https://github.com/automata-network/hex-rs", default-features = false }
+
+lazy_static = { version = "1.4.0", default-features = false, features = ["spin_no_std"] }

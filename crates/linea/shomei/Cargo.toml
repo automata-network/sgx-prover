@@ -1,0 +1,21 @@
+[package]
+name = "shomei"
+version = "0.1.0"
+authors = ["Automata Team"]
+edition = "2021"
+license = "Apache-2.0"
+
+[features]
+default = ["std"]
+std = ["base/std", "jsonrpc/std", "eth_types/std", "glog/std", "serde/std", "zktrie/std", "serde_json/std"]
+tstd = ["sgxlib/tstd", "base/tstd", "jsonrpc/tstd", "eth_types/tstd", "glog/tstd", "serde/tstd", "zktrie/tstd", "serde_json/tstd"]
+
+[dependencies]
+sgxlib = { git = "https://github.com/automata-network/sgxlib", default-features = false }
+base = { git = "https://github.com/automata-network/base-rs", default-features = false }
+jsonrpc = { git = "https://github.com/automata-network/jsonrpc-rs", default-features = false }
+eth_types = { git = "https://github.com/automata-network/eth-types-rs", default-features = false }
+glog = { git = "https://github.com/automata-network/glog-rs", default-features = false }
+serde = { git = "https://github.com/automata-network/sgxlib-thirdparty", default-features = false }
+serde_json = { git = "https://github.com/automata-network/sgxlib-thirdparty", default-features = false }
+zktrie = { path = "../zktrie", default-features = false }
