@@ -125,6 +125,11 @@ impl scroll_executor::Context for BlockContext {
     fn number(&self) -> u64 {
         self.trace.header.number.expect("incomplete block").as_u64()
     }
+
+    fn state_root(&self) -> B256 {
+        self.trace.header.state_root.0.into()
+    }
+
     #[inline]
     fn chain_id(&self) -> u64 {
         self.trace.chain_id
