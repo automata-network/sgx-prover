@@ -1,5 +1,3 @@
-use std::prelude::v1::*;
-
 use ff::*;
 
 pub const BYTES: usize = 32;

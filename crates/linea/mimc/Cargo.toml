@@ -5,11 +5,6 @@ authors = ["Automata Team"]
 edition = "2021"
 license = "Apache-2.0"
 
-[features]
-default = ["std"]
-std = ["serde_json/std", "ff/std", "serde/std", "eth_types/std", "glog/std", "crypto/std", "hex/std"]
-tstd = ["sgxlib/tstd", "serde_json/tstd", "ff/tstd", "serde/tstd", "eth_types/tstd", "glog/tstd", "crypto/tstd", "hex/tstd"]
-
 [dependencies]
 ff = { package = "ff_ce", git = "https://github.com/automata-network/ff-rs", default-features = false, features = ["derive"] }
 serde_json = { git = "https://github.com/automata-network/sgxlib-thirdparty", default-features = false }

@@ -1,5 +1,3 @@
-use std::prelude::v1::*;
-
 use base::trace::Alive;
 use eth_types::{BlockSelector, HexBytes, SH160, SH256, SU256};
 use jsonrpc::{JsonrpcClient, MixRpcClient, RpcError};

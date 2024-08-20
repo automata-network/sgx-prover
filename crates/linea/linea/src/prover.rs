@@ -1,5 +1,3 @@
-use std::prelude::v1::*;
-
 use base::{time::Time, trace::Alive};
 use crypto::{secp256k1_gen_keypair, Secp256k1PrivateKey};
 use eth_tools::MixRpcClient;

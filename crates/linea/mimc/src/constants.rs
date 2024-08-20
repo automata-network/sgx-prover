@@ -1,5 +1,3 @@
-use std::prelude::v1::*;
-
 use crypto::keccak_hash;
 use lazy_static::lazy_static;
 

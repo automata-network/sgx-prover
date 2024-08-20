@@ -1,5 +1,3 @@
-use std::prelude::v1::*;
-
 use base::trace::Alive;
 use eth_tools::{EthLogSubscriber, ExecutionClient, LogFilter, RpcClient, RpcError};
 use eth_types::{Log, SH160, SH256, SU256};

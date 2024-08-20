@@ -1,5 +1,3 @@
-use std::prelude::v1::*;
-
 use std::borrow::Cow;
 
 use crate::{ByteOrder, Fr, BLOCK_SIZE, MIMC_CONSTANTS};

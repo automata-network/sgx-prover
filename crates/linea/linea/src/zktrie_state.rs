@@ -1,5 +1,3 @@
-use std::prelude::v1::*;
-
 use core::fmt::Debug;
 use eth_types::{FetchStateResult, HexBytes, StateAccount, SH160, SH256, SU256};
 use statedb::{Error, MissingState};

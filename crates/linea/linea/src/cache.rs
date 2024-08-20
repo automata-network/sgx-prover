@@ -1,5 +1,3 @@
-use std::prelude::v1::*;
-
 use eth_types::SH256;
 use statedb::TrieUpdate;
 use std::collections::BTreeMap;

@@ -5,13 +5,6 @@ authors = ["Automata Team"]
 edition = "2021"
 license = "Apache-2.0"
 
-[features]
-default = ["std"]
-
-std = ["base/std", "eth_types/std", "glog/std", "eth-tools/std", "crypto/std", "statedb/std", "mpt/std", "evm-executor/std", "evm/std", "solidity/std", "zktrie/std", "serde/std", "bytes/std", "evm-runtime/std", "evm-gasometer/std"]
-tstd = ["base/tstd", "eth_types/tstd", "glog/tstd", "eth-tools/tstd", "crypto/tstd", "statedb/tstd", "mpt/tstd", "evm-executor/tstd", "evm/tstd", "solidity/tstd", "sgxlib-ra/tstd", "zktrie/tstd", "serde/tstd", "bytes/tstd", "evm-runtime/tstd"]
-sgx = ["sgxlib-ra", "sgxlib-ra/sgx", "sgxlib-ra/dcap"]
-
 [dependencies]
 sgxlib = { git = "https://github.com/automata-network/sgxlib", default-features = false }
 eth-tools = { git = "https://github.com/automata-network/eth-tools-rs", default-features = false }

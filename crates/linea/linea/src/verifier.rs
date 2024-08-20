@@ -1,5 +1,3 @@
-use std::prelude::v1::*;
-
 use base::{format::debug, trace::Alive};
 use crypto::Secp256k1PrivateKey;
 use eth_tools::{EthCall, ExecutionClient, RpcClient, RpcError, TxSender};

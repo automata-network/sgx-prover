@@ -1,5 +1,3 @@
-use std::prelude::v1::*;
-
 use bytes::{BufferVec, WriteBuffer};
 use crypto::keccak_hash;
 use eth_types::{

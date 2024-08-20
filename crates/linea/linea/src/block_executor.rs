@@ -1,5 +1,3 @@
-use std::prelude::v1::*;
-
 use crate::Linea;
 use crate::ZkTrieState;
 use base::format::debug;

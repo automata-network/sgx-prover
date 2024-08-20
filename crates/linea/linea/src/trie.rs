@@ -1,6 +1,4 @@
 use core::marker::PhantomData;
-use std::prelude::v1::*;
-
 use base::format::debug;
 use eth_types::{HexBytes, SH256};
 use statedb::TrieUpdate;
