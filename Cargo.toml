@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["bin/*", "crates/base", "crates/clients", "crates/prover", "crates/scroll-executor", "crates/scroll-verifier", "crates/prover-types", "crates/tls-server"]
+members = ["bin/*", "crates/base", "crates/clients", "crates/prover", "crates/scroll-executor", "crates/scroll-verifier", "crates/prover-types"]
 
 [workspace.package]
 edition = "2021"
