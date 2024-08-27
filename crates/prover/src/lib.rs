@@ -1,6 +1,10 @@
 mod api;
 pub use api::*;
 mod types;
+use jsonrpsee::{
+    server::{ServerBuilder, TlsLayer},
+    Methods,
+};
 pub use types::*;
 mod da;
 pub use crate::da::*;
@@ -12,6 +16,7 @@ use clients::Eth;
 use std::sync::Arc;
 
 use automata_sgx_builder::types::SgxStatus;
+use std::path::Path;
 
 pub static BUILD_TAG: Option<&str> = option_env!("BUILD_TAG");
 
@@ -47,12 +52,32 @@ pub async fn entrypoint() {
         pobda_task_mgr: Arc::new(TaskManager::new(100)),
         pob_da: Arc::new(DaManager::new()),
     };
-    let srv = jsonrpsee::server::ServerBuilder::new()
-        .build(&format!("0.0.0.0:{}", opt.port))
-        .await
-        .unwrap();
-    let handle = srv.start(api.rpc());
-    handle.stopped().await
+
+    run_jsonrpc(opt.port, cfg.server.tls, api.rpc()).await
+}
+
+pub async fn run_jsonrpc(
+    port: u64,
+    tls: String,
+    methods: impl Into<Methods>,
+) {
+    let addr = format!("0.0.0.0:{}", port);
+    if tls.len() == 0 {
+        let srv = ServerBuilder::new().build(&addr).await.unwrap();
+        log::info!("[http] listen on {}", addr);
+        srv.start(methods).stopped().await
+    } else {
+        let certs = format!("{}.crt", tls);
+        let key = format!("{}.key", tls);
+        let cfg = TlsLayer::single_cert_with_path(Path::new(&certs), Path::new(&key)).unwrap();
+        let srv = ServerBuilder::new()
+            .set_transport_cfg(cfg)
+            .build(&addr)
+            .await
+            .unwrap();
+        log::info!("[https] listen on {}", addr);
+        srv.start(methods).stopped().await
+    }
 }
 
 #[no_mangle]
