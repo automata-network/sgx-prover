@@ -767,6 +767,7 @@ checksum = "0c4b4d0bd25bd0b74681c0ad21497610ce1b7c91b1022cd21c80c6fbdd9476b0"
 [[package]]
 name = "automata-sgx-builder"
 version = "0.1.0"
+source = "git+https://github.com/automata-network/automata-sgx-builder?branch=main#0c15877fb28ac8f9650668caddd257294fd66a33"
 dependencies = [
  "automata-sgx-builder-sysroot",
  "cc",
@@ -784,6 +785,7 @@ dependencies = [
 [[package]]
 name = "automata-sgx-builder-sysroot"
 version = "0.1.0"
+source = "git+https://github.com/automata-network/automata-sgx-builder?branch=main#0c15877fb28ac8f9650668caddd257294fd66a33"
 
 [[package]]
 name = "backtrace"

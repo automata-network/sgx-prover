@@ -122,11 +122,6 @@ impl Context for PobContext {
     }
 
     #[inline]
-    fn state_root(&self) -> B256 {
-        self.pob.block.state_root
-    }
-
-    #[inline]
     fn number(&self) -> u64 {
         self.pob.block.number.to()
     }
