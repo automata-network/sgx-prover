@@ -125,9 +125,16 @@ impl scroll_executor::Context for BlockContext {
     fn number(&self) -> u64 {
         self.trace.header.number.expect("incomplete block").as_u64()
     }
+    
+    fn block_hash(&self) -> B256 {
+        self.trace.header.hash.unwrap().0.into()
+    }
 
     fn state_root(&self) -> B256 {
         self.trace.header.state_root.0.into()
+    }
+    fn withdrawal_root(&self) -> B256 {
+        self.trace.withdraw_trie_root.0.into()
     }
 
     #[inline]

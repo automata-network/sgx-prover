@@ -17,11 +17,9 @@ clients.workspace = true
 prover-types.workspace = true
 scroll-verifier.workspace = true
 scroll-executor.workspace = true
-# openssl-sys = { path = "../../../rust-openssl/openssl-sys", features = ["vendored"]}
 jsonrpsee = { workspace = true, features = ["client", "server", "macros"] }
 
 tokio = { version = "1.0", features = ["macros", "net", "rt-multi-thread"] }
-# alloy-rpc-client = { version = "0.2.1", features = ["hyper"] }
 alloy = { version = "0.2", default-features = false, features = ["std", "providers", "reqwest-rustls-tls"] }
 quinn = "0.11.1"
 url = "2.5.2"

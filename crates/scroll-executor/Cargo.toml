@@ -9,3 +9,4 @@ mpt-zktrie = { git = "https://github.com/scroll-tech/zkevm-circuits", branch = "
 zktrie.workspace = true
 eth-types = { git = "https://github.com/scroll-tech/zkevm-circuits", features = ["scroll"], branch = "feat/rkyv" }
 serde.workspace = true
+base.workspace = true

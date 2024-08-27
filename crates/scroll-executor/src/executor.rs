@@ -1,4 +1,4 @@
-use std::{fmt::Debug, rc::Rc};
+use std::{convert::Infallible, rc::Rc, str::FromStr};
 
 use eth_types::{Transaction, H256};
 use mpt_zktrie::{AccountData, ZkTrie};
@@ -7,12 +7,14 @@ use scroll_revm::{
     primitives::{AccountInfo, Address, BlockEnv, Env, SpecId, TxEnv, B256, U256},
     DatabaseRef,
 };
+use serde::{Deserialize, Serialize};
 use zktrie::ZkMemoryDb;
 
-pub struct ScrollEvmExecutor<D, E>
+use crate::ExecutionError;
+
+pub struct ScrollEvmExecutor<D>
 where
-    D: DatabaseRef<Error = E>,
-    E: Debug,
+    D: DatabaseRef<Error = Infallible>,
 {
     db: CacheDB<D>,
     spec_id: SpecId,
@@ -31,6 +33,8 @@ pub trait Context {
     fn prevrandao(&self) -> Option<B256>;
     fn old_state_root(&self) -> B256;
     fn state_root(&self) -> B256;
+    fn withdrawal_root(&self) -> B256;
+    fn block_hash(&self) -> B256;
 
     fn tx_env(&self, tx_idx: usize, rlp: Vec<u8>) -> TxEnv;
 
@@ -48,10 +52,15 @@ pub trait Context {
     }
 }
 
-impl<D, E> ScrollEvmExecutor<D, E>
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExecutionResult {
+    pub new_state_root: B256,
+    pub new_withdrawal_root: B256,
+}
+
+impl<D> ScrollEvmExecutor<D>
 where
-    D: DatabaseRef<Error = E>,
-    E: Debug,
+    D: DatabaseRef<Error = Infallible>,
 {
     pub fn new(db: D, memdb: Rc<ZkMemoryDb>, spec_id: SpecId) -> Self {
         Self {
@@ -61,7 +70,7 @@ where
         }
     }
 
-    pub fn handle_block<C: Context>(&mut self, ctx: &C) -> B256 {
+    pub fn handle_block<C: Context>(&mut self, ctx: &C) -> Result<ExecutionResult, ExecutionError> {
         let mut env = Box::<Env>::default();
         env.cfg.chain_id = ctx.chain_id();
         env.block = ctx.block_env();
@@ -78,20 +87,57 @@ where
                 let mut revm = scroll_revm::Evm::builder()
                     .with_spec_id(self.spec_id)
                     .with_db(&mut self.db)
-                    .with_env(env)
+                    .with_env(env.clone())
                     .build();
 
-                let _result = revm.transact_commit().unwrap(); // TODO: handle error
+                let _result = revm
+                    .transact_commit()
+                    .map_err(ExecutionError::CommitTx(&ctx.number(), &tx.hash()))?;
             }
         }
 
-        let mut zktrie = self.memdb.new_trie(&ctx.old_state_root().0).unwrap();
-        self.commit_changes(&mut zktrie);
+        let mut zktrie = self.memdb.new_trie(&ctx.old_state_root().0).ok_or(
+            ExecutionError::GenOldStateTrieFail {
+                block_number: ctx.number(),
+            },
+        )?;
+        self.commit_changes(&mut zktrie, ctx)?;
+        let new_withdrawal_root = self.get_withdrawal_root(&zktrie, ctx)?;
 
-        B256::from(zktrie.root())
+        Ok(ExecutionResult {
+            new_state_root: zktrie.root().into(),
+            new_withdrawal_root,
+        })
     }
 
-    fn commit_changes(&self, zktrie: &mut ZkTrie) {
+    fn get_withdrawal_root<C: Context>(
+        &self,
+        zktrie: &ZkTrie,
+        ctx: &C,
+    ) -> Result<B256, ExecutionError> {
+        let l1_message_queue_addr =
+            Address::from_str("0x5300000000000000000000000000000000000000").unwrap();
+
+        let acc = zktrie
+            .get_account(l1_message_queue_addr.as_slice())
+            .map(AccountData::from)
+            .ok_or_else(|| ExecutionError::WithdrawalAccNotFound {
+                block_number: ctx.number(),
+                acc: l1_message_queue_addr,
+            })?;
+        let trie = match self.memdb.new_trie(&acc.storage_root.0) {
+            Some(trie) => trie,
+            None => return Ok(ctx.withdrawal_root()),
+        };
+        let index = B256::default();
+        Ok(trie.get_store(&index.0).unwrap_or_default().into())
+    }
+
+    fn commit_changes<C: Context>(
+        &self,
+        zktrie: &mut ZkTrie,
+        ctx: &C,
+    ) -> Result<(), ExecutionError> {
         for (addr, db_acc) in self.db.accounts.iter() {
             let Some(info): Option<AccountInfo> = db_acc.info() else {
                 continue;
@@ -138,7 +184,8 @@ where
 
             zktrie
                 .update_account(addr.as_slice(), &acc_data.into())
-                .expect("failed to update account");
+                .map_err(ExecutionError::UpdateAccount(&ctx.number(), addr))?;
         }
+        Ok(())
     }
 }

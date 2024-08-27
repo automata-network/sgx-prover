@@ -73,7 +73,9 @@ impl HardforkConfig {
     pub fn batch_version(&self, number: u64) -> u8 {
         match self.get_spec_id(number) {
             SpecId::CURIE => 2,
-            _ => 1,
+            SpecId::BERNOULLI => 1,
+            SpecId::PRE_BERNOULLI => 0,
+            spec => unreachable!("unknown block number: {}, spec: {}", number, spec as u8),
         }
     }
 }

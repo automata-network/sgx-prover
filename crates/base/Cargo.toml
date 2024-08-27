@@ -10,4 +10,4 @@ log.workspace = true
 chrono = "0.4.38"
 async-trait.workspace = true
 
-tokio = { version = "1.0", features = ["rt-multi-thread", "sync"] }
+tokio = { version = "1.0", features = ["time", "macros", "rt-multi-thread", "sync"] }

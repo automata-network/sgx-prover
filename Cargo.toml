@@ -36,7 +36,7 @@ jsonrpsee-types = "0.23"
 jsonrpsee-http-client = "0.23"
 scroll-zstd = { git = "https://github.com/scroll-tech/da-codec" }
 scroll-zstd-encoder = { git = "https://github.com/scroll-tech/da-codec", package = "encoder" }
-alloy-primitives = { version = "0.7", features = [] }
+alloy-primitives = { version = "0.7", features = ["serde"] }
 async-trait = "0.1.73"
 c-kzg = "1"
 hex = "0.4.3"
@@ -58,6 +58,8 @@ bls12_381 = { git = "https://github.com/scroll-tech/bls12_381", branch = "feat/i
 [patch.'https://github.com/scroll-tech/zstd-rs']
 zstd = { git = "https://github.com/automata-network/scroll-zstd-rs", branch = "hack/mul-block-2.0"}
 
+[patch.'https://github.com/automata-network/automata-sgx-builder']
+automata-sgx-builder = { path = "../automata-sgx-builder" }
 
 [profile.release]
 debug-assertions = true

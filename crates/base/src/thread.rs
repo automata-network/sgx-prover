@@ -4,18 +4,19 @@ use tokio::{runtime::Builder, sync::Semaphore};
 
 use crate::Alive;
 
-pub async fn parallel<O, T, C, A, F>(
+pub async fn parallel<O, T, C, A, F, E>(
     alive: &Alive,
     ctx: C,
     tasks: Vec<T>,
     worker: usize,
     f: F,
-) -> Result<Vec<O>, String>
+) -> Result<Vec<O>, E>
 where
+    E: Send + 'static,
     O: Send + 'static,
     C: Clone + Send + 'static,
     T: Send + 'static,
-    A: Future<Output = Result<O, String>> + Send + 'static,
+    A: Future<Output = Result<O, E>> + Send + 'static,
     F: Fn(T, C) -> A + Clone + Send + 'static,
 {
     let _alive = alive.fork();
@@ -42,7 +43,10 @@ where
     for result in results {
         match result.await.unwrap() {
             Ok(n) => out.push(n),
-            Err(err) => return Err(err),
+            Err(err) => {
+                rt.shutdown_background();
+                return Err(err)
+            },
         }
     }
     rt.shutdown_background();

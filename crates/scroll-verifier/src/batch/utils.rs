@@ -2,11 +2,6 @@ use core::hash::{Hash, Hasher};
 use scroll_executor::{B256, U256};
 use scroll_zstd_encoder::{init_zstd_encoder, zstd::zstd_safe::WriteBuf, N_BLOCK_SIZE_TARGET};
 
-pub(crate) fn copy<N: AsRef<[u8]>>(dst: &mut [u8], src: N) {
-    let src = src.as_ref();
-    dst[..src.len()].copy_from_slice(src)
-}
-
 pub(crate) fn solidity_parse_bytes(offset: usize, slice: &[u8]) -> Vec<u8> {
     let mut data: Vec<u8> = vec![];
     let data_offset: usize = U256::from_be_slice(&slice[offset..offset + 32]).to();
@@ -49,12 +44,6 @@ pub(crate) fn decode_block_numbers(mut data: &[u8]) -> Option<Vec<u64>> {
         numbers.push(block_number);
     }
     Some(numbers)
-}
-
-pub(crate) fn set_bit(val: &mut U256, i: usize) {
-    // let j = i / 4;
-    // let m = 1u64 << (i % 8);
-    val.set_bit(i, true);
 }
 
 pub fn compress_scroll_batch_bytes(src: &[u8]) -> Result<Vec<u8>, String> {

@@ -767,7 +767,6 @@ checksum = "0c4b4d0bd25bd0b74681c0ad21497610ce1b7c91b1022cd21c80c6fbdd9476b0"
 [[package]]
 name = "automata-sgx-builder"
 version = "0.1.0"
-source = "git+https://github.com/automata-network/automata-sgx-builder?branch=main#0c15877fb28ac8f9650668caddd257294fd66a33"
 dependencies = [
  "automata-sgx-builder-sysroot",
  "cc",
@@ -785,7 +784,6 @@ dependencies = [
 [[package]]
 name = "automata-sgx-builder-sysroot"
 version = "0.1.0"
-source = "git+https://github.com/automata-network/automata-sgx-builder?branch=main#0c15877fb28ac8f9650668caddd257294fd66a33"
 
 [[package]]
 name = "backtrace"
@@ -1465,6 +1463,22 @@ dependencies = [
  "const-oid",
  "crypto-common",
  "subtle",
+]
+
+[[package]]
+name = "download-scroll-batch"
+version = "0.1.0"
+dependencies = [
+ "base",
+ "clap 4.5.16",
+ "clients",
+ "env_logger 0.11.5",
+ "hex",
+ "prover-types",
+ "scroll-executor",
+ "scroll-verifier",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]
@@ -3985,11 +3999,28 @@ checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 name = "scroll-executor"
 version = "0.1.0"
 dependencies = [
+ "base",
  "eth-types",
  "mpt-zktrie",
  "revm",
  "serde",
  "zktrie",
+]
+
+[[package]]
+name = "scroll-test"
+version = "0.1.0"
+dependencies = [
+ "clap 4.5.16",
+ "clients",
+ "env_logger 0.11.5",
+ "hex",
+ "log",
+ "prover-types",
+ "scroll-executor",
+ "scroll-verifier",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]
@@ -4425,6 +4456,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
 
 [[package]]
+name = "signal-hook-registry"
+version = "1.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a9e9e0b4211b72e7b8b6e85c807d36c212bdb33ea8587f7569562a84df5465b1"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "signature"
 version = "2.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4768,7 +4808,9 @@ dependencies = [
  "bytes",
  "libc",
  "mio",
+ "parking_lot",
  "pin-project-lite",
+ "signal-hook-registry",
  "socket2",
  "tokio-macros",
  "windows-sys 0.52.0",

@@ -1,9 +1,12 @@
+use std::convert::Infallible;
+
 pub use eth_types::Transaction;
 use eth_types::{
     l2_types::{AccountTrace, BytecodeTrace, StorageTrace, TransactionTrace},
     EthBlock, H256,
 };
 
+use scroll_revm::primitives::EVMError;
 pub use scroll_revm::primitives::{
     AccessListItem, Address, BlockEnv, Bytes, Env, ScrollFields, SpecId, TransactTo, TxEnv, B256,
     U256,
@@ -45,4 +48,22 @@ pub struct BlockTrace {
     pub start_l1_queue_index: u64,
     /// Withdraw root
     pub withdraw_trie_root: H256,
+}
+
+base::stack_error! {
+    name: ExecutionError,
+    stack_name: ExecutionErrorStack,
+    error: {
+        GenOldStateTrieFail { block_number: u64 },
+        WithdrawalAccNotFound { block_number: u64, acc: Address },
+        WithdrawalAccStorageNotFound { block_number: u64, acc: Address, root: B256 },
+    },
+    wrap: {
+        EVM(EVMError<Infallible>),
+        Str(String),
+    },
+    stack: {
+        CommitTx(block_number: u64, tx_hash: H256),
+        UpdateAccount(block_number: u64, acc: Address),
+    }
 }

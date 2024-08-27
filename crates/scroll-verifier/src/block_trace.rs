@@ -19,10 +19,8 @@ pub fn block_trace_to_pob(trace: BlockTrace) -> Option<Pob<Bytes>> {
             .iter()
             .enumerate()
             .map(move |(idx, tx)| {
-                Bytes::copy_from_slice(
-                    &tx.to_eth_tx(block_hash, block_number, Some(idx.into()), base_fee_per_gas)
-                        .rlp(),
-                )
+                let tx = tx.to_eth_tx(block_hash, block_number, Some(idx.into()), base_fee_per_gas);
+                Bytes::copy_from_slice(&tx.rlp())
             })
             .collect()
     };

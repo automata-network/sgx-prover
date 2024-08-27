@@ -12,7 +12,7 @@ use scroll_executor::{
     Transaction, TxEnv, ZkMemoryDb, ZkTrie, B256, U256,
 };
 
-use crate::HardforkConfig;
+use crate::{BatchContext, HardforkConfig};
 
 pub struct PobContext {
     pub pob: Pob<Bytes>,
@@ -25,10 +25,34 @@ impl PobContext {
 
         let mut txs = vec![];
         for tx in &pob.block.transactions {
-            txs.push(rlp::decode(tx).unwrap());
+            let mut tx = rlp::decode(tx).unwrap();
+            Self::fix_tx(&mut tx, pob.block.base_fee_per_gas);
+            txs.push(tx);
         }
 
         Self { pob, txs }
+    }
+
+    fn fix_tx(tx: &mut eth_types::Transaction, base_fee_per_gas: Option<U256>) {
+        let tx_type = tx.transaction_type.unwrap_or_default().as_u64();
+        if tx_type == 2 {
+            let mut base_fee = eth_types::U256::default();
+            base_fee
+                .0
+                .copy_from_slice(base_fee_per_gas.unwrap().as_limbs());
+            let priority_fee_per_gas = std::cmp::min(
+                tx.max_priority_fee_per_gas.unwrap(),
+                tx.max_fee_per_gas.unwrap() - base_fee,
+            );
+            let effective_gas_price = priority_fee_per_gas + base_fee;
+            tx.gas_price = Some(effective_gas_price);
+        }
+
+        if tx_type != 0x7E {
+            tx.from = tx.recover_from().expect("recover_from");
+        } else {
+            tx.gas_price = Some(0.into());
+        }
     }
 
     pub fn spec_id(&self) -> SpecId {
@@ -67,10 +91,34 @@ impl PobContext {
     }
 }
 
+impl BatchContext for PobContext {
+    fn tx_rlp(&self, idx: usize) -> Vec<u8> {
+        self.pob.block.transactions[idx].to_vec()
+    }
+
+    fn txs(&self) -> &[Transaction] {
+        &self.txs
+    }
+}
+
 impl Context for PobContext {
     #[inline]
     fn old_state_root(&self) -> B256 {
         self.pob.data.prev_state_root
+    }
+
+    fn block_hash(&self) -> B256 {
+        self.pob.block.block_hash
+    }
+
+    #[inline]
+    fn state_root(&self) -> B256 {
+        self.pob.block.state_root
+    }
+
+    #[inline]
+    fn withdrawal_root(&self) -> B256 {
+        self.pob.data.withdrawal_root
     }
 
     #[inline]
@@ -122,7 +170,6 @@ impl Context for PobContext {
 
     fn tx_env(&self, tx_idx: usize, rlp: Vec<u8>) -> TxEnv {
         let tx = &self.txs[tx_idx];
-        let from = tx.recover_from().unwrap();
         let mut nonce = Some(tx.nonce.as_u64());
 
         let is_l1_msg = tx
@@ -135,7 +182,7 @@ impl Context for PobContext {
         }
 
         TxEnv {
-            caller: from.0.into(),
+            caller: tx.from.0.into(),
             gas_limit: tx.gas.as_u64(),
             gas_price: U256::from_limbs(tx.gas_price.unwrap().0),
             transact_to: match tx.to {

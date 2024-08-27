@@ -15,7 +15,7 @@ use jsonrpsee::core::RpcResult;
 use jsonrpsee::types::{ErrorObject, ErrorObjectOwned};
 use jsonrpsee::RpcModule;
 use prover_types::{keccak_encode, Pob, Poe, SuccinctPobList, TaskType, B256};
-use scroll_verifier::{block_trace_to_pob, BatchTask, PobContext, ScrollBatchVerifier};
+use scroll_verifier::{block_trace_to_pob, BatchTask, PobContext, ScrollBatchVerifier, ValidateError};
 
 const POB_EXPIRED_SECS: u64 = 120;
 
@@ -25,7 +25,7 @@ pub struct ProverApi {
     pub force_with_context: bool,
     pub scroll_el: Option<Eth>,
     pub task_mgr: Arc<TaskManager<BatchTask, Poe, String>>,
-    pub pobda_task_mgr: Arc<TaskManager<(u64, u64, B256), Poe, String>>,
+    pub pobda_task_mgr: Arc<TaskManager<(u64, u64, B256), Poe, ValidateError>>,
     pub pob_da: Arc<DaManager<Vec<Pob>>>,
 }
 
@@ -130,7 +130,7 @@ impl ProverV2ApiServer for ProverApi {
             let pob = block_trace_to_pob(block_trace).unwrap();
 
             log::info!("[scroll] generate pob: {} -> {:?}", blk, now.elapsed());
-            Ok(pob)
+            Ok::<_, String>(pob)
         })
         .await
         .unwrap();

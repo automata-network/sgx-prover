@@ -37,7 +37,7 @@ macro_rules! stack_error {
             $($stack_name:ident( $($stack_field:ident : $stack_field_type:ty),* ),)*
         }
     ) => {
-        #[derive(Debug, PartialEq)]
+        #[derive(Debug, PartialEq, Clone)]
         pub enum $name {
             $(
                 $err_name $(
@@ -52,7 +52,7 @@ macro_rules! stack_error {
             Stack { origin: Box<$name>, stack: Vec<$stack_ty_name> },
         }
 
-        #[derive(Debug, PartialEq)]
+        #[derive(Debug, PartialEq, Clone)]
         pub enum $stack_ty_name {
             $(
                 $stack_name {
