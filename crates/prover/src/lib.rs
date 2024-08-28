@@ -29,9 +29,11 @@ struct Opt {
     port: u64,
     #[clap(short, default_value = "config/prover.json")]
     cfg: String,
-    #[clap(long, default_value = "false")]
+    #[clap(long = "disable_check_report_metadata", default_value = "false")]
     disable_check_report_metadata: bool,
-    #[clap(long, default_value = "false")]
+    #[clap(long, default_value = "0")]
+    sampling: u64,
+    #[clap(long = "force_with_context", default_value = "false")]
     force_with_context: bool,
 }
 
@@ -56,6 +58,7 @@ pub async fn entrypoint() {
     let api = ProverApi {
         alive: alive.clone(),
         force_with_context: opt.force_with_context,
+        sampling: opt.sampling,
         l1_el,
         scroll_el,
         task_mgr: Arc::new(TaskManager::new(100)),

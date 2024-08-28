@@ -24,6 +24,7 @@ const POB_EXPIRED_SECS: u64 = 120;
 #[derive(Clone)]
 pub struct ProverApi {
     pub alive: Alive,
+    pub sampling: u64,
     pub force_with_context: bool,
     pub l1_el: Option<Eth>,
     pub scroll_el: Option<Eth>,
@@ -72,8 +73,9 @@ impl ProverV1ApiServer for ProverApi {
         Ok(quote.into())
     }
 
-    async fn get_poe(&self, _arg: B256) -> RpcResult<PoeResponse> {
-        unimplemented!()
+    async fn get_poe(&self, tx_hash: B256) -> RpcResult<PoeResponse> {
+        self.prove_task_with_sample(tx_hash, self.sampling, TaskType::Scroll.u64())
+            .await
     }
 }
 
@@ -119,40 +121,7 @@ impl ProverV2ApiServer for ProverApi {
     }
 
     async fn prove_task_without_context(&self, tx_hash: B256, ty: u64) -> RpcResult<PoeResponse> {
-        let ty = TaskType::from_u64(ty);
-        if ty != TaskType::Scroll {
-            return Err(self.err(14010, format!("unsupport task {:?}", ty)));
-        }
-        let Some(l1_el) = &self.l1_el else {
-            return Err(self.err(14011, "missing config for scroll_chain"));
-        };
-
-        let tx = l1_el.get_transaction(tx_hash).await.unwrap();
-        let batch_task = BatchTask::from_calldata(&tx.input[4..]).unwrap();
-        println!("task: {:?}", batch_task);
-
-        let pob_list = self
-            .generate_context(
-                batch_task.start().unwrap(),
-                batch_task.end().unwrap(),
-                ty.u64(),
-            )
-            .await?;
-
-        let poe = self
-            .prove_task(ProveTaskParams {
-                batch: Some(Bytes::from(tx.input[4..].to_vec())),
-                pob_hash: pob_list.hash,
-                start: None,
-                end: None,
-                starting_state_root: None,
-                final_state_root: None,
-                task_type: Some(ty.u64()),
-                from: None,
-            })
-            .await?;
-
-        Ok(poe)
+        self.prove_task_with_sample(tx_hash, 0, ty).await
     }
 
     async fn generate_context(
@@ -214,5 +183,54 @@ impl DaApiServer for ProverApi {
 
     async fn da_try_lock(&self, arg: B256) -> RpcResult<DaItemLockStatus> {
         Ok(self.pob_da.try_lock(&[arg], POB_EXPIRED_SECS).remove(0))
+    }
+}
+
+impl ProverApi {
+    async fn prove_task_with_sample(
+        &self,
+        tx_hash: B256,
+        sampling: u64,
+        ty: u64,
+    ) -> RpcResult<PoeResponse> {
+        let ty = TaskType::from_u64(ty);
+        if ty != TaskType::Scroll {
+            return Err(self.err(14010, format!("unsupport task {:?}", ty)));
+        }
+        let Some(l1_el) = &self.l1_el else {
+            return Err(self.err(14011, "missing config for scroll_chain"));
+        };
+
+        let tx = l1_el.get_transaction(tx_hash).await.unwrap();
+        let batch_task = BatchTask::from_calldata(&tx.input[4..]).unwrap();
+        if sampling > 0 {
+            if batch_task.id() % sampling != 0 {
+                return Err(self.err(14444, "ratelimited, skip this, try next time"));
+            }
+        }
+        println!("task: {:?}", batch_task);
+
+        let pob_list = self
+            .generate_context(
+                batch_task.start().unwrap(),
+                batch_task.end().unwrap(),
+                ty.u64(),
+            )
+            .await?;
+
+        let poe = self
+            .prove_task(ProveTaskParams {
+                batch: Some(Bytes::from(tx.input[4..].to_vec())),
+                pob_hash: pob_list.hash,
+                start: None,
+                end: None,
+                starting_state_root: None,
+                final_state_root: None,
+                task_type: Some(ty.u64()),
+                from: None,
+            })
+            .await?;
+
+        Ok(poe)
     }
 }
