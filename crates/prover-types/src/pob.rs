@@ -32,7 +32,7 @@ pub struct PobBlock {
     pub base_fee_per_gas: Option<U256>,
     // // WithdrawalsHash was added by EIP-4895 and is ignored in legacy headers.
     // pub withdrawals_root: Nilable<SH256>,
-    pub block_hash: B256,
+    pub block_hash: Option<B256>,
     pub transactions: Vec<Bytes>,
 }
 
@@ -46,7 +46,7 @@ pub struct SuccinctPobList {
 #[derive(Default, Debug, Deserialize, Serialize, Clone)]
 pub struct PobData<T> {
     pub chain_id: u64,
-    pub coinbase: Address,
+    pub coinbase: Option<Address>,
     pub prev_state_root: B256,
     pub block_hashes: BTreeMap<u64, B256>,
     pub mpt_nodes: Vec<T>,
@@ -129,7 +129,7 @@ impl Pob<Bytes> {
 
     pub fn pob_hash(&self) -> B256 {
         keccak_encode(|hash| {
-            hash(self.block.block_hash.as_slice());
+            hash(self.block.block_hash.unwrap_or_default().as_slice());
             hash(self.data.hash().as_slice());
         })
         .into()

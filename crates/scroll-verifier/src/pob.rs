@@ -108,7 +108,7 @@ impl Context for PobContext {
     }
 
     fn block_hash(&self) -> B256 {
-        self.pob.block.block_hash
+        self.pob.block.block_hash.expect("should have the block_hash")
     }
 
     #[inline]
@@ -138,7 +138,7 @@ impl Context for PobContext {
 
     #[inline]
     fn coinbase(&self) -> Address {
-        self.pob.data.coinbase
+        self.pob.data.coinbase.unwrap_or(self.pob.block.miner)
     }
 
     #[inline]

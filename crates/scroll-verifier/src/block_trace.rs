@@ -34,7 +34,7 @@ pub fn block_trace_to_pob(trace: BlockTrace) -> Option<Pob<Bytes>> {
         timestamp: U64::from_limbs([trace_header.timestamp.as_u64()]),
         mix_hash: trace_header.mix_hash?.0.into(),
         base_fee_per_gas: trace_header.base_fee_per_gas.map(|n| U256::from_limbs(n.0)),
-        block_hash: trace_header.hash?.0.into(),
+        block_hash: Some(trace_header.hash?.0.into()),
         transactions: txs,
     };
     let codes = trace
@@ -48,7 +48,7 @@ pub fn block_trace_to_pob(trace: BlockTrace) -> Option<Pob<Bytes>> {
 
     let data = PobData {
         chain_id: trace.chain_id,
-        coinbase: trace.coinbase.address.0.into(),
+        coinbase: Some(trace.coinbase.address.0.into()),
         prev_state_root,
         block_hashes: BTreeMap::new(),
         mpt_nodes,
