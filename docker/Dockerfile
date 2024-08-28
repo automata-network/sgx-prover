@@ -16,7 +16,6 @@ RUN cd /root && \
     echo 'source /root/.cargo/env' >> /root/.bashrc && \
     rm /root/rustup-init && rm -rf /root/.cargo/registry && rm -rf /root/.cargo/git
 
-
 ENV CODENAME                focal
 ENV VERSION                 2.24.100.3-focal1
 ENV DCAP_VERSION            1.21.100.3-focal1
@@ -28,8 +27,6 @@ RUN cd /root && \
     tar xzf as.ld.objdump.r4.tar.gz && \
     cp -r external/toolset/ubuntu20.04/* /usr/bin/ && \
     rm -rf ./external ./as.ld.objdump.r4.tar.gz
-
-
 
 RUN cd /root && \
     curl -o sdk.sh $SDK_URL && \
@@ -118,7 +115,7 @@ RUN --mount=type=cache,target=/root/.cargo/registry/index \
     --mount=type=cache,target=/root/.cargo/git \
     cd /workspace/source && cargo sgx build --release
 
-# #RUN cp /usr/lib/libdcap_quoteprov.so /usr/lib/x86_64-linux-gnu/libdcap_quoteprov.so.1.13.103.2
+RUN cp /usr/lib/libdcap_quoteprov.so /usr/lib/x86_64-linux-gnu/libdcap_quoteprov.so.1.13.108.3
 RUN cp source/target/release/sgx-prover /workspace
 RUN cp source/target/release/*.signed.so /workspace
 RUN cp source/docker/entrypoint.sh /workspace
