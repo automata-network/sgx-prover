@@ -6,7 +6,7 @@ fi
 cd $(dirname $0)/..
 docker buildx build \
 	-f docker/Dockerfile \
-	-t ghcr.io/automata-network/sgx-prover2:avs-${BUILD_TAG} \
+	-t ghcr.io/automata-network/sgx-prover:avs-${BUILD_TAG} \
 	--load . \
 	--build-arg BUILD_TAG=${BUILD_TAG}
 
