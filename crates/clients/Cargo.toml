@@ -5,4 +5,5 @@ edition.workspace = true
 
 [dependencies]
 alloy = { version = "0.2", default-features = false, features = ["std", "providers", "reqwest-rustls-tls"] }
+alloy-rpc-types-eth = "0.2.1"
 scroll-executor.workspace = true

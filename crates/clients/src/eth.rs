@@ -6,7 +6,8 @@ use alloy::{
     providers::{ProviderBuilder, RootProvider},
     transports::http::{Client, Http},
 };
-use scroll_executor::BlockTrace;
+use alloy_rpc_types_eth::Transaction;
+use scroll_executor::{BlockTrace, B256};
 // use jsonrpsee_core::{client::ClientT, ClientError};
 // use jsonrpsee_http_client::HttpClient;
 
@@ -35,5 +36,10 @@ impl Eth {
             .await
             .unwrap();
         block_trace
+    }
+
+    pub async fn get_transaction(&self, hash: B256) -> Option<Transaction> {
+        let tx = self.client.get_transaction_by_hash(hash).await.unwrap();
+        tx
     }
 }

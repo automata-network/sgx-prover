@@ -15,7 +15,9 @@ use jsonrpsee::core::RpcResult;
 use jsonrpsee::types::{ErrorObject, ErrorObjectOwned};
 use jsonrpsee::RpcModule;
 use prover_types::{keccak_encode, Pob, Poe, SuccinctPobList, TaskType, B256};
-use scroll_verifier::{block_trace_to_pob, BatchTask, PobContext, ScrollBatchVerifier, ValidateError};
+use scroll_verifier::{
+    block_trace_to_pob, BatchTask, PobContext, ScrollBatchVerifier, ValidateError,
+};
 
 const POB_EXPIRED_SECS: u64 = 120;
 
@@ -23,6 +25,7 @@ const POB_EXPIRED_SECS: u64 = 120;
 pub struct ProverApi {
     pub alive: Alive,
     pub force_with_context: bool,
+    pub l1_el: Option<Eth>,
     pub scroll_el: Option<Eth>,
     pub task_mgr: Arc<TaskManager<BatchTask, Poe, String>>,
     pub pobda_task_mgr: Arc<TaskManager<(u64, u64, B256), Poe, ValidateError>>,
@@ -87,7 +90,10 @@ impl ProverV2ApiServer for ProverApi {
             start_block = batch.start().unwrap();
             end_block = batch.end().unwrap();
             batch_id = batch.id();
-            let pob_list = self.pob_da.get(&params.pob_hash).unwrap();
+            let pob_list = self
+                .pob_da
+                .get(&params.pob_hash)
+                .ok_or(self.err(14006, format!("pob_hash not found: {:?}", params.pob_hash)))?;
             let key = (start_block, end_block, params.pob_hash);
             match self.pobda_task_mgr.process_task(key.clone()).await {
                 Some(poe) => poe,
@@ -104,12 +110,49 @@ impl ProverV2ApiServer for ProverApi {
         }
         .map_err(jsonrpc_err(15001))?;
         Ok(PoeResponse {
-            not_ready: true,
+            not_ready: false,
             batch_id,
             start_block,
             end_block,
             poe: Some(poe),
         })
+    }
+
+    async fn prove_task_without_context(&self, tx_hash: B256, ty: u64) -> RpcResult<PoeResponse> {
+        let ty = TaskType::from_u64(ty);
+        if ty != TaskType::Scroll {
+            return Err(self.err(14010, format!("unsupport task {:?}", ty)));
+        }
+        let Some(l1_el) = &self.l1_el else {
+            return Err(self.err(14011, "missing config for scroll_chain"));
+        };
+
+        let tx = l1_el.get_transaction(tx_hash).await.unwrap();
+        let batch_task = BatchTask::from_calldata(&tx.input[4..]).unwrap();
+        println!("task: {:?}", batch_task);
+
+        let pob_list = self
+            .generate_context(
+                batch_task.start().unwrap(),
+                batch_task.end().unwrap(),
+                ty.u64(),
+            )
+            .await?;
+
+        let poe = self
+            .prove_task(ProveTaskParams {
+                batch: Some(Bytes::from(tx.input[4..].to_vec())),
+                pob_hash: pob_list.hash,
+                start: None,
+                end: None,
+                starting_state_root: None,
+                final_state_root: None,
+                task_type: Some(ty.u64()),
+                from: None,
+            })
+            .await?;
+
+        Ok(poe)
     }
 
     async fn generate_context(
@@ -135,6 +178,8 @@ impl ProverV2ApiServer for ProverApi {
         .await
         .unwrap();
         let pob_list = SuccinctPobList::compress(&result);
+        self.pob_da
+            .put(pob_list.hash, Arc::new(result), POB_EXPIRED_SECS);
         Ok(pob_list)
     }
 
@@ -148,7 +193,7 @@ impl ProverV2ApiServer for ProverApi {
         Ok(Metadata {
             with_context: self.force_with_context || self.scroll_el.is_none(),
             task_with_context,
-            version: BUILD_TAG.unwrap_or_default(),
+            version: BUILD_TAG.unwrap_or("v0.1.0"),
         })
     }
 }

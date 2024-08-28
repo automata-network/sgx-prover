@@ -42,11 +42,21 @@ pub async fn entrypoint() {
 
     let alive = Alive::new();
 
-    let scroll_el = cfg.scroll_endpoint.map(|url| Eth::dial(&url));
+    let scroll_el = cfg
+        .scroll_endpoint
+        .filter(|n| !n.is_empty())
+        .map(|url| Eth::dial(&url));
+
+    let l1_el = cfg
+        .scroll_chain
+        .map(|n| n.endpoint)
+        .filter(|n| !n.is_empty())
+        .map(|url| Eth::dial(&url));
 
     let api = ProverApi {
         alive: alive.clone(),
         force_with_context: opt.force_with_context,
+        l1_el,
         scroll_el,
         task_mgr: Arc::new(TaskManager::new(100)),
         pobda_task_mgr: Arc::new(TaskManager::new(100)),
@@ -56,11 +66,7 @@ pub async fn entrypoint() {
     run_jsonrpc(opt.port, cfg.server.tls, api.rpc()).await
 }
 
-pub async fn run_jsonrpc(
-    port: u64,
-    tls: String,
-    methods: impl Into<Methods>,
-) {
+pub async fn run_jsonrpc(port: u64, tls: String, methods: impl Into<Methods>) {
     let addr = format!("0.0.0.0:{}", port);
     if tls.len() == 0 {
         let srv = ServerBuilder::new().build(&addr).await.unwrap();

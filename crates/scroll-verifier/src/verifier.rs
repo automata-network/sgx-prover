@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use base::{parallel, Alive};
 use prover_types::{Poe, B256};
 use scroll_executor::{Context, ExecutionError, ExecutionResult, ScrollEvmExecutor};
@@ -26,7 +28,10 @@ impl ScrollBatchVerifier {
             let memdb = ctx.memdb();
             let db = ctx.db(memdb.clone());
             let spec_id = ctx.spec_id();
-            match ScrollEvmExecutor::new(&db, memdb, spec_id).handle_block(&ctx) {
+            let now = Instant::now();
+            let result = ScrollEvmExecutor::new(&db, memdb, spec_id).handle_block(&ctx);
+            log::info!("[scroll] generate poe: {} -> {:?}", ctx.number(), now.elapsed());
+            match result {
                 Ok(result) => {
                     let result = Self::verify_result(result, &ctx)?;
                     let mut poe = Poe::default();

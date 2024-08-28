@@ -10,6 +10,7 @@ use crate::DaItemLockStatus;
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct Config {
+    pub scroll_chain: Option<ScrollChain>,
     #[serde(default)]
     pub server: ServerConfig,
     pub scroll_endpoint: Option<String>,
@@ -23,6 +24,11 @@ impl Config {
         let data = std::fs::read(fp).map_err(debug)?;
         serde_json::from_slice(&data).map_err(debug)
     }
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug, Default)]
+pub struct ScrollChain {
+    pub endpoint: String,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -76,6 +82,9 @@ fn default_l2_timeout_secs() -> u64 {
 pub trait ProverV2Api {
     #[method(name = "proveTask")]
     async fn prove_task(&self, arg: ProveTaskParams) -> RpcResult<PoeResponse>;
+
+    #[method(name = "proveTaskWithoutContext")]
+    async fn prove_task_without_context(&self, tx_hash: B256, ty: u64) -> RpcResult<PoeResponse>;
 
     #[method(name = "genContext")]
     async fn generate_context(
