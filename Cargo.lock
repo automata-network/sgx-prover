@@ -778,7 +778,7 @@ dependencies = [
 
 [[package]]
 name = "base"
-version = "0.4.0"
+version = "0.4.6"
 dependencies = [
  "async-trait",
  "chrono",
@@ -1111,7 +1111,7 @@ checksum = "1462739cb27611015575c0c11df5df7601141071f07518d56fcc1be504cbec97"
 
 [[package]]
 name = "clients"
-version = "0.4.0"
+version = "0.4.6"
 dependencies = [
  "alloy",
  "alloy-rpc-types-eth",
@@ -3154,7 +3154,7 @@ dependencies = [
 
 [[package]]
 name = "prover"
-version = "0.4.0"
+version = "0.4.6"
 dependencies = [
  "alloy",
  "async-trait",
@@ -3178,7 +3178,7 @@ dependencies = [
 
 [[package]]
 name = "prover-types"
-version = "0.4.0"
+version = "0.4.6"
 dependencies = [
  "alloy-primitives",
  "base",
@@ -3408,7 +3408,7 @@ dependencies = [
 [[package]]
 name = "revm"
 version = "13.0.0"
-source = "git+https://github.com/automata-network/scroll-revm?branch=scroll-evm-executor/v41#50fd5bdd4b47a94c8002011d1cdfbbba78d849b7"
+source = "git+https://github.com/automata-network/scroll-revm?branch=scroll-evm-executor/v41#5d5f962925bc0de1dd31e919b723ab0a1e77579e"
 dependencies = [
  "auto_impl",
  "cfg-if",
@@ -3422,7 +3422,7 @@ dependencies = [
 [[package]]
 name = "revm-interpreter"
 version = "9.0.0"
-source = "git+https://github.com/automata-network/scroll-revm?branch=scroll-evm-executor/v41#50fd5bdd4b47a94c8002011d1cdfbbba78d849b7"
+source = "git+https://github.com/automata-network/scroll-revm?branch=scroll-evm-executor/v41#5d5f962925bc0de1dd31e919b723ab0a1e77579e"
 dependencies = [
  "cfg-if",
  "revm-primitives 8.0.0 (git+https://github.com/automata-network/scroll-revm?branch=scroll-evm-executor/v41)",
@@ -3432,7 +3432,7 @@ dependencies = [
 [[package]]
 name = "revm-precompile"
 version = "10.0.0"
-source = "git+https://github.com/automata-network/scroll-revm?branch=scroll-evm-executor/v41#50fd5bdd4b47a94c8002011d1cdfbbba78d849b7"
+source = "git+https://github.com/automata-network/scroll-revm?branch=scroll-evm-executor/v41#5d5f962925bc0de1dd31e919b723ab0a1e77579e"
 dependencies = [
  "aurora-engine-modexp",
  "c-kzg",
@@ -3449,7 +3449,7 @@ dependencies = [
 [[package]]
 name = "revm-precompile"
 version = "10.0.0"
-source = "git+https://github.com/scroll-tech/revm?branch=scroll-evm-executor/v41#c7f33a1800cf69e78db0d81fc6ae4b5cc65a32c2"
+source = "git+https://github.com/scroll-tech/revm?branch=scroll-evm-executor/v41#13d3ec55cda625c9df138193f17d82e2c7ab8077"
 dependencies = [
  "aurora-engine-modexp",
  "c-kzg",
@@ -3466,7 +3466,7 @@ dependencies = [
 [[package]]
 name = "revm-primitives"
 version = "8.0.0"
-source = "git+https://github.com/automata-network/scroll-revm?branch=scroll-evm-executor/v41#50fd5bdd4b47a94c8002011d1cdfbbba78d849b7"
+source = "git+https://github.com/automata-network/scroll-revm?branch=scroll-evm-executor/v41#5d5f962925bc0de1dd31e919b723ab0a1e77579e"
 dependencies = [
  "alloy-eips",
  "alloy-primitives",
@@ -3485,7 +3485,7 @@ dependencies = [
 [[package]]
 name = "revm-primitives"
 version = "8.0.0"
-source = "git+https://github.com/scroll-tech/revm?branch=scroll-evm-executor/v41#c7f33a1800cf69e78db0d81fc6ae4b5cc65a32c2"
+source = "git+https://github.com/scroll-tech/revm?branch=scroll-evm-executor/v41#13d3ec55cda625c9df138193f17d82e2c7ab8077"
 dependencies = [
  "alloy-eips",
  "alloy-primitives",
@@ -3846,7 +3846,7 @@ checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 
 [[package]]
 name = "scroll-executor"
-version = "0.4.0"
+version = "0.4.6"
 dependencies = [
  "base",
  "eth-types",
@@ -3858,7 +3858,7 @@ dependencies = [
 
 [[package]]
 name = "scroll-test"
-version = "0.4.0"
+version = "0.4.6"
 dependencies = [
  "base",
  "clap",
@@ -3875,7 +3875,7 @@ dependencies = [
 
 [[package]]
 name = "scroll-verifier"
-version = "0.4.0"
+version = "0.4.6"
 dependencies = [
  "base",
  "blst",
@@ -4098,7 +4098,7 @@ dependencies = [
 
 [[package]]
 name = "sgx-prover"
-version = "0.4.0"
+version = "0.4.6"
 dependencies = [
  "automata-sgx-builder",
  "serde",
@@ -4620,9 +4620,9 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "tokio"
-version = "1.39.3"
+version = "1.40.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9babc99b9923bfa4804bd74722ff02c0381021eafa4db9949217e3be8e84fff5"
+checksum = "e2b070231665d27ad9ec9b8df639893f46727666c6767db40317fbe920a5d998"
 dependencies = [
  "backtrace",
  "bytes",
