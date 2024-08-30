@@ -4,7 +4,7 @@ members = ["bin/*", "crates/base", "crates/clients", "crates/prover", "crates/sc
 
 [workspace.package]
 edition = "2021"
-version = "0.1.0"
+version = "0.4.0"
 authors = ["Automata Team"]
 homepage = "https://www.ata.network/"
 
@@ -21,7 +21,7 @@ serde = { version = "=1.0.197", features = ["derive"] }
 serde_json = { version = "1" }
 automata-sgx-builder = { git = "https://github.com/automata-network/automata-sgx-builder", branch = "main" }
 blst = { version = "=0.3.11" }
-scroll-revm = { package = "revm", git = "https://github.com/automata-network/scroll-revm", branch = "scroll-evm-executor/v40", default-features = false, features = ["scroll-default-handler", "std", "optional_no_base_fee", "scroll-poseidon-codehash"] }
+scroll-revm = { package = "revm", git = "https://github.com/automata-network/scroll-revm", branch = "scroll-evm-executor/v41", default-features = false, features = ["scroll-default-handler", "std", "optional_no_base_fee", "scroll-poseidon-codehash"] }
 lazy_static = "1.5.0"
 
 env_logger = { version = "0.11" }
@@ -41,16 +41,14 @@ c-kzg = "1"
 hex = "0.4.3"
 
 [patch.crates-io]
-blst = { git = "https://github.com/automata-network/blst", rev = "2ec67be" }
 ethers-core = { git = "https://github.com/scroll-tech/ethers-rs.git", branch = "feat/rkyv" }
 ethers-signers  = { git = "https://github.com/scroll-tech/ethers-rs.git", branch = "feat/rkyv" }
-halo2curves = { git = "https://github.com/scroll-tech/halo2curves", branch = "v0.1.0" }
 primitive-types = { git = "https://github.com/scroll-tech/parity-common.git", branch = "feat/rkyv" }
 ethereum-types = { git = "https://github.com/scroll-tech/parity-common.git", branch = "feat/rkyv" }
-ring = { git = "https://github.com/automata-network/ring-sgx" }
+ff = { git = "https://github.com/scroll-tech/ff", branch = "feat/sp1" }
 
-[patch."https://github.com/privacy-scaling-explorations/bls12_381"]
-bls12_381 = { git = "https://github.com/scroll-tech/bls12_381", branch = "feat/impl_scalar_field" }
+blst = { git = "https://github.com/automata-network/blst", rev = "2ec67be" }
+ring = { git = "https://github.com/automata-network/ring-sgx" }
 
 [patch.'https://github.com/scroll-tech/zstd-rs']
 zstd = { git = "https://github.com/automata-network/scroll-zstd-rs", branch = "hack/mul-block-2.0"}

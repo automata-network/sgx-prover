@@ -18,6 +18,8 @@ pub use eth_types;
 pub use scroll_revm as revm;
 pub use zktrie::ZkMemoryDb;
 
+// pub use eth_types::l2_types::BlockTrace;
+
 #[derive(serde::Deserialize, serde::Serialize, Default, Debug, Clone)]
 pub struct BlockTrace {
     /// Version string

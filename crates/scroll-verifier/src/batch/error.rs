@@ -24,6 +24,9 @@ base::stack_error! {
         UnexpectedBlock { want: (usize, usize), got: (usize, usize) },
         UnknownBlock,
     },
+    wrap: {
+        ZstdDataCompatibility(DataCompatibilityError),
+    },
     stack: {
         ParseBatchTaskFromCalldata(),
         EncodeBatchChunk(),
@@ -35,6 +38,15 @@ impl From<c_kzg::Error> for BatchError {
     fn from(err: c_kzg::Error) -> Self {
         Self::KzgError(format!("{:?}", err))
     }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum DataCompatibilityError {
+    SizeTooSmall(Bytes),
+    UnexpectedHeaderType(u8),
+    UnexpectedBlkType { blk_ty: u8, blk_size: usize, is_last: bool },
+    WrongDataLen { len: usize, min: usize },
+    UnexpectedEndBeforeLastBlock,
 }
 
 #[cfg(test)]

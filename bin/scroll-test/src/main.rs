@@ -1,3 +1,5 @@
+#![feature(fs_try_exists)]
+
 use std::path::PathBuf;
 
 use clap::Parser;
@@ -8,7 +10,9 @@ use scroll_verifier::{
 
 #[derive(Debug, Parser)]
 struct Opt {
-    tx: PathBuf,
+    #[clap(long, default_value = "")]
+    download_from: String,
+    txs: Vec<PathBuf>,
 }
 
 fn read_batch_task(path: &PathBuf) -> BatchTask {
@@ -42,47 +46,90 @@ async fn main() {
         .init();
 
     let opt = Opt::parse();
-    let batch = read_batch_task(&opt.tx);
-    let finalize = read_finalize(&opt.tx);
 
-    let dir = opt
-        .tx
-        .parent()
-        .unwrap()
-        .join("downloaded")
-        .join(opt.tx.file_stem().unwrap().to_str().unwrap());
+    for tx in &opt.txs {
+        let file_stem = tx.file_stem().unwrap().to_str().unwrap();
+        if !file_stem.contains("-commit-") {
+            continue;
+        }
 
-    log::info!("reading blocktraces...");
-    let chunks = batch
-        .chunks
-        .iter()
-        .map(|chunk| {
-            chunk.iter().map(|blk| {
-                let block_trace: BlockTrace = serde_json::from_slice(
-                    &std::fs::read(dir.join(format!("{}.blocktrace", blk))).unwrap(),
-                )
-                .unwrap();
-                PobContext::new(block_trace_to_pob(block_trace).unwrap())
+        log::info!("executing {}...", tx.display());
+
+        let batch = read_batch_task(tx);
+        let finalize = read_finalize(tx);
+
+        let dir = tx.parent().unwrap().join("downloaded").join(file_stem);
+
+        std::fs::create_dir_all(&dir).unwrap();
+
+        if !opt.download_from.is_empty() {
+            log::info!("downloading from {}...", opt.download_from);
+            let client = clients::Eth::dial(&opt.download_from);
+
+            let block_numbers = batch
+                .chunks
+                .clone()
+                .into_iter()
+                .map(|n| n)
+                .flatten()
+                .collect::<Vec<_>>();
+
+            let total = block_numbers.len();
+            let start = *block_numbers.first().unwrap();
+            let alive = base::Alive::new();
+
+            base::parallel(
+                &alive,
+                (start, client, dir.clone(), total),
+                block_numbers,
+                4,
+                |block, (start, client, dir, total)| async move {
+                    let idx = block - start;
+                    let output = dir.join(format!("{}.blocktrace", block));
+                    let is_exist = std::fs::try_exists(&output).unwrap();
+                    if is_exist {
+                        return Ok::<(), ()>(());
+                    }
+
+                    println!("[{}/{}] downloading block #{}", idx, total, block);
+                    let block_trace = client.trace_block(block).await;
+                    let data = serde_json::to_vec(&block_trace).unwrap();
+                    std::fs::write(output, data).unwrap();
+                    Ok(())
+                },
+            )
+            .await
+            .unwrap();
+        }
+
+        log::info!("reading blocktraces...");
+        let chunks = batch
+            .chunks
+            .iter()
+            .map(|chunk| {
+                chunk.iter().map(|blk| {
+                    let block_trace: BlockTrace = serde_json::from_slice(
+                        &std::fs::read(dir.join(format!("{}.blocktrace", blk))).unwrap(),
+                    )
+                    .unwrap();
+                    PobContext::new(block_trace_to_pob(block_trace).unwrap())
+                })
             })
-        })
-        .flatten()
-        .collect::<Vec<_>>();
+            .flatten()
+            .collect::<Vec<_>>();
 
-    let first_block = chunks.first().unwrap();
+        let first_block = chunks.first().unwrap();
 
-    let fork = HardforkConfig::default_from_chain_id(first_block.pob.data.chain_id);
+        let fork = HardforkConfig::default_from_chain_id(first_block.pob.data.chain_id);
 
-    log::info!("build batch header...");
-    let mut builder = batch.builder(fork).unwrap();
-    for blk in &chunks {
-        builder.add(blk).unwrap();
+        log::info!("build batch header...");
+        let new_batch = batch.build_batch(fork, &chunks).unwrap();
+
+        log::info!("executing blocks...");
+        let poe = ScrollBatchVerifier::verify(&batch, chunks).await.unwrap();
+        finalize.assert_poe(&poe);
+
+        assert_eq!(new_batch, finalize.batch);
+        log::info!("done");
     }
-    let new_batch = builder.build(batch.parent_batch_header.clone()).unwrap();
-    assert_eq!(new_batch, finalize.batch);
-
-    log::info!("executing blocks...");
-    let poe = ScrollBatchVerifier::verify(&batch, chunks).await.unwrap();
-    finalize.assert_poe(&poe);
-
-    log::info!("done");
 }

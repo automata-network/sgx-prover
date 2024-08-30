@@ -5,7 +5,7 @@ use crate::HardforkConfig;
 
 use super::{
     decode_block_numbers, solidity_parse_array_bytes, solidity_parse_bytes, BatchBuilder,
-    BatchError, DABatch,
+    BatchContext, BatchError, DABatch,
 };
 
 #[derive(Debug, Clone)]
@@ -40,15 +40,21 @@ impl Finalize {
     }
 
     pub fn assert_poe(&self, poe: &Poe) {
-        assert_eq!(self.batch.hash(), poe.batch_hash, "batch");
         if let Some(prev_state_root) = self.prev_state_root {
-            assert_eq!(prev_state_root, poe.prev_state_root, "prev_state_root");
+            assert_eq!(
+                prev_state_root, poe.prev_state_root,
+                "prev_state_root mismatch"
+            );
         }
-        assert_eq!(self.new_state_root, poe.new_state_root, "new_state_root");
+        assert_eq!(
+            self.new_state_root, poe.new_state_root,
+            "new_state_root mismatch"
+        );
         assert_eq!(
             self.new_withdrawal_root, poe.withdrawal_root,
-            "withdrawal_root"
+            "withdrawal_root mismatch"
         );
+        assert_eq!(self.batch.hash(), poe.batch_hash, "batch_hash mismatch");
     }
 }
 
@@ -63,8 +69,18 @@ impl BatchTask {
         self.parent_batch_header.batch_index() + 1
     }
 
-    pub fn builder(&self, fork: HardforkConfig) -> Result<BatchBuilder, BatchError> {
-        BatchBuilder::new(fork, self.parent_batch_header.clone(), self.chunks.clone())
+    pub fn build_batch<C: BatchContext>(
+        &self,
+        fork: HardforkConfig,
+        blks: &[C],
+    ) -> Result<DABatch, BatchError> {
+        BatchBuilder::new(
+            fork,
+            self.parent_batch_header.clone(),
+            self.chunks.clone(),
+            blks,
+        )?
+        .build(self.parent_batch_header.clone())
     }
 
     pub fn from_calldata(data: &[u8]) -> Result<BatchTask, BatchError> {

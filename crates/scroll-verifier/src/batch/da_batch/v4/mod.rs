@@ -1,23 +1,23 @@
 use super::prelude::*;
 
-use super::v2;
+use super::v3;
 
 // diffs from v2:
 //   * removed skipped_l1_message_bitmap
 //   * added last_block_timestamp
 //   * added blob_data_proof
 
-pub const MAX_NUM_CHUNKS: usize = v2::MAX_NUM_CHUNKS;
-pub const VERSION: u8 = 3;
-pub type DABlockTx = v2::DABlockTx;
-pub type DABlock = v2::DABlock;
+pub const MAX_NUM_CHUNKS: usize = v3::MAX_NUM_CHUNKS;
+pub const VERSION: u8 = 4;
+pub type DABlockTx = v3::DABlockTx;
+pub type DABlock = v3::DABlock;
 
 // DAChunk groups consecutive DABlocks with their transactions.
-pub type DAChunk = v2::DAChunk;
-pub(crate) use v2::compute_batch_data_hash;
+pub type DAChunk = v3::DAChunk;
+pub(crate) use v3::compute_batch_data_hash;
 
-pub struct CodecV3 {}
-impl BatchVersionedType for CodecV3 {
+pub struct CodecV4 {}
+impl BatchVersionedType for CodecV4 {
     type Batch = DABatch;
     type Chunk = DAChunk;
     type Block = DABlock;
@@ -91,7 +91,7 @@ impl BatchTrait for DABatch {
 
         let last_block = chunks.last().unwrap().last_block()?;
 
-        let blob_payload = BlobPayload::build(&chunks, MAX_NUM_CHUNKS, BlobPayloadCompress::Zstd)?;
+        let blob_payload = BlobPayload::build(&chunks, MAX_NUM_CHUNKS, BlobPayloadCompress::ZstdV4)?;
 
         Ok(Self {
             version: VERSION,
@@ -119,7 +119,7 @@ mod test {
     use super::*;
 
     #[test]
-    fn test_v3_da_batch() {
-        test_dabatch::<DABatch>(testdata!("scroll-mainnet-v3", 310004)).unwrap();
+    fn test_v4_da_batch() {
+        test_dabatch::<DABatch>(testdata!("scroll-sepolia-v4", 75595)).unwrap();
     }
 }

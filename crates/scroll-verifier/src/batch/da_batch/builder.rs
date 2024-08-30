@@ -5,30 +5,35 @@ use scroll_executor::{Context, Transaction};
 use crate::HardforkConfig;
 
 use super::{
-    v0::CodecV0, v1::CodecV1, v2::CodecV2, v3::CodecV3, BatchError, BatchTrait, BatchVersionedType,
-    BlockTrait, ChunkTrait, DABatch, TxTrait,
+    v0::CodecV0, v1::CodecV1, v2::CodecV2, v3::CodecV3, v4::CodecV4, BatchError, BatchTrait,
+    BatchVersionedType, BlockTrait, ChunkTrait, DABatch, TxTrait,
 };
 
 pub type BatchBuilderV0 = VersionedBatchBuilder<CodecV0>;
 pub type BatchBuilderV1 = VersionedBatchBuilder<CodecV1>;
 pub type BatchBuilderV2 = VersionedBatchBuilder<CodecV2>;
 pub type BatchBuilderV3 = VersionedBatchBuilder<CodecV3>;
+pub type BatchBuilderV4 = VersionedBatchBuilder<CodecV4>;
 
 pub enum BatchBuilder {
     V0(BatchBuilderV0),
     V1(BatchBuilderV1),
     V2(BatchBuilderV2),
     V3(BatchBuilderV3),
+    V4(BatchBuilderV4),
 }
 
 impl BatchBuilder {
-    pub fn new(
+    pub fn new<C: BatchContext>(
         fork: HardforkConfig,
         parent: DABatch,
         chunks: Vec<Vec<u64>>,
+        blocks: &[C],
     ) -> Result<Self, BatchError> {
-        let batch_version = fork.batch_version(*chunks.last().unwrap().last().unwrap());
-        Ok(match (batch_version, parent.version()) {
+        let block_number = blocks.last().unwrap().number();
+        let block_time = blocks.last().unwrap().timestamp().to();
+        let batch_version = fork.batch_version(block_number, block_time);
+        let mut builder = match (batch_version, parent.version()) {
             (0, 0) => Self::V0(BatchBuilderV0::new(chunks)),
             (1, 0) => Self::V1(BatchBuilderV1::new(chunks)),
             (1, 1) => Self::V1(BatchBuilderV1::new(chunks)),
@@ -36,23 +41,27 @@ impl BatchBuilder {
             (2, 2) => Self::V2(BatchBuilderV2::new(chunks)),
             (2, 3) => Self::V3(BatchBuilderV3::new(chunks)),
             (3, 3) => Self::V3(BatchBuilderV3::new(chunks)),
+            (3, 4) => Self::V4(BatchBuilderV4::new(chunks)),
+            (4, 4) => Self::V4(BatchBuilderV4::new(chunks)),
 
             (batch_version, pv) => {
                 return Err(BatchError::MismatchBatchVersionAndBlock {
                     block_batch_version: batch_version,
                     parent_batch_version: pv,
-                })
+                });
             }
-        })
-    }
-
-    pub fn add<C: BatchContext>(&mut self, c: &C) -> Result<(), BatchError> {
-        match self {
-            Self::V0(b) => b.add(c),
-            Self::V1(b) => b.add(c),
-            Self::V2(b) => b.add(c),
-            Self::V3(b) => b.add(c),
+        };
+        for c in blocks {
+            match &mut builder {
+                Self::V0(b) => b.add(c)?,
+                Self::V1(b) => b.add(c)?,
+                Self::V2(b) => b.add(c)?,
+                Self::V3(b) => b.add(c)?,
+                Self::V4(b) => b.add(c)?,
+            }
         }
+
+        Ok(builder)
     }
 
     pub fn version(&self) -> u8 {
@@ -61,6 +70,7 @@ impl BatchBuilder {
             Self::V1(_) => 1,
             Self::V2(_) => 2,
             Self::V3(_) => 3,
+            Self::V4(_) => 4,
         }
     }
 
@@ -73,6 +83,8 @@ impl BatchBuilder {
             (Self::V2(b), DABatch::V2(parent)) => DABatch::V2(b.build(parent)?),
             (Self::V3(b), DABatch::V2(parent)) => DABatch::V3(b.build(parent)?),
             (Self::V3(b), DABatch::V3(parent)) => DABatch::V3(b.build(parent)?),
+            (Self::V4(b), DABatch::V3(parent)) => DABatch::V4(b.build(parent)?),
+            (Self::V4(b), DABatch::V4(parent)) => DABatch::V4(b.build(parent)?),
             (b, parent) => {
                 return Err(BatchError::MismatchBatchVersionAndBlock {
                     block_batch_version: b.version(),

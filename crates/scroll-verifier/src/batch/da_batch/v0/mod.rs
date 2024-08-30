@@ -1,5 +1,7 @@
 use super::prelude::*;
 
+pub const VERSION: u8 = 0;
+
 pub struct CodecV0 {}
 impl BatchVersionedType for CodecV0 {
     type Batch = DABatch;
@@ -231,7 +233,7 @@ impl BatchTrait for DABatch {
         // compute data hash
         let data_hash = keccak256(&data_bytes);
         Ok(Self {
-            version: 0,
+            version: VERSION,
             batch_index,
             l1_message_popped: total_l1_message_popped_after - parent.total_l1_message_popped(),
             total_l1_message_popped: total_l1_message_popped_after,
@@ -268,7 +270,7 @@ impl BatchTrait for DABatch {
     fn from_bytes(data: &[u8]) -> Result<Self, BatchError> {
         if data.len() < 89 {
             return Err(BatchError::InvalidDABatchData {
-                version: 0,
+                version: VERSION,
                 want_at_least: 89,
                 got: data.len(),
             });

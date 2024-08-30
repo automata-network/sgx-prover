@@ -2,13 +2,22 @@ use std::collections::BTreeMap;
 
 use lazy_static::lazy_static;
 use scroll_executor::{
-    eth_types::forks::{hardfork_heights, HardforkId},
+    eth_types::forks::{
+        hardfork_heights, HardforkId, SCROLL_MAINNET_CHAIN_ID, SCROLL_TESTNET_CHAIN_ID,
+    },
     revm::{primitives::SpecId, Database, DatabaseCommit},
 };
 
 lazy_static! {
 /// Hardfork heights for Scroll networks, grouped by chain id.
 static ref HARDFORK_HEIGHTS: BTreeMap<u64, BTreeMap<SpecId, u64>> = generate_hardfork();
+static ref HARDFORK_TIME: BTreeMap<u64, BTreeMap<ForkId, u64>> = generate_hardfork_time();
+}
+
+#[derive(Ord, Debug, Clone, Copy, PartialOrd, PartialEq, Eq)]
+enum ForkId {
+    Darwin,
+    DarwinV2,
 }
 
 fn generate_hardfork() -> BTreeMap<u64, BTreeMap<SpecId, u64>> {
@@ -25,20 +34,44 @@ fn generate_hardfork() -> BTreeMap<u64, BTreeMap<SpecId, u64>> {
     out
 }
 
+fn generate_hardfork_time() -> BTreeMap<u64, BTreeMap<ForkId, u64>> {
+    let mut out = BTreeMap::new();
+    let testnet = out
+        .entry(SCROLL_TESTNET_CHAIN_ID)
+        .or_insert_with(BTreeMap::new);
+    testnet.insert(ForkId::Darwin, 1723622400);
+    testnet.insert(ForkId::DarwinV2, 1724832000);
+
+    let mainnet = out
+        .entry(SCROLL_MAINNET_CHAIN_ID)
+        .or_insert_with(BTreeMap::new);
+    mainnet.insert(ForkId::Darwin, 1724227200);
+    mainnet.insert(ForkId::DarwinV2, 1725264000);
+
+    out
+}
+
 /// Hardfork configuration for Scroll networks.
 #[derive(Debug, Default, Copy, Clone)]
 pub struct HardforkConfig {
     bernoulli_block: u64,
     curie_block: u64,
+    curie_darwin_time: u64,
+    curie_darwin_v2_time: u64,
 }
 
 impl HardforkConfig {
     /// Get the default hardfork configuration for a chain id.
     pub fn default_from_chain_id(chain_id: u64) -> Self {
-        if let Some(heights) = HARDFORK_HEIGHTS.get(&chain_id) {
+        if let (Some(heights), Some(times)) = (
+            HARDFORK_HEIGHTS.get(&chain_id),
+            HARDFORK_TIME.get(&chain_id),
+        ) {
             Self {
                 bernoulli_block: heights.get(&SpecId::BERNOULLI).copied().unwrap_or(0),
                 curie_block: heights.get(&SpecId::CURIE).copied().unwrap_or(0),
+                curie_darwin_time: times.get(&ForkId::Darwin).copied().unwrap_or(0),
+                curie_darwin_v2_time: times.get(&ForkId::DarwinV2).copied().unwrap_or(0),
             }
         } else {
             log::warn!(
@@ -70,12 +103,15 @@ impl HardforkConfig {
         Ok(())
     }
 
-    pub fn batch_version(&self, number: u64) -> u8 {
-        match self.get_spec_id(number) {
-            SpecId::CURIE => 2,
-            SpecId::BERNOULLI => 1,
-            SpecId::PRE_BERNOULLI => 0,
-            spec => unreachable!("unknown block number: {}, spec: {}", number, spec as u8),
+    pub fn batch_version(&self, number: u64, timestamp: u64) -> u8 {
+        match number {
+            n if n < self.bernoulli_block => 0, // PRE_BERNOULLI
+            n if n < self.curie_block => 1,     // BERNOULLI
+            _ => match timestamp {
+                n if n < self.curie_darwin_time => 2,    // CURIE
+                n if n < self.curie_darwin_v2_time => 3, // DRAWIN
+                _ => 4,                                  // DRAWIN_V2
+            },
         }
     }
 }

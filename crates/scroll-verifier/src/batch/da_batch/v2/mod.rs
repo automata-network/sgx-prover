@@ -7,6 +7,7 @@ use super::v1;
 //  * enabled zstd compress
 
 pub const MAX_NUM_CHUNKS: usize = 45;
+pub const VERSION: u8 = 2;
 pub type DABlockTx = v1::DABlockTx;
 pub type DABlock = v1::DABlock;
 
@@ -53,7 +54,7 @@ impl BatchTrait for DABatch {
         } = BlobPayload::build(&chunks, MAX_NUM_CHUNKS, BlobPayloadCompress::Zstd)?;
 
         Ok(Self {
-            version: 2,
+            version: VERSION,
             batch_index: parent.batch_index() + 1,
             l1_message_popped: total_l1_message_popped_after - parent.total_l1_message_popped(),
             total_l1_message_popped: total_l1_message_popped_after,
@@ -80,7 +81,7 @@ impl BatchTrait for DABatch {
     fn from_bytes(data: &[u8]) -> Result<Self, BatchError> {
         if data.len() < 121 {
             return Err(BatchError::InvalidDABatchData {
-                version: 1,
+                version: VERSION,
                 want_at_least: 121,
                 got: data.len(),
             });

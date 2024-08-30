@@ -5,6 +5,7 @@ pub mod v0;
 pub mod v1;
 pub mod v2;
 pub mod v3;
+pub mod v4;
 
 pub(crate) mod prelude {
     pub use super::super::{BatchError, BatchVersionedType};
@@ -32,6 +33,7 @@ pub enum DABatch {
     V1(v1::DABatch),
     V2(v2::DABatch),
     V3(v3::DABatch),
+    V4(v4::DABatch),
 }
 
 
@@ -42,6 +44,7 @@ impl DABatch {
             Self::V1(b) => b.total_l1_message_popped,
             Self::V2(b) => b.total_l1_message_popped,
             Self::V3(b) => b.total_l1_message_popped,
+            Self::V4(b) => b.total_l1_message_popped,
         }
     }
 
@@ -51,6 +54,7 @@ impl DABatch {
             Self::V1(b) => b.version,
             Self::V2(b) => b.version,
             Self::V3(b) => b.version,
+            Self::V4(b) => b.version,
         }
     }
 
@@ -60,6 +64,7 @@ impl DABatch {
             Self::V1(b) => b.batch_index,
             Self::V2(b) => b.batch_index,
             Self::V3(b) => b.batch_index,
+            Self::V4(b) => b.batch_index,
         }
     }
 
@@ -69,6 +74,7 @@ impl DABatch {
             Self::V1(b) => b.hash(),
             Self::V2(b) => b.hash(),
             Self::V3(b) => b.hash(),
+            Self::V4(b) => b.hash(),
         }
     }
 
@@ -78,6 +84,7 @@ impl DABatch {
             Self::V1(b) => b.encode(),
             Self::V2(b) => b.encode(),
             Self::V3(b) => b.encode(),
+            Self::V4(b) => b.encode(),
         }
     }
 
@@ -87,6 +94,7 @@ impl DABatch {
             1 => Self::V1(v1::DABatch::from_bytes(data)?),
             2 => Self::V2(v2::DABatch::from_bytes(data)?),
             3 => Self::V3(v3::DABatch::from_bytes(data)?),
+            4 => Self::V4(v4::DABatch::from_bytes(data)?),
             v => return Err(BatchError::UnknownBatchVersion(v)),
         })
     }

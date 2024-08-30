@@ -20,7 +20,7 @@ lazy_static::lazy_static! {
 use crate::BatchTestError;
 use crate::{
     batch::{calc_blob_hash, compress_scroll_batch_bytes},
-    BUILDIN_TRUSTED_SETTING,
+    DataCompatibilityError, BUILDIN_TRUSTED_SETTING,
 };
 
 #[macro_export]
@@ -240,6 +240,58 @@ pub(crate) fn construct_skipped_bitmap<C: ChunkTrait>(
     Ok((bitmap_bytes, next_index))
 }
 
+pub(crate) fn check_compressed_data_compatibility(
+    mut data: &[u8],
+) -> Result<(), DataCompatibilityError> {
+    if data.len() < 16 {
+        return Err(DataCompatibilityError::SizeTooSmall(data.to_vec().into()));
+    }
+
+    let fheader = data[0];
+    // it is not the encoding type we expected in our zstd header
+    if fheader & 63 != 32 {
+        return Err(DataCompatibilityError::UnexpectedHeaderType(fheader));
+    }
+
+    // skip content size
+    data = match fheader >> 6 {
+        0 => &data[2..],
+        1 => &data[3..],
+        2 => &data[5..],
+        3 => &data[9..],
+        _ => unreachable!(),
+    };
+
+    let mut is_last = false;
+    // scan each block until done
+    while data.len() > 3 && !is_last {
+        is_last = (data[0] & 1) == 1;
+        let blk_ty = (data[0] >> 1) & 3;
+        let blk_size = (data[2] as usize * 65536 + data[1] as usize * 256 + data[0] as usize) >> 3;
+        if blk_ty != 2 {
+            return Err(DataCompatibilityError::UnexpectedBlkType {
+                blk_ty,
+                blk_size,
+                is_last,
+            });
+        }
+        if data.len() < 3 + blk_size {
+            return Err(DataCompatibilityError::WrongDataLen {
+                len: data.len(),
+                min: 3 + blk_size,
+            });
+        }
+        data = &data[3 + blk_size..];
+    }
+
+    // Should we return invalid if is_last is still false?
+    if !is_last {
+        return Err(DataCompatibilityError::UnexpectedEndBeforeLastBlock);
+    }
+
+    Ok(())
+}
+
 pub struct BlobPayload {
     pub blob: c_kzg::Blob,
     pub blob_versioned_hash: B256,
@@ -249,6 +301,7 @@ pub struct BlobPayload {
 pub enum BlobPayloadCompress {
     None,
     Zstd,
+    ZstdV4,
 }
 
 impl BlobPayload {
@@ -323,6 +376,28 @@ impl BlobPayload {
             BlobPayloadCompress::Zstd => {
                 blob_bytes =
                     compress_scroll_batch_bytes(&blob_bytes).map_err(BatchError::ZstdEncode)?;
+            }
+            BlobPayloadCompress::ZstdV4 => {
+                // disable compression when the data compatibility check failed (should have only 1 chunk)
+                // https://github.com/scroll-tech/scroll/blob/ae8c858a071c84647f921d91aa8fdee320f6c433/rollup/internal/controller/watcher/batch_proposer.go#L175
+                let compression_blob =
+                    compress_scroll_batch_bytes(&blob_bytes).map_err(BatchError::ZstdEncode)?;
+                let compress_bit = match check_compressed_data_compatibility(&compression_blob) {
+                    Ok(_) => {
+                        blob_bytes = compression_blob;
+                        1
+                    }
+                    Err(err) => {
+                        log::warn!(
+                            "chunk_size: {}, compressed_data_compatibility: {:?}",
+                            chunks.len(),
+                            err
+                        );
+                        0
+                    }
+                };
+
+                blob_bytes = [&[compress_bit], blob_bytes.as_slice()].concat();
             }
         }
 

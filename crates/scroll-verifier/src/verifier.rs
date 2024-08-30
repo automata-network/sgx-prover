@@ -16,13 +16,7 @@ impl ScrollBatchVerifier {
         let alive = Alive::new();
         let hardfork = HardforkConfig::default_from_chain_id(ctx_list.first().unwrap().chain_id());
 
-        let mut builder = batch.builder(hardfork)?;
-
-        for ctx in &ctx_list {
-            builder.add(ctx)?;
-        }
-
-        let new_batch = builder.build(batch.parent_batch_header.clone())?;
+        let new_batch = batch.build_batch(hardfork, &ctx_list)?;
 
         let result = parallel(&alive, (), ctx_list, 4, |ctx, _| async move {
             let memdb = ctx.memdb();
@@ -30,10 +24,15 @@ impl ScrollBatchVerifier {
             let spec_id = ctx.spec_id();
             let now = Instant::now();
             let result = ScrollEvmExecutor::new(&db, memdb, spec_id).handle_block(&ctx);
-            log::info!("[scroll] generate poe: {} -> {:?}", ctx.number(), now.elapsed());
+            log::info!(
+                "[scroll] generate poe: {} -> {:?}",
+                ctx.number(),
+                now.elapsed()
+            );
             match result {
                 Ok(result) => {
-                    let result = Self::verify_result(result, &ctx)?;
+                    let result = Self::verify_result(result, &ctx)
+                        .map_err(ValidateError::Block(&ctx.number()))?;
                     let mut poe = Poe::default();
                     poe.prev_state_root = ctx.pob.data.prev_state_root;
                     poe.new_state_root = result.new_state_root;
@@ -81,5 +80,7 @@ base::stack_error! {
         Execution(ExecutionError),
         Batch(BatchError),
     },
-    stack: {}
+    stack: {
+        Block(number: u64),
+    }
 }

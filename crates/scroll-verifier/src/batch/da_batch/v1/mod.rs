@@ -7,6 +7,7 @@ use super::v0;
 //  * added blob_versioned_hash (89..121)
 
 const MAX_NUM_CHUNKS: usize = 15;
+pub const VERSION: u8 = 1;
 pub type DABlock = v0::DABlock;
 pub type DABlockTx = v0::DABlockTx;
 
@@ -49,7 +50,7 @@ impl BatchTrait for DABatch {
         } = BlobPayload::build(&chunks, MAX_NUM_CHUNKS, BlobPayloadCompress::None)?;
 
         Ok(Self {
-            version: 1,
+            version: VERSION,
             batch_index,
             l1_message_popped: total_l1_message_popped_after - parent.total_l1_message_popped(),
             total_l1_message_popped: total_l1_message_popped_after,
@@ -76,7 +77,7 @@ impl BatchTrait for DABatch {
     fn from_bytes(data: &[u8]) -> Result<Self, BatchError> {
         if data.len() < 121 {
             return Err(BatchError::InvalidDABatchData {
-                version: 1,
+                version: VERSION,
                 want_at_least: 121,
                 got: data.len(),
             });
