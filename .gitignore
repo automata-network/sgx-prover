@@ -1,3 +1,4 @@
 /target
 config
 /testdata/downloaded
+.DS_Store

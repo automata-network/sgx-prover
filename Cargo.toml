@@ -47,7 +47,7 @@ primitive-types = { git = "https://github.com/scroll-tech/parity-common.git", br
 ethereum-types = { git = "https://github.com/scroll-tech/parity-common.git", branch = "feat/rkyv" }
 ff = { git = "https://github.com/scroll-tech/ff", branch = "feat/sp1" }
 
-blst = { git = "https://github.com/automata-network/blst", rev = "2ec67be" }
+blst = { git = "https://github.com/automata-network/blst", branch = "teaclave_2.0" }
 ring = { git = "https://github.com/automata-network/ring-sgx" }
 
 [patch.'https://github.com/scroll-tech/zstd-rs']

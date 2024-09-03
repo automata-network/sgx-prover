@@ -741,7 +741,6 @@ checksum = "0c4b4d0bd25bd0b74681c0ad21497610ce1b7c91b1022cd21c80c6fbdd9476b0"
 [[package]]
 name = "automata-sgx-builder"
 version = "0.1.0"
-source = "git+https://github.com/automata-network/automata-sgx-builder?branch=main#0c15877fb28ac8f9650668caddd257294fd66a33"
 dependencies = [
  "automata-sgx-builder-sysroot",
  "cc",
@@ -749,17 +748,14 @@ dependencies = [
  "serde_json",
  "sgx-dcap-ql-rs",
  "sgx_libc",
- "sgx_no_tstd",
- "sgx_trts",
- "sgx_tse",
  "sgx_types",
  "sgx_urts",
+ "toml",
 ]
 
 [[package]]
 name = "automata-sgx-builder-sysroot"
 version = "0.1.0"
-source = "git+https://github.com/automata-network/automata-sgx-builder?branch=main#0c15877fb28ac8f9650668caddd257294fd66a33"
 
 [[package]]
 name = "backtrace"
@@ -907,7 +903,7 @@ dependencies = [
 [[package]]
 name = "blst"
 version = "0.3.11"
-source = "git+https://github.com/automata-network/blst?rev=2ec67be#2ec67be17e2a9b8e8ea71e5fe28d3405c8ba6152"
+source = "git+https://github.com/automata-network/blst?branch=teaclave_2.0#caebf0f5ebe94d16cedb55600f6a1fc42c806d90"
 dependencies = [
  "cc",
  "glob",
@@ -4039,6 +4035,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_spanned"
+version = "0.6.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eb5b1b31579f3811bf615c144393417496f152e12ac8b7663bf664f4a815306d"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "serde_urlencoded"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4106,24 +4111,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "sgx_alloc"
-version = "2.0.0"
-source = "git+https://github.com/automata-network/incubator-teaclave-sgx-sdk?branch=v2.0.0-nightly-2024-01-01#5db9ef12fd68633477fd5a36d66a7ad365a08854"
-
-[[package]]
 name = "sgx_build_helper"
 version = "2.0.0"
 source = "git+https://github.com/automata-network/incubator-teaclave-sgx-sdk?branch=v2.0.0-nightly-2024-01-01#5db9ef12fd68633477fd5a36d66a7ad365a08854"
-
-[[package]]
-name = "sgx_crypto"
-version = "2.0.0"
-source = "git+https://github.com/automata-network/incubator-teaclave-sgx-sdk?branch=v2.0.0-nightly-2024-01-01#5db9ef12fd68633477fd5a36d66a7ad365a08854"
-dependencies = [
- "sgx_crypto_sys",
- "sgx_trts",
- "sgx_types",
-]
 
 [[package]]
 name = "sgx_crypto_sys"
@@ -4165,16 +4155,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "sgx_no_tstd"
-version = "2.0.0"
-source = "git+https://github.com/automata-network/incubator-teaclave-sgx-sdk?branch=v2.0.0-nightly-2024-01-01#5db9ef12fd68633477fd5a36d66a7ad365a08854"
-dependencies = [
- "sgx_alloc",
- "sgx_build_helper",
- "sgx_trts",
-]
-
-[[package]]
 name = "sgx_oc"
 version = "2.0.0"
 source = "git+https://github.com/automata-network/incubator-teaclave-sgx-sdk?branch=v2.0.0-nightly-2024-01-01#5db9ef12fd68633477fd5a36d66a7ad365a08854"
@@ -4211,16 +4191,6 @@ source = "git+https://github.com/automata-network/incubator-teaclave-sgx-sdk?bra
 dependencies = [
  "sgx_crypto_sys",
  "sgx_tlibc_sys",
- "sgx_types",
-]
-
-[[package]]
-name = "sgx_tse"
-version = "2.0.0"
-source = "git+https://github.com/automata-network/incubator-teaclave-sgx-sdk?branch=v2.0.0-nightly-2024-01-01#5db9ef12fd68633477fd5a36d66a7ad365a08854"
-dependencies = [
- "sgx_crypto",
- "sgx_trts",
  "sgx_types",
 ]
 
@@ -4685,10 +4655,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "toml"
+version = "0.8.19"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a1ed1f98e3fdc28d6d910e6737ae6ab1a93bf1985935a1193e68f93eeb68d24e"
+dependencies = [
+ "serde",
+ "serde_spanned",
+ "toml_datetime",
+ "toml_edit 0.22.20",
+]
+
+[[package]]
 name = "toml_datetime"
 version = "0.6.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0dd7358ecb8fc2f8d014bf86f6f638ce72ba252a2c3a2572f2a795f1d23efb41"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "toml_edit"
@@ -4708,6 +4693,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "583c44c02ad26b0c3f3066fe629275e50627026c51ac2e595cca4c230ce1ce1d"
 dependencies = [
  "indexmap 2.4.0",
+ "serde",
+ "serde_spanned",
  "toml_datetime",
  "winnow 0.6.18",
 ]

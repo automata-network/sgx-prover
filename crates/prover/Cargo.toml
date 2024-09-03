@@ -7,8 +7,11 @@ edition.workspace = true
 name = "prover"
 crate-type = ["staticlib"]
 
+[features]
+tstd_enclave = ["automata-sgx-builder/tstd_enclave"]
+
 [dependencies]
-automata-sgx-builder = { workspace = true, features = ["dcap", "sgx_types", "sgx_libc_pthread", "patch_rand", "patch_assert_fail"] }
+automata-sgx-builder.workspace = true
 log.workspace = true
 serde.workspace = true
 serde_json.workspace = true

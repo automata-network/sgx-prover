@@ -66,7 +66,7 @@ impl ProverV1ApiServer for ProverApi {
         let quote = match automata_sgx_builder::dcap::dcap_quote(data) {
             Ok(quote) => quote,
             Err(err) => {
-                let msg = format!("generate report failed: {:?}", err as u32);
+                let msg = format!("generate report failed: {}", err);
                 return Err(self.err(14003, msg));
             }
         };
