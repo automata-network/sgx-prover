@@ -121,5 +121,4 @@ RUN cp source/target/release/*.signed.so /workspace
 RUN cp source/docker/entrypoint.sh /workspace
 RUN rm -r source
 
-ENV RUST_LOG=info
 ENTRYPOINT ["/workspace/entrypoint.sh"]
