@@ -1,19 +1,21 @@
 mod api;
 pub use api::*;
 mod types;
-use jsonrpsee::{
-    server::{ServerBuilder, TlsLayer},
-    Methods,
-};
 pub use types::*;
 mod da;
-pub use crate::da::*;
+pub use da::*;
 mod task_manager;
 pub use task_manager::*;
+mod metrics;
+pub use metrics::*;
 
 use base::Alive;
 use clients::Eth;
-use std::sync::Arc;
+use jsonrpsee::{
+    server::{tower, ServerBuilder, TlsLayer},
+    Methods,
+};
+use std::{sync::Arc, time::Duration};
 
 use automata_sgx_builder::types::SgxStatus;
 use std::path::Path;
@@ -55,6 +57,8 @@ pub async fn entrypoint() {
         .filter(|n| !n.is_empty())
         .map(|url| Eth::dial(&url));
 
+    let collector = Arc::new(Collector::new("avs"));
+
     let api = ProverApi {
         alive: alive.clone(),
         force_with_context: opt.force_with_context,
@@ -64,23 +68,37 @@ pub async fn entrypoint() {
         task_mgr: Arc::new(TaskManager::new(100)),
         pobda_task_mgr: Arc::new(TaskManager::new(100)),
         pob_da: Arc::new(DaManager::new()),
+        metrics: collector.clone(),
     };
 
-    run_jsonrpc(opt.port, cfg.server.tls, api.rpc()).await
+    run_jsonrpc(&cfg.server, opt.port, api.rpc(), collector).await
 }
 
-pub async fn run_jsonrpc(port: u64, tls: String, methods: impl Into<Methods>) {
+pub async fn run_jsonrpc(cfg: &ServerConfig, port: u64, methods: impl Into<Methods>, collector: Arc<Collector>) {
     let addr = format!("0.0.0.0:{}", port);
-    if tls.len() == 0 {
-        let srv = ServerBuilder::new().build(&addr).await.unwrap();
+    let idle_timeout = Duration::from_secs(60);
+    if cfg.tls.len() == 0 {
+        let srv = ServerBuilder::new()
+            .idle_timeout(idle_timeout)
+            .max_request_body_size(cfg.body_limit as _)
+            .max_response_body_size(cfg.body_limit as _)
+            .set_http_middleware(tower::ServiceBuilder::new().layer(MetricLayer::new(collector)))
+            .build(&addr)
+            .await
+            .unwrap();
         log::info!("[http] listen on {}", addr);
         srv.start(methods).stopped().await
     } else {
-        let certs = format!("{}.crt", tls);
-        let key = format!("{}.key", tls);
-        let cfg = TlsLayer::single_cert_with_path(Path::new(&certs), Path::new(&key)).unwrap();
+        let certs = format!("{}.crt", cfg.tls);
+        let key = format!("{}.key", cfg.tls);
+        let transport_cfg =
+            TlsLayer::single_cert_with_path(Path::new(&certs), Path::new(&key)).unwrap();
         let srv = ServerBuilder::new()
-            .set_transport_cfg(cfg)
+            .idle_timeout(idle_timeout)
+            .max_request_body_size(cfg.body_limit as _)
+            .max_response_body_size(cfg.body_limit as _)
+            .set_transport_cfg(transport_cfg)
+            .set_http_middleware(tower::ServiceBuilder::new().layer(MetricLayer::new(collector)))
             .build(&addr)
             .await
             .unwrap();

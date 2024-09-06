@@ -4,7 +4,8 @@ use std::time::Instant;
 
 use crate::types::{DaApiServer, ProverV1ApiServer, ProverV2ApiServer};
 use crate::{
-    DaItemLockStatus, DaManager, Metadata, PoeResponse, ProveTaskParams, TaskManager, BUILD_TAG,
+    Collector, DaItemLockStatus, DaManager, Metadata, PoeResponse, ProveTaskParams, TaskManager,
+    BUILD_TAG,
 };
 
 use alloy::primitives::Bytes;
@@ -31,6 +32,7 @@ pub struct ProverApi {
     pub task_mgr: Arc<TaskManager<BatchTask, Poe, String>>,
     pub pobda_task_mgr: Arc<TaskManager<(u64, u64, B256), Poe, ValidateError>>,
     pub pob_da: Arc<DaManager<Vec<Pob>>>,
+    pub metrics: Arc<Collector>,
 }
 
 fn jsonrpc_err<E>(code: i32) -> impl Fn(E) -> ErrorObjectOwned
@@ -63,14 +65,23 @@ impl ProverV1ApiServer for ProverApi {
         }
         data[64 - req.len()..].copy_from_slice(&req);
 
-        let quote = match automata_sgx_builder::dcap::dcap_quote(data) {
-            Ok(quote) => quote,
+        let start = Instant::now();
+
+        let result = automata_sgx_builder::dcap::dcap_quote(data);
+
+        self.metrics
+            .gen_attestation_report_ms
+            .lock()
+            .unwrap()
+            .set([], start.elapsed().as_millis() as f64);
+
+        match result {
+            Ok(quote) => Ok(quote.into()),
             Err(err) => {
                 let msg = format!("generate report failed: {}", err);
                 return Err(self.err(14003, msg));
             }
-        };
-        Ok(quote.into())
+        }
     }
 
     async fn get_poe(&self, tx_hash: B256) -> RpcResult<PoeResponse> {
@@ -85,6 +96,10 @@ impl ProverV2ApiServer for ProverApi {
         let batch =
             BatchTask::from_calldata(params.batch.as_ref().unwrap()).map_err(jsonrpc_err(14005))?;
         log::info!("batchTask: {:?}, from: {:?}", batch, params.from);
+        let ty = params
+            .task_type
+            .map(TaskType::from_u64)
+            .unwrap_or(TaskType::Scroll);
         let batch_id;
         let start_block;
         let end_block;
@@ -100,17 +115,26 @@ impl ProverV2ApiServer for ProverApi {
             match self.pobda_task_mgr.process_task(key.clone()).await {
                 Some(poe) => poe,
                 None => {
+                    let start = Instant::now();
                     let ctx_list = pob_list
                         .iter()
                         .map(|n| PobContext::new(n.clone()))
                         .collect();
                     let result = ScrollBatchVerifier::verify(&batch, ctx_list).await;
                     self.pobda_task_mgr.update_task(key, result.clone()).await;
+                    self.metrics
+                        .gauge_prove_ms
+                        .lock()
+                        .unwrap()
+                        .set([ty.name()], start.elapsed().as_millis() as _);
                     result
                 }
             }
         }
         .map_err(jsonrpc_err(15001))?;
+
+        self.metrics.counter_prove.lock().unwrap().inc([ty.name()]);
+
         Ok(PoeResponse {
             not_ready: false,
             batch_id,
@@ -128,12 +152,15 @@ impl ProverV2ApiServer for ProverApi {
         &self,
         start_block: u64,
         end_block: u64,
-        _: u64,
+        ty: u64,
     ) -> RpcResult<SuccinctPobList> {
+        let ty = TaskType::from_u64(ty);
         let el = match &self.scroll_el {
             Some(scroll_el) => scroll_el.clone(),
             None => return Err(self.err(14005, "server config error: missing config l2")),
         };
+
+        let start = Instant::now();
 
         let blocks = (start_block..=end_block).collect::<Vec<_>>();
         let result = parallel(&self.alive, el, blocks, 4, |blk, scroll_el| async move {
@@ -147,8 +174,27 @@ impl ProverV2ApiServer for ProverApi {
         .await
         .unwrap();
         let pob_list = SuccinctPobList::compress(&result);
+        let gen_ctx_time = start.elapsed().as_millis() as f64;
+
         self.pob_da
             .put(pob_list.hash, Arc::new(result), POB_EXPIRED_SECS);
+
+        let data = serde_json::to_vec(&pob_list).unwrap();
+        self.metrics
+            .pob_size
+            .lock()
+            .unwrap()
+            .set([ty.name()], data.len() as _);
+        self.metrics
+            .counter_gen_ctx
+            .lock()
+            .unwrap()
+            .inc([ty.name()]);
+        self.metrics
+            .gauge_gen_ctx_ms
+            .lock()
+            .unwrap()
+            .set([ty.name()], gen_ctx_time);
         Ok(pob_list)
     }
 
@@ -217,6 +263,11 @@ impl ProverApi {
                 ty.u64(),
             )
             .await?;
+
+        println!(
+            "context size: {}",
+            serde_json::to_vec(&pob_list).unwrap().len()
+        );
 
         let poe = self
             .prove_task(ProveTaskParams {

@@ -59,7 +59,7 @@ fn default_queue_size() -> usize {
 }
 
 fn default_body_limit() -> usize {
-    20971520
+    52428800
 }
 
 fn default_worker() -> usize {

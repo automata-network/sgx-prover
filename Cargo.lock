@@ -2343,7 +2343,7 @@ dependencies = [
 [[package]]
 name = "jsonrpsee"
 version = "0.23.2"
-source = "git+https://github.com/automata-network/jsonrpsee#276715522433232d6de185c1db9e67a6b5dba074"
+source = "git+https://github.com/automata-network/jsonrpsee#34aea2191ee074b3d35561bbddc28c72d77e1403"
 dependencies = [
  "jsonrpsee-client-transport",
  "jsonrpsee-core",
@@ -2360,7 +2360,7 @@ dependencies = [
 [[package]]
 name = "jsonrpsee-client-transport"
 version = "0.23.2"
-source = "git+https://github.com/automata-network/jsonrpsee#276715522433232d6de185c1db9e67a6b5dba074"
+source = "git+https://github.com/automata-network/jsonrpsee#34aea2191ee074b3d35561bbddc28c72d77e1403"
 dependencies = [
  "base64 0.22.1",
  "futures-channel",
@@ -2384,7 +2384,7 @@ dependencies = [
 [[package]]
 name = "jsonrpsee-core"
 version = "0.23.2"
-source = "git+https://github.com/automata-network/jsonrpsee#276715522433232d6de185c1db9e67a6b5dba074"
+source = "git+https://github.com/automata-network/jsonrpsee#34aea2191ee074b3d35561bbddc28c72d77e1403"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2412,7 +2412,7 @@ dependencies = [
 [[package]]
 name = "jsonrpsee-http-client"
 version = "0.23.2"
-source = "git+https://github.com/automata-network/jsonrpsee#276715522433232d6de185c1db9e67a6b5dba074"
+source = "git+https://github.com/automata-network/jsonrpsee#34aea2191ee074b3d35561bbddc28c72d77e1403"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -2436,7 +2436,7 @@ dependencies = [
 [[package]]
 name = "jsonrpsee-proc-macros"
 version = "0.23.2"
-source = "git+https://github.com/automata-network/jsonrpsee#276715522433232d6de185c1db9e67a6b5dba074"
+source = "git+https://github.com/automata-network/jsonrpsee#34aea2191ee074b3d35561bbddc28c72d77e1403"
 dependencies = [
  "heck 0.5.0",
  "proc-macro-crate 3.2.0",
@@ -2448,7 +2448,7 @@ dependencies = [
 [[package]]
 name = "jsonrpsee-server"
 version = "0.23.2"
-source = "git+https://github.com/automata-network/jsonrpsee#276715522433232d6de185c1db9e67a6b5dba074"
+source = "git+https://github.com/automata-network/jsonrpsee#34aea2191ee074b3d35561bbddc28c72d77e1403"
 dependencies = [
  "anyhow",
  "futures-util",
@@ -2478,7 +2478,7 @@ dependencies = [
 [[package]]
 name = "jsonrpsee-types"
 version = "0.23.2"
-source = "git+https://github.com/automata-network/jsonrpsee#276715522433232d6de185c1db9e67a6b5dba074"
+source = "git+https://github.com/automata-network/jsonrpsee#34aea2191ee074b3d35561bbddc28c72d77e1403"
 dependencies = [
  "beef",
  "http 1.1.0",
@@ -2490,7 +2490,7 @@ dependencies = [
 [[package]]
 name = "jsonrpsee-wasm-client"
 version = "0.23.2"
-source = "git+https://github.com/automata-network/jsonrpsee#276715522433232d6de185c1db9e67a6b5dba074"
+source = "git+https://github.com/automata-network/jsonrpsee#34aea2191ee074b3d35561bbddc28c72d77e1403"
 dependencies = [
  "jsonrpsee-client-transport",
  "jsonrpsee-core",
@@ -2500,7 +2500,7 @@ dependencies = [
 [[package]]
 name = "jsonrpsee-ws-client"
 version = "0.23.2"
-source = "git+https://github.com/automata-network/jsonrpsee#276715522433232d6de185c1db9e67a6b5dba074"
+source = "git+https://github.com/automata-network/jsonrpsee#34aea2191ee074b3d35561bbddc28c72d77e1403"
 dependencies = [
  "http 1.1.0",
  "jsonrpsee-client-transport",
@@ -3131,6 +3131,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "prometheus"
+version = "0.4.6"
+dependencies = [
+ "alloy-primitives",
+]
+
+[[package]]
 name = "proptest"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3164,8 +3171,8 @@ dependencies = [
  "hex",
  "jsonrpsee",
  "log",
+ "prometheus",
  "prover-types",
- "quinn",
  "scroll-executor",
  "scroll-verifier",
  "serde",
@@ -3240,7 +3247,6 @@ dependencies = [
  "ring",
  "rustc-hash 2.0.0",
  "rustls",
- "rustls-platform-verifier",
  "slab",
  "thiserror",
  "tinyvec",

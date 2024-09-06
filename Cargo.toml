@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["bin/*", "crates/base", "crates/clients", "crates/prover", "crates/scroll-executor", "crates/scroll-verifier", "crates/prover-types"]
+members = ["bin/*", "crates/base", "crates/clients", "crates/prover", "crates/scroll-executor", "crates/scroll-verifier", "crates/prover-types", "crates/prometheus"]
 
 [workspace.package]
 edition = "2021"
@@ -8,14 +8,13 @@ version = "0.4.6"
 authors = ["Automata Team"]
 homepage = "https://www.ata.network/"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [workspace.dependencies]
 scroll-executor = { path = "crates/scroll-executor" }
 scroll-verifier = { path = "crates/scroll-verifier" }
 clients = { path = "crates/clients" }
 base = { path = "crates/base" }
 prover-types = { path = "crates/prover-types" }
+prometheus = { path = "crates/prometheus" }
 
 serde = { version = "=1.0.197", features = ["derive"] }
 serde_json = { version = "1" }
@@ -30,9 +29,7 @@ zktrie = { git = "https://github.com/scroll-tech/zktrie.git", branch = "main", f
 
 # rpc
 jsonrpsee = { git = "https://github.com/automata-network/jsonrpsee" }
-jsonrpsee-core = { git = "https://github.com/automata-network/jsonrpsee" }
-jsonrpsee-types = { git = "https://github.com/automata-network/jsonrpsee" }
-jsonrpsee-http-client = { git = "https://github.com/automata-network/jsonrpsee" }
+
 scroll-zstd = { git = "https://github.com/scroll-tech/da-codec" }
 scroll-zstd-encoder = { git = "https://github.com/scroll-tech/da-codec", package = "encoder" }
 alloy-primitives = { version = "0.7", features = ["serde"] }
