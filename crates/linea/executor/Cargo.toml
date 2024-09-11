@@ -1,0 +1,12 @@
+[package]
+name = "linea-executor"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+linea-revm.workspace = true
+linea-zktrie.workspace = true
+base.workspace = true
+alloy.workspace = true
+log.workspace = true
+serde.workspace = true

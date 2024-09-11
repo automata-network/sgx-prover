@@ -1,0 +1,16 @@
+[package]
+name = "linea-test"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+clap = { version = "4", features = ["derive", "env"] }
+tokio = { version = "1.0", features = ["full"] }
+base.workspace = true
+linea-shomei.workspace = true
+log.workspace = true
+clients.workspace = true
+alloy.workspace = true
+linea-verifier.workspace = true
+serde_json.workspace = true
+prover-types.workspace = true

@@ -4,6 +4,6 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-alloy = { version = "0.2", default-features = false, features = ["std", "providers", "reqwest-rustls-tls"] }
-alloy-rpc-types-eth = "0.2.1"
-scroll-executor.workspace = true
+base.workspace = true
+alloy = { workspace = true, features = ["signer-local", "rpc-types-eth", "sol-types", "providers", "std", "reqwest-rustls-tls", "json-rpc"] }
+url.workspace = true

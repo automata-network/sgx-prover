@@ -1,4 +1,4 @@
-use alloy_primitives::U256;
+use alloy::primitives::U256;
 use std::collections::BTreeMap;
 
 pub trait Metric: std::fmt::Debug + Send {

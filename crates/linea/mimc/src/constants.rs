@@ -1,5 +1,5 @@
-use crypto::keccak_hash;
 use lazy_static::lazy_static;
+use tiny_keccak::{Hasher, Keccak};
 
 use crate::{fr::BYTES, Fr};
 
@@ -22,4 +22,12 @@ fn init_constants() -> [Fr; MIMC_NB_ROUNDS] {
     }
 
     mimc
+}
+
+pub fn keccak_hash(data: &[u8]) -> [u8; 32] {
+    let mut keccak = Keccak::v256();
+    keccak.update(data);
+    let mut out = [0_u8; 32];
+    keccak.finalize(&mut out);
+    out
 }

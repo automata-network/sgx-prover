@@ -1,16 +1,12 @@
 [package]
-name = "shomei"
-version = "0.1.0"
-authors = ["Automata Team"]
-edition = "2021"
-license = "Apache-2.0"
+name = "linea-shomei"
+version.workspace = true
+edition.workspace = true
 
 [dependencies]
-sgxlib = { git = "https://github.com/automata-network/sgxlib", default-features = false }
-base = { git = "https://github.com/automata-network/base-rs", default-features = false }
-jsonrpc = { git = "https://github.com/automata-network/jsonrpc-rs", default-features = false }
-eth_types = { git = "https://github.com/automata-network/eth-types-rs", default-features = false }
-glog = { git = "https://github.com/automata-network/glog-rs", default-features = false }
-serde = { git = "https://github.com/automata-network/sgxlib-thirdparty", default-features = false }
-serde_json = { git = "https://github.com/automata-network/sgxlib-thirdparty", default-features = false }
-zktrie = { path = "../zktrie", default-features = false }
+serde.workspace = true
+serde_json.workspace = true
+log.workspace = true
+linea-zktrie.workspace = true
+alloy.workspace = true
+clients.workspace = true

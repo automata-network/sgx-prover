@@ -3,22 +3,20 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use crate::types::{DaApiServer, ProverV1ApiServer, ProverV2ApiServer};
-use crate::{
-    Collector, DaItemLockStatus, DaManager, Metadata, PoeResponse, ProveTaskParams, TaskManager,
-    BUILD_TAG,
-};
+use crate::{Collector, DaItemLockStatus, DaManager, Metadata, TaskManager, BUILD_TAG};
 
 use alloy::primitives::Bytes;
 use async_trait::async_trait;
-use base::{parallel, Alive};
+use base::{debug, Alive};
 use clients::Eth;
 use jsonrpsee::core::RpcResult;
 use jsonrpsee::types::{ErrorObject, ErrorObjectOwned};
 use jsonrpsee::RpcModule;
-use prover_types::{keccak_encode, Pob, Poe, SuccinctPobList, TaskType, B256};
-use scroll_verifier::{
-    block_trace_to_pob, BatchTask, PobContext, ScrollBatchVerifier, ValidateError,
+use linea_verifier::LineaBatchVerifier;
+use prover_types::{
+    keccak_encode, Pob, Poe, PoeResponse, ProveTaskParams, SuccinctPobList, TaskType, B256,
 };
+use scroll_verifier::{BatchTask, ScrollBatchVerifier};
 
 const POB_EXPIRED_SECS: u64 = 120;
 
@@ -28,11 +26,13 @@ pub struct ProverApi {
     pub sampling: u64,
     pub force_with_context: bool,
     pub l1_el: Option<Eth>,
-    pub scroll_el: Option<Eth>,
     pub task_mgr: Arc<TaskManager<BatchTask, Poe, String>>,
-    pub pobda_task_mgr: Arc<TaskManager<(u64, u64, B256), Poe, ValidateError>>,
+    pub pobda_task_mgr: Arc<TaskManager<(u64, u64, u64, B256), Poe, String>>,
     pub pob_da: Arc<DaManager<Vec<Pob>>>,
     pub metrics: Arc<Collector>,
+
+    pub scroll: ScrollBatchVerifier,
+    pub linea: LineaBatchVerifier,
 }
 
 fn jsonrpc_err<E>(code: i32) -> impl Fn(E) -> ErrorObjectOwned
@@ -93,53 +93,47 @@ impl ProverV1ApiServer for ProverApi {
 #[async_trait]
 impl ProverV2ApiServer for ProverApi {
     async fn prove_task(&self, params: ProveTaskParams) -> RpcResult<PoeResponse> {
-        let batch =
-            BatchTask::from_calldata(params.batch.as_ref().unwrap()).map_err(jsonrpc_err(14005))?;
-        log::info!("batchTask: {:?}, from: {:?}", batch, params.from);
-        let ty = params
-            .task_type
-            .map(TaskType::from_u64)
-            .unwrap_or(TaskType::Scroll);
-        let batch_id;
-        let start_block;
-        let end_block;
-        let poe = {
-            start_block = batch.start().unwrap();
-            end_block = batch.end().unwrap();
-            batch_id = batch.id();
-            let pob_list = self
-                .pob_da
-                .get(&params.pob_hash)
-                .ok_or(self.err(14006, format!("pob_hash not found: {:?}", params.pob_hash)))?;
-            let key = (start_block, end_block, params.pob_hash);
-            match self.pobda_task_mgr.process_task(key.clone()).await {
-                Some(poe) => poe,
-                None => {
-                    let start = Instant::now();
-                    let ctx_list = pob_list
-                        .iter()
-                        .map(|n| PobContext::new(n.clone()))
-                        .collect();
-                    let result = ScrollBatchVerifier::verify(&batch, ctx_list).await;
-                    self.pobda_task_mgr.update_task(key, result.clone()).await;
-                    self.metrics
-                        .gauge_prove_ms
-                        .lock()
-                        .unwrap()
-                        .set([ty.name()], start.elapsed().as_millis() as _);
-                    result
-                }
+        let ty = TaskType::from_opu64(params.task_type);
+
+        let pob_list = self
+            .pob_da
+            .get(&params.pob_hash)
+            .ok_or(self.err(14006, format!("pob_hash not found: {:?}", params.pob_hash)))?;
+
+        let cache_key = match ty {
+            TaskType::Scroll => self.scroll.cache_key(&params).map_err(jsonrpc_err(14001))?,
+            TaskType::Linea => self.linea.cache_key(&params).map_err(jsonrpc_err(14001))?,
+            TaskType::Other(_) => unreachable!(),
+        };
+
+        let poe = match self.pobda_task_mgr.process_task(cache_key.clone()).await {
+            Some(poe) => poe,
+            None => {
+                let start = Instant::now();
+                let result = match ty {
+                    TaskType::Scroll => self.scroll.prove(&pob_list, params).await.map_err(debug),
+                    TaskType::Linea => self.linea.prove(&pob_list, params).await.map_err(debug),
+                    TaskType::Other(_) => unreachable!(),
+                };
+                self.pobda_task_mgr
+                    .update_task(cache_key.clone(), result.clone())
+                    .await;
+                self.metrics
+                    .gauge_prove_ms
+                    .lock()
+                    .unwrap()
+                    .set([ty.name()], start.elapsed().as_millis() as _);
+                result
             }
         }
         .map_err(jsonrpc_err(15001))?;
-
         self.metrics.counter_prove.lock().unwrap().inc([ty.name()]);
 
         Ok(PoeResponse {
             not_ready: false,
-            batch_id,
-            start_block,
-            end_block,
+            batch_id: cache_key.0,
+            start_block: cache_key.1,
+            end_block: cache_key.2,
             poe: Some(poe),
         })
     }
@@ -155,24 +149,22 @@ impl ProverV2ApiServer for ProverApi {
         ty: u64,
     ) -> RpcResult<SuccinctPobList> {
         let ty = TaskType::from_u64(ty);
-        let el = match &self.scroll_el {
-            Some(scroll_el) => scroll_el.clone(),
-            None => return Err(self.err(14005, "server config error: missing config l2")),
-        };
 
         let start = Instant::now();
+        let result = match ty {
+            TaskType::Scroll => self
+                .scroll
+                .generate_context(start_block, end_block)
+                .await
+                .map_err(jsonrpc_err(14004))?,
+            TaskType::Linea => self
+                .linea
+                .generate_context(start_block, end_block)
+                .await
+                .map_err(jsonrpc_err(14004))?,
+            TaskType::Other(_) => return Err(self.err(14005, format!("unknown task: {:?}", ty))),
+        };
 
-        let blocks = (start_block..=end_block).collect::<Vec<_>>();
-        let result = parallel(&self.alive, el, blocks, 4, |blk, scroll_el| async move {
-            let now = Instant::now();
-            let block_trace = scroll_el.trace_block(blk).await;
-            let pob = block_trace_to_pob(block_trace).unwrap();
-
-            log::info!("[scroll] generate pob: {} -> {:?}", blk, now.elapsed());
-            Ok::<_, String>(pob)
-        })
-        .await
-        .unwrap();
         let pob_list = SuccinctPobList::compress(&result);
         let gen_ctx_time = start.elapsed().as_millis() as f64;
 
@@ -202,11 +194,14 @@ impl ProverV2ApiServer for ProverApi {
         let mut task_with_context = BTreeMap::new();
         task_with_context.insert(
             TaskType::Scroll.u64(),
-            self.force_with_context || self.scroll_el.is_none(),
+            self.force_with_context || self.scroll.with_context(),
         );
         task_with_context.insert(TaskType::Linea.u64(), self.force_with_context || true);
         Ok(Metadata {
-            with_context: self.force_with_context || self.scroll_el.is_none(),
+            with_context: task_with_context
+                .get(&TaskType::Scroll.u64())
+                .cloned()
+                .unwrap_or(true),
             task_with_context,
             version: BUILD_TAG.unwrap_or("v0.1.0"),
         })

@@ -1,4 +1,4 @@
-use alloy_primitives::{Bytes, B256};
+use alloy::primitives::{Bytes, B256};
 use serde::{Deserialize, Serialize};
 
 use crate::keccak_encode;

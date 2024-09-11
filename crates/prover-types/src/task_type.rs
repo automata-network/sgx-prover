@@ -1,4 +1,3 @@
-
 #[derive(Clone, Debug, PartialEq, Eq, Copy)]
 pub enum TaskType {
     Scroll,
@@ -27,6 +26,10 @@ impl TaskType {
             Self::Linea => 2,
             Self::Other(n) => *n,
         }
+    }
+
+    pub fn from_opu64(ty: Option<u64>) -> TaskType {
+        ty.map(Self::from_u64).unwrap_or(TaskType::Scroll)
     }
 
     pub fn from_u64(ty: u64) -> TaskType {

@@ -4,4 +4,4 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-alloy-primitives.workspace = true
+alloy.workspace = true

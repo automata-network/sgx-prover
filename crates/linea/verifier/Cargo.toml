@@ -1,0 +1,22 @@
+[package]
+name = "linea-verifier"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+linea-shomei.workspace = true
+linea-zktrie.workspace = true
+linea-mimc.workspace = true
+linea-executor.workspace = true
+linea-revm.workspace = true
+
+prover-types.workspace = true
+
+clients.workspace = true
+base.workspace = true
+
+serde.workspace = true
+serde_json.workspace = true
+log.workspace = true
+alloy = { workspace = true, features = ["std", "rpc-types-eth", "consensus", "k256", "serde"] }
+rlp = "0.5.2"

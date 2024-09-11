@@ -1,1 +1,1 @@
-pub use alloy_primitives::B256;
+pub use alloy::primitives::B256;

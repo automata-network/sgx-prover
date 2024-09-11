@@ -2,6 +2,7 @@ use ff::*;
 
 pub const BYTES: usize = 32;
 
+
 #[derive(PrimeField)]
 #[PrimeFieldModulus = "8444461749428370424248824938781546531375899335154063827935233455917409239041"]
 #[PrimeFieldGenerator = "4"]

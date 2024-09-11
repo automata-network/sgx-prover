@@ -1,0 +1,16 @@
+[package]
+name = "linea-zktrie"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+lazy_static.workspace = true
+serde.workspace = true
+alloy = { workspace = true }
+base.workspace = true
+serde_json.workspace = true
+log.workspace = true
+linea-mimc.workspace = true
+#rlp = { version = "0.5", features = ["rlp-derive", "derive",] }
+alloy-rlp.workspace = true
+

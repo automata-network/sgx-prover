@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use alloy_primitives::Bytes;
+use alloy::primitives::Bytes;
 
 pub struct StringInterningReader(Vec<u8>);
 

@@ -8,7 +8,7 @@ use scroll_executor::{
         primitives::{keccak256, AccountInfo, Bytecode},
         DatabaseRef,
     },
-    AccessListItem, AccountData, Address, Bytes, Context, ScrollFields, SpecId, TransactTo,
+    AccountData, Address, Bytes, Context, EthPrimitivesConvert, ScrollFields, SpecId, TransactTo,
     Transaction, TxEnv, ZkMemoryDb, ZkTrie, B256, U256,
 };
 
@@ -108,7 +108,10 @@ impl Context for PobContext {
     }
 
     fn block_hash(&self) -> B256 {
-        self.pob.block.block_hash.expect("should have the block_hash")
+        self.pob
+            .block
+            .block_hash
+            .expect("should have the block_hash")
     }
 
     #[inline]
@@ -152,7 +155,7 @@ impl Context for PobContext {
 
     #[inline]
     fn difficulty(&self) -> U256 {
-        self.pob.block.difficulty.to()
+        self.pob.block.difficulty
     }
     #[inline]
     fn prevrandao(&self) -> Option<B256> {
@@ -177,37 +180,19 @@ impl Context for PobContext {
         }
 
         TxEnv {
-            caller: tx.from.0.into(),
+            caller: tx.from.to(),
             gas_limit: tx.gas.as_u64(),
-            gas_price: U256::from_limbs(tx.gas_price.unwrap().0),
-            transact_to: match tx.to {
-                Some(to) => TransactTo::Call(to.0.into()),
-                None => TransactTo::Create,
-            },
-            value: U256::from_limbs(tx.value.0),
-            data: Bytes::copy_from_slice(&tx.input.as_ref()),
+            gas_price: tx.gas_price.unwrap().to(),
+            transact_to: TransactTo::from(tx.to.to()),
+            value: tx.value.to(),
+            data: tx.input.clone().to(),
             nonce,
             chain_id: Some(self.chain_id()),
-            access_list: tx
-                .access_list
-                .as_ref()
-                .map(|v| {
-                    v.0.iter()
-                        .map(|e| AccessListItem {
-                            address: e.address.0.into(),
-                            storage_keys: e
-                                .storage_keys
-                                .iter()
-                                .map(|s| s.to_fixed_bytes().into())
-                                .collect(),
-                        })
-                        .collect()
-                })
-                .unwrap_or_default(),
-            gas_priority_fee: tx.max_priority_fee_per_gas.map(|g| U256::from_limbs(g.0)),
+            access_list: tx.access_list.clone().map(|n| n.0.to()).unwrap_or_default(),
+            gas_priority_fee: tx.max_priority_fee_per_gas.to(),
             scroll: ScrollFields {
                 is_l1_msg,
-                rlp_bytes: Some(Bytes::from(rlp)),
+                rlp_bytes: Some(rlp.into()),
             },
             ..Default::default()
         }
@@ -228,16 +213,16 @@ impl DatabaseRef for PobContextDB {
             Some(acc) => {
                 let acc: AccountData = acc.into();
                 Some(AccountInfo {
-                    balance: U256::from_limbs(acc.balance.0),
+                    balance: acc.balance.to(),
                     nonce: acc.nonce,
                     code_size: acc.code_size as usize,
-                    code_hash: acc.keccak_code_hash.0.into(),
-                    poseidon_code_hash: acc.poseidon_code_hash.0.into(),
+                    code_hash: acc.keccak_code_hash.to(),
+                    poseidon_code_hash: acc.poseidon_code_hash.to(),
                     code: self
                         .code_db
                         .0
                         .get(&acc.keccak_code_hash)
-                        .map(|vec| Bytecode::new_raw(Bytes::from(vec.clone()))),
+                        .map(|vec| Bytecode::new_raw(vec.clone().into())),
                 })
             }
             None => None,

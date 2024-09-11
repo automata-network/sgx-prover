@@ -1,6 +1,8 @@
 mod api;
 pub use api::*;
 mod types;
+use linea_verifier::LineaBatchVerifier;
+use scroll_verifier::ScrollBatchVerifier;
 pub use types::*;
 mod da;
 pub use da::*;
@@ -46,16 +48,16 @@ pub async fn entrypoint() {
 
     let alive = Alive::new();
 
-    let scroll_el = cfg
-        .scroll_endpoint
-        .filter(|n| !n.is_empty())
-        .map(|url| Eth::dial(&url));
+    let scroll =
+        ScrollBatchVerifier::new(cfg.scroll_endpoint.as_ref().map(|n| n.as_str())).unwrap();
+
+    let linea = LineaBatchVerifier::new(cfg.linea_endpoint.as_ref().map(|n| n.as_str()), cfg.linea_shomei).unwrap();
 
     let l1_el = cfg
         .scroll_chain
         .map(|n| n.endpoint)
         .filter(|n| !n.is_empty())
-        .map(|url| Eth::dial(&url));
+        .map(|url| Eth::dial(&url, None).unwrap());
 
     let collector = Arc::new(Collector::new("avs"));
 
@@ -64,7 +66,8 @@ pub async fn entrypoint() {
         force_with_context: opt.force_with_context,
         sampling: opt.sampling,
         l1_el,
-        scroll_el,
+        scroll,
+        linea,
         task_mgr: Arc::new(TaskManager::new(100)),
         pobda_task_mgr: Arc::new(TaskManager::new(100)),
         pob_da: Arc::new(DaManager::new()),
@@ -74,7 +77,12 @@ pub async fn entrypoint() {
     run_jsonrpc(&cfg.server, opt.port, api.rpc(), collector).await
 }
 
-pub async fn run_jsonrpc(cfg: &ServerConfig, port: u64, methods: impl Into<Methods>, collector: Arc<Collector>) {
+pub async fn run_jsonrpc(
+    cfg: &ServerConfig,
+    port: u64,
+    methods: impl Into<Methods>,
+    collector: Arc<Collector>,
+) {
     let addr = format!("0.0.0.0:{}", port);
     let idle_timeout = Duration::from_secs(60);
     if cfg.tls.len() == 0 {

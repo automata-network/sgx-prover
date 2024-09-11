@@ -10,7 +10,7 @@ use scroll_executor::{
         primitives::{keccak256, AccountInfo, Bytecode},
         DatabaseRef,
     },
-    AccessListItem, Address, BlockTrace, Bytes, Context, ScrollFields, SpecId, TransactTo,
+    Address, BlockTrace, Context, EthPrimitivesConvert, ScrollFields, SpecId, TransactTo,
     Transaction, TxEnv, ZkMemoryDb, ZktrieState, B256, U256,
 };
 
@@ -125,16 +125,16 @@ impl scroll_executor::Context for BlockContext {
     fn number(&self) -> u64 {
         self.trace.header.number.expect("incomplete block").as_u64()
     }
-    
+
     fn block_hash(&self) -> B256 {
-        self.trace.header.hash.unwrap().0.into()
+        self.trace.header.hash.unwrap().to()
     }
 
     fn state_root(&self) -> B256 {
-        self.trace.header.state_root.0.into()
+        self.trace.header.state_root.to()
     }
     fn withdrawal_root(&self) -> B256 {
-        self.trace.withdraw_trie_root.0.into()
+        self.trace.withdraw_trie_root.to()
     }
 
     #[inline]
@@ -143,34 +143,31 @@ impl scroll_executor::Context for BlockContext {
     }
     #[inline]
     fn coinbase(&self) -> Address {
-        self.trace.coinbase.address.0.into()
+        self.trace.coinbase.address.to()
     }
     #[inline]
     fn timestamp(&self) -> U256 {
-        U256::from_limbs(self.trace.header.timestamp.0)
+        self.trace.header.timestamp.to()
     }
     #[inline]
     fn gas_limit(&self) -> U256 {
-        U256::from_limbs(self.trace.header.gas_limit.0)
+        self.trace.header.gas_limit.to()
     }
     #[inline]
     fn base_fee_per_gas(&self) -> Option<U256> {
-        self.trace
-            .header
-            .base_fee_per_gas
-            .map(|b| U256::from_limbs(b.0))
+        self.trace.header.base_fee_per_gas.to()
     }
     #[inline]
     fn old_state_root(&self) -> B256 {
-        self.trace.storage_trace.root_before.0.into()
+        self.trace.storage_trace.root_before.to()
     }
     #[inline]
     fn difficulty(&self) -> U256 {
-        U256::from_limbs(self.trace.header.difficulty.0)
+        self.trace.header.difficulty.to()
     }
     #[inline]
     fn prevrandao(&self) -> Option<B256> {
-        self.trace.header.mix_hash.map(|h| B256::from(h.0))
+        self.trace.header.mix_hash.to()
     }
 
     fn transactions(&self) -> impl Iterator<Item = Transaction> {
@@ -194,37 +191,19 @@ impl scroll_executor::Context for BlockContext {
         }
 
         TxEnv {
-            caller: tx.from.0.into(),
+            caller: tx.from.to(),
             gas_limit: tx.gas,
-            gas_price: U256::from_limbs(tx.gas_price.0),
-            transact_to: match tx.to {
-                Some(to) => TransactTo::Call(to.0.into()),
-                None => TransactTo::Create,
-            },
-            value: U256::from_limbs(tx.value.0),
-            data: Bytes::copy_from_slice(tx.data.as_ref()),
+            gas_price: tx.gas_price.to(),
+            transact_to: TransactTo::from(tx.to.to()),
+            value: tx.value.to(),
+            data: tx.data.clone().to(),
             nonce,
             chain_id: Some(self.chain_id()),
-            access_list: tx
-                .access_list
-                .as_ref()
-                .map(|v| {
-                    v.iter()
-                        .map(|e| AccessListItem {
-                            address: e.address.0.into(),
-                            storage_keys: e
-                                .storage_keys
-                                .iter()
-                                .map(|s| s.to_fixed_bytes().into())
-                                .collect(),
-                        })
-                        .collect()
-                })
-                .unwrap_or_default(),
-            gas_priority_fee: tx.gas_tip_cap.map(|g| U256::from_limbs(g.0)),
+            access_list: tx.access_list.clone().to().unwrap_or_default(),
+            gas_priority_fee: tx.gas_tip_cap.to(),
             scroll: ScrollFields {
                 is_l1_msg: tx.is_l1_tx(),
-                rlp_bytes: Some(Bytes::from(rlp)),
+                rlp_bytes: Some(rlp.into()),
             },
             ..Default::default()
         }
@@ -235,20 +214,20 @@ impl DatabaseRef for BlockContext {
     type Error = Infallible;
 
     fn basic_ref(&self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {
-        let (exist, acc) = self.sdb.get_account(&eth_types::H160::from(**address));
+        let (exist, acc) = self.sdb.get_account(&address.to());
         if exist {
             let acc = AccountInfo {
-                balance: U256::from_limbs(acc.balance.0),
+                balance: acc.balance.to(),
                 nonce: acc.nonce.as_u64(),
                 code_size: acc.code_size.as_usize(),
-                code_hash: B256::from(acc.keccak_code_hash.to_fixed_bytes()),
-                poseidon_code_hash: B256::from(acc.code_hash.to_fixed_bytes()),
+                code_hash: acc.keccak_code_hash.to(),
+                poseidon_code_hash: acc.code_hash.to(),
                 // if None, means CodeDB did not include the code, could cause by: EXTCODESIZE
                 code: self
                     .code_db
                     .0
                     .get(&acc.keccak_code_hash)
-                    .map(|vec| Bytecode::new_raw(Bytes::from(vec.clone()))),
+                    .map(|vec| Bytecode::new_legacy(vec.clone().into())),
             };
             Ok(Some(acc))
         } else {
@@ -265,12 +244,7 @@ impl DatabaseRef for BlockContext {
     }
 
     fn storage_ref(&self, address: Address, index: U256) -> Result<U256, Self::Error> {
-        let (_, val) = self.sdb.get_storage(
-            &eth_types::H160::from(**address),
-            &eth_types::U256(*index.as_limbs()),
-        );
-
-        // panic!("{:?} . {:?} = {:?}", address, index, val);
-        Ok(U256::from_limbs(val.0))
+        let (_, val) = self.sdb.get_storage(&address.to(), &index.to());
+        Ok(val.to())
     }
 }

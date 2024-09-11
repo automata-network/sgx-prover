@@ -37,7 +37,7 @@ macro_rules! stack_error {
             $($stack_name:ident( $($stack_field:ident : $stack_field_type:ty),* ),)*
         }
     ) => {
-        #[derive(Debug, PartialEq, Clone)]
+        #[derive(Debug)]
         pub enum $name {
             $(
                 $err_name $(
@@ -102,6 +102,17 @@ macro_rules! stack_error {
                 })
             }
             )*
+
+            pub fn origin(&self) -> &Self {
+                let mut err = self;
+                loop {
+                    match err {
+                        Self::Stack{ origin, .. } => err = origin,
+                        _ => break,
+                    }
+                }
+                err
+            }
         }
     }
 }

@@ -1,19 +1,11 @@
 [package]
-name = "mimc"
-version = "0.1.0"
-authors = ["Automata Team"]
-edition = "2021"
-license = "Apache-2.0"
+name = "linea-mimc"
+version.workspace = true
+edition.workspace = true
 
 [dependencies]
-ff = { package = "ff_ce", git = "https://github.com/automata-network/ff-rs", default-features = false, features = ["derive"] }
-serde_json = { git = "https://github.com/automata-network/sgxlib-thirdparty", default-features = false }
-sgxlib = { git = "https://github.com/automata-network/sgxlib", default-features = false }
-serde = { git = "https://github.com/automata-network/sgxlib-thirdparty", default-features = false }
-glog = { git = "https://github.com/automata-network/glog-rs", default-features = false }
-eth_types = { git = "https://github.com/automata-network/eth-types-rs", default-features = false }
-crypto = { git = "https://github.com/automata-network/crypto-rs", default-features = false }
-rand = { version = "0.4", default-features = false }
-hex = { git = "https://github.com/automata-network/hex-rs", default-features = false }
-
-lazy_static = { version = "1.4.0", default-features = false, features = ["spin_no_std"] }
+lazy_static.workspace = true
+ff.workspace = true
+serde.workspace = true
+low_rand = { version = "0.4", package = "rand" }
+tiny-keccak = { version = "2", features = ["keccak"] }

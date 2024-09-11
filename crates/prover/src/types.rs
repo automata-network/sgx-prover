@@ -3,7 +3,8 @@ use std::{collections::BTreeMap, time::Duration};
 use alloy::primitives::Bytes;
 use base::debug;
 use jsonrpsee::{core::RpcResult, proc_macros::rpc};
-use prover_types::{Poe, SuccinctPobList, TaskType, B256};
+use linea_shomei::ShomeiConfig;
+use prover_types::{PoeResponse, ProveTaskParams, SuccinctPobList, B256};
 use serde::{Deserialize, Serialize};
 
 use crate::DaItemLockStatus;
@@ -15,6 +16,10 @@ pub struct Config {
     pub server: ServerConfig,
     pub scroll_endpoint: Option<String>,
     pub scroll_chain_id: Option<u64>,
+
+    pub linea_endpoint: Option<String>,
+    pub linea_shomei: Option<ShomeiConfig>,
+
     #[serde(default = "default_l2_timeout_secs")]
     pub l2_timeout_secs: u64,
 }
@@ -114,39 +119,9 @@ pub trait ProverV1Api {
     async fn get_poe(&self, arg: B256) -> RpcResult<PoeResponse>;
 }
 
-#[derive(Clone, Debug, Serialize)]
-pub struct PoeResponse {
-    pub not_ready: bool,
-    pub batch_id: u64,
-    pub start_block: u64,
-    pub end_block: u64,
-    pub poe: Option<Poe>,
-}
-
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Metadata {
     pub with_context: bool,
     pub version: &'static str,
     pub task_with_context: BTreeMap<u64, bool>,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct ProveTaskParams {
-    pub batch: Option<Bytes>,
-    pub pob_hash: B256,
-    pub task_type: Option<u64>,
-    pub start: Option<u64>,
-    pub end: Option<u64>,
-    pub starting_state_root: Option<B256>,
-    pub final_state_root: Option<B256>,
-    pub from: Option<serde_json::Value>,
-}
-
-impl ProveTaskParams {
-    pub fn task_type(&self) -> TaskType {
-        match self.task_type {
-            Some(n) => TaskType::from_u64(n),
-            None => TaskType::Scroll,
-        }
-    }
 }

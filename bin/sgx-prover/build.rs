@@ -1,3 +1,3 @@
 fn main() {
-    automata_sgx_builder::build_app();
+    automata_build_script::build_app();
 }

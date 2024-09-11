@@ -1,12 +1,12 @@
 use std::collections::BTreeMap;
 
-use alloy_primitives::{Address, Bytes, Keccak256, B256, U256, U64};
+use alloy::primitives::{Address, Bloom, Bytes, Keccak256, B256, B64, U256, U64};
 use serde::{Deserialize, Serialize};
 
 use crate::{StringInterning, StringInterningReader};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct Pob<T = Bytes> {
+pub struct Pob<T: Default = Bytes> {
     pub block: PobBlock,
     pub data: PobData<T>,
     pub hash: B256,
@@ -17,15 +17,28 @@ pub struct Pob<T = Bytes> {
 pub struct PobBlock {
     pub miner: Address,
     pub state_root: B256,
-    // pub transactions_root: SH256,
-    // pub receipts_root: SH256,
-    // pub logs_bloom: HexBytes,
     pub difficulty: U256,
     pub number: U64,
     pub gas_limit: U64,
-    // pub gas_used: SU64,
     pub timestamp: U64,
-    // pub extra_data: HexBytes,
+
+    #[serde(default)]
+    pub extra_data: Bytes,
+    #[serde(default)]
+    pub parent_hash: B256,
+    #[serde(default)]
+    pub uncles_hash: B256,
+    #[serde(default)]
+    pub transactions_root: B256,
+    #[serde(default)]
+    pub receipts_root: B256,
+    #[serde(default)]
+    pub logs_bloom: Bloom,
+    #[serde(default)]
+    pub nonce: B64,
+    #[serde(default)]
+    pub gas_used: U256,
+
     pub mix_hash: B256,
     // pub nonce: BlockNonce,
     // // BaseFee was added by EIP-1559 and is ignored in legacy headers.
@@ -44,15 +57,25 @@ pub struct SuccinctPobList {
 }
 
 #[derive(Default, Debug, Deserialize, Serialize, Clone)]
-pub struct PobData<T> {
+pub struct PobData<T: Default> {
     pub chain_id: u64,
     pub coinbase: Option<Address>,
     pub prev_state_root: B256,
     pub block_hashes: BTreeMap<u64, B256>,
     pub mpt_nodes: Vec<T>,
     pub codes: Vec<T>,
+
+    // scroll
     pub start_l1_queue_index: u64,
     pub withdrawal_root: B256,
+
+    // linea
+    #[serde(default)]
+    pub linea_traces: Vec<T>,
+    #[serde(default)]
+    pub linea_proofs: Vec<T>,
+    #[serde(default)]
+    pub linea_zkroot: B256,
 }
 
 impl PobData<Bytes> {
@@ -75,6 +98,13 @@ impl PobData<Bytes> {
             }
             hash(&self.start_l1_queue_index.to_be_bytes());
             hash(self.withdrawal_root.as_slice());
+
+            for trace in &self.linea_traces {
+                hash(trace);
+            }
+            for proof in &self.linea_proofs {
+                hash(proof);
+            }
         })
         .into()
     }
@@ -89,6 +119,9 @@ impl PobData<Bytes> {
             codes: si.offsets(&self.codes),
             start_l1_queue_index: self.start_l1_queue_index,
             withdrawal_root: self.withdrawal_root,
+            linea_proofs: si.offsets(&self.linea_proofs),
+            linea_traces: si.offsets(&self.linea_traces),
+            linea_zkroot: self.linea_zkroot,
         }
     }
 }
@@ -104,6 +137,9 @@ impl PobData<usize> {
             codes: si.read(&self.codes),
             start_l1_queue_index: self.start_l1_queue_index,
             withdrawal_root: self.withdrawal_root,
+            linea_proofs: si.read(&self.linea_proofs),
+            linea_traces: si.read(&self.linea_traces),
+            linea_zkroot: self.linea_zkroot,
         }
     }
 }
@@ -165,6 +201,12 @@ impl SuccinctPobList {
                 si.collect(item.clone().into());
             }
             for item in &item.data.codes {
+                si.collect(item.clone().into());
+            }
+            for item in &item.data.linea_proofs {
+                si.collect(item.clone().into());
+            }
+            for item in &item.data.linea_traces {
                 si.collect(item.clone().into());
             }
         }

@@ -1,11 +1,7 @@
-#![cfg_attr(not(feature = "std"), no_std)]
-#[cfg(feature = "tstd")]
-#[macro_use]
-extern crate sgxlib as std;
+pub use ff::{Field, PrimeField, PrimeFieldDecodingError};
 
 extern crate ff;
-
-pub use ff::{Field, PrimeField, PrimeFieldDecodingError};
+extern crate low_rand as rand;
 
 mod fr;
 pub use fr::*;

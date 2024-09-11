@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["bin/*", "crates/base", "crates/clients", "crates/prover", "crates/scroll-executor", "crates/scroll-verifier", "crates/prover-types", "crates/prometheus"]
+members = ["bin/*", "crates/base", "crates/clients", "crates/prover", "crates/scroll-executor", "crates/scroll-verifier", "crates/prover-types", "crates/prometheus", "crates/linea/*"]
 
 [workspace.package]
 edition = "2021"
@@ -9,18 +9,27 @@ authors = ["Automata Team"]
 homepage = "https://www.ata.network/"
 
 [workspace.dependencies]
-scroll-executor = { path = "crates/scroll-executor" }
-scroll-verifier = { path = "crates/scroll-verifier" }
 clients = { path = "crates/clients" }
 base = { path = "crates/base" }
 prover-types = { path = "crates/prover-types" }
 prometheus = { path = "crates/prometheus" }
+scroll-executor = { path = "crates/scroll-executor" }
+scroll-verifier = { path = "crates/scroll-verifier" }
+linea-mimc = { path = "crates/linea/mimc" }
+linea-zktrie = { path = "crates/linea/zktrie" }
+linea-shomei = { path = "crates/linea/shomei" }
+linea-verifier = { path = "crates/linea/verifier" }
+linea-executor = { path = "crates/linea/executor" }
 
+url = "2.5.0"
+ff = { package = "ff_ce", git = "https://github.com/matter-labs/ff", features = ["asm_derive"] }
 serde = { version = "=1.0.197", features = ["derive"] }
 serde_json = { version = "1" }
-automata-sgx-builder = { git = "https://github.com/automata-network/automata-sgx-builder", branch = "main" }
-blst = { version = "=0.3.11" }
+automata-sgx-builder = { git = "https://github.com/automata-network/automata-sgx-builder", branch = "v2.0.0-nightly-2024-02-01" }
+automata-build-script = { git = "https://github.com/automata-network/automata-sgx-builder", branch = "v2.0.0-nightly-2024-02-01" }
+blst = { version = "=0.3.13" }
 scroll-revm = { package = "revm", git = "https://github.com/automata-network/scroll-revm", branch = "scroll-evm-executor/v41", default-features = false, features = ["scroll-default-handler", "std", "optional_no_base_fee", "scroll-poseidon-codehash"] }
+linea-revm = { package = "revm", git = "https://github.com/automata-network/linea-revm", branch = "linea-revm/v41", default-features = false, features = ["std", "secp256k1"] }
 lazy_static = "1.5.0"
 
 env_logger = { version = "0.11" }
@@ -32,9 +41,10 @@ jsonrpsee = { git = "https://github.com/automata-network/jsonrpsee" }
 
 scroll-zstd = { git = "https://github.com/scroll-tech/da-codec" }
 scroll-zstd-encoder = { git = "https://github.com/scroll-tech/da-codec", package = "encoder" }
-alloy-primitives = { version = "0.7", features = ["serde"] }
+alloy = { version = "0.2", default-features = false, features = ["std", "rlp", "serde"] }
+alloy-rlp = { version = "0.3", features = ["derive"] }
 async-trait = "0.1.73"
-c-kzg = "1"
+c-kzg = { version = "1", default-features = false, features = ["std", "ethereum_kzg_settings"] }
 hex = "0.4.3"
 
 [patch.crates-io]
@@ -44,7 +54,7 @@ primitive-types = { git = "https://github.com/scroll-tech/parity-common.git", br
 ethereum-types = { git = "https://github.com/scroll-tech/parity-common.git", branch = "feat/rkyv" }
 ff = { git = "https://github.com/scroll-tech/ff", branch = "feat/sp1" }
 
-blst = { git = "https://github.com/automata-network/blst", branch = "teaclave_2.0" }
+blst = { git = "https://github.com/automata-network/blst", branch = "teaclave_2.0_v0.3.13" }
 ring = { git = "https://github.com/automata-network/ring-sgx" }
 
 [patch.'https://github.com/scroll-tech/zstd-rs']
@@ -52,4 +62,4 @@ zstd = { git = "https://github.com/automata-network/scroll-zstd-rs", branch = "h
 
 [profile.release]
 debug-assertions = true
-
+debug = 1

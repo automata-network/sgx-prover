@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use clap::Parser;
 use scroll_executor::BlockTrace;
 use scroll_verifier::{
-    block_trace_to_pob, BatchTask, Finalize, HardforkConfig, PobContext, ScrollBatchVerifier,
+    block_trace_to_pob, BatchTask, Finalize, HardforkConfig, PobContext, ScrollBatchVerifier, ScrollExecutionNode,
 };
 
 #[derive(Debug, Parser)]
@@ -64,7 +64,7 @@ async fn main() {
 
         if !opt.download_from.is_empty() {
             log::info!("downloading from {}...", opt.download_from);
-            let client = clients::Eth::dial(&opt.download_from);
+            let client = ScrollExecutionNode::dial(&opt.download_from).unwrap();
 
             let block_numbers = batch
                 .chunks
@@ -92,7 +92,7 @@ async fn main() {
                     }
 
                     println!("[{}/{}] downloading block #{}", idx, total, block);
-                    let block_trace = client.trace_block(block).await;
+                    let block_trace = client.trace_block(block).await.unwrap();
                     let data = serde_json::to_vec(&block_trace).unwrap();
                     std::fs::write(output, data).unwrap();
                     Ok(())

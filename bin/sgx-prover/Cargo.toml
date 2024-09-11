@@ -12,7 +12,7 @@ prover = { path = "../../crates/prover", config = "sgx/config.xml", edl = "sgx/p
 [dependencies]
 serde.workspace = true
 serde_json.workspace = true
-automata-sgx-builder = { workspace = true, features = ["app"] }
+automata-sgx-builder.workspace = true
 
 [build-dependencies]
-automata-sgx-builder = { workspace = true, features = ["builder"] }
+automata-build-script.workspace = true

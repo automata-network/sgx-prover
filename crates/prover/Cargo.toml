@@ -29,5 +29,7 @@ url = "2.5.2"
 hex.workspace = true
 async-trait.workspace = true
 base.workspace = true
+linea-verifier.workspace = true
+linea-shomei.workspace = true
 
 clap = { version = "4", features = ["derive"] }
