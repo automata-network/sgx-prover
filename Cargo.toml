@@ -25,10 +25,8 @@ url = "2.5.0"
 ff = { package = "ff_ce", git = "https://github.com/matter-labs/ff", features = ["asm_derive"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1" }
-#automata-sgx-sdk = { git = "https://github.com/automata-network/automata-sgx-sdk" }
-automata-sgx-sdk = { path = "../automata-sgx-sdk" }
-#automata-build-script = { git = "https://github.com/automata-network/automata-sgx-sdk" }
-automata-build-script = { path = "../automata-sgx-sdk/build-script" }
+automata-sgx-sdk = { git = "https://github.com/automata-network/automata-sgx-sdk" }
+automata-build-script = { git = "https://github.com/automata-network/automata-sgx-sdk" }
 blst = { version = "=0.3.13" } # make sure the patch takes effect
 scroll-revm = { package = "revm", git = "https://github.com/automata-network/scroll-revm", branch = "scroll-evm-executor/v41", default-features = false, features = ["scroll-default-handler", "std", "optional_no_base_fee", "scroll-poseidon-codehash"] }
 linea-revm = { package = "revm", git = "https://github.com/automata-network/linea-revm", branch = "linea-revm/v41", default-features = false, features = ["std", "secp256k1"] }

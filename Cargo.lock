@@ -774,6 +774,7 @@ checksum = "0c4b4d0bd25bd0b74681c0ad21497610ce1b7c91b1022cd21c80c6fbdd9476b0"
 [[package]]
 name = "automata-build-script"
 version = "0.1.0"
+source = "git+https://github.com/automata-network/automata-sgx-sdk#45f9b400bca71a839dd0fa3b856251444c93747f"
 dependencies = [
  "cc",
  "serde",
@@ -784,6 +785,7 @@ dependencies = [
 [[package]]
 name = "automata-sgx-sdk"
 version = "0.1.0"
+source = "git+https://github.com/automata-network/automata-sgx-sdk#45f9b400bca71a839dd0fa3b856251444c93747f"
 dependencies = [
  "automata-sgx-sdk-sysroot",
  "cc",
@@ -799,6 +801,7 @@ dependencies = [
 [[package]]
 name = "automata-sgx-sdk-sysroot"
 version = "0.1.0"
+source = "git+https://github.com/automata-network/automata-sgx-sdk#45f9b400bca71a839dd0fa3b856251444c93747f"
 
 [[package]]
 name = "backtrace"
