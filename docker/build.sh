@@ -8,5 +8,6 @@ docker buildx build \
 	-f docker/Dockerfile \
 	-t ghcr.io/automata-network/sgx-prover:avs-${BUILD_TAG} \
 	--load . \
+	--build-arg CACHE_DATE=$(date +%s) \
 	--build-arg BUILD_TAG=${BUILD_TAG}
 

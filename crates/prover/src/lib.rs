@@ -44,8 +44,6 @@ struct Opt {
 
 pub async fn entrypoint() {
     let opt: Opt = Opt::parse();
-    println!("{}", automata_sgx_sdk::sgxlib::sgx_trts::version::VERSION_UINT);
-    println!("hello");
 
     let cfg = Config::read_file(&opt.cfg).unwrap();
 
