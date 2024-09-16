@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["bin/*", "crates/base", "crates/clients", "crates/prover", "crates/scroll-executor", "crates/scroll-verifier", "crates/prover-types", "crates/prometheus", "crates/linea/*"]
+members = ["bin/*", "crates/base", "crates/clients", "crates/prover", "crates/prover-types", "crates/prometheus", "crates/scroll/*", "crates/linea/*"]
 
 [workspace.package]
 edition = "2021"
@@ -13,8 +13,8 @@ clients = { path = "crates/clients" }
 base = { path = "crates/base" }
 prover-types = { path = "crates/prover-types" }
 prometheus = { path = "crates/prometheus" }
-scroll-executor = { path = "crates/scroll-executor" }
-scroll-verifier = { path = "crates/scroll-verifier" }
+scroll-executor = { path = "crates/scroll/executor" }
+scroll-verifier = { path = "crates/scroll/verifier" }
 linea-mimc = { path = "crates/linea/mimc" }
 linea-zktrie = { path = "crates/linea/zktrie" }
 linea-shomei = { path = "crates/linea/shomei" }
@@ -23,11 +23,13 @@ linea-executor = { path = "crates/linea/executor" }
 
 url = "2.5.0"
 ff = { package = "ff_ce", git = "https://github.com/matter-labs/ff", features = ["asm_derive"] }
-serde = { version = "=1.0.197", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1" }
-automata-sgx-builder = { git = "https://github.com/automata-network/automata-sgx-builder", branch = "v2.0.0-nightly-2024-02-01" }
-automata-build-script = { git = "https://github.com/automata-network/automata-sgx-builder", branch = "v2.0.0-nightly-2024-02-01" }
-blst = { version = "=0.3.13" }
+#automata-sgx-sdk = { git = "https://github.com/automata-network/automata-sgx-sdk" }
+automata-sgx-sdk = { path = "../automata-sgx-sdk" }
+#automata-build-script = { git = "https://github.com/automata-network/automata-sgx-sdk" }
+automata-build-script = { path = "../automata-sgx-sdk/build-script" }
+blst = { version = "=0.3.13" } # make sure the patch takes effect
 scroll-revm = { package = "revm", git = "https://github.com/automata-network/scroll-revm", branch = "scroll-evm-executor/v41", default-features = false, features = ["scroll-default-handler", "std", "optional_no_base_fee", "scroll-poseidon-codehash"] }
 linea-revm = { package = "revm", git = "https://github.com/automata-network/linea-revm", branch = "linea-revm/v41", default-features = false, features = ["std", "secp256k1"] }
 lazy_static = "1.5.0"
@@ -43,7 +45,7 @@ scroll-zstd = { git = "https://github.com/scroll-tech/da-codec" }
 scroll-zstd-encoder = { git = "https://github.com/scroll-tech/da-codec", package = "encoder" }
 alloy = { version = "0.2", default-features = false, features = ["std", "rlp", "serde"] }
 alloy-rlp = { version = "0.3", features = ["derive"] }
-async-trait = "0.1.73"
+async-trait = "0.1"
 c-kzg = { version = "1", default-features = false, features = ["std", "ethereum_kzg_settings"] }
 hex = "0.4.3"
 

@@ -7,6 +7,7 @@ use crate::{Collector, DaItemLockStatus, DaManager, Metadata, TaskManager, BUILD
 
 use alloy::primitives::Bytes;
 use async_trait::async_trait;
+use automata_sgx_sdk::dcap::dcap_quote;
 use base::{debug, Alive};
 use clients::Eth;
 use jsonrpsee::core::RpcResult;
@@ -67,7 +68,7 @@ impl ProverV1ApiServer for ProverApi {
 
         let start = Instant::now();
 
-        let result = automata_sgx_builder::dcap::dcap_quote(data);
+        let result = dcap_quote(data);
 
         self.metrics
             .gen_attestation_report_ms

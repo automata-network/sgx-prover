@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 
 [features]
-tstd_app = ["automata-sgx-builder/tstd_app"]
+tstd_app = ["automata-sgx-sdk/tstd_app"]
 
 [package.metadata.sgx]
 prover = { path = "../../crates/prover", config = "sgx/config.xml", edl = "sgx/prover.edl", lds = "sgx/enclave.lds", key = "sgx/private.pem", env = ["PKG_CONFIG_ALLOW_CROSS=1"] }
@@ -12,7 +12,7 @@ prover = { path = "../../crates/prover", config = "sgx/config.xml", edl = "sgx/p
 [dependencies]
 serde.workspace = true
 serde_json.workspace = true
-automata-sgx-builder.workspace = true
+automata-sgx-sdk.workspace = true
 
 [build-dependencies]
 automata-build-script.workspace = true

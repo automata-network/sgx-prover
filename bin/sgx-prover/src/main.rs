@@ -1,6 +1,6 @@
-use automata_sgx_builder::types::SgxStatus;
+use automata_sgx_sdk::types::SgxStatus;
 
-automata_sgx_builder::enclave! {
+automata_sgx_sdk::enclave! {
     name: Prover,
     ecall: {
         fn run_prover() -> SgxStatus;

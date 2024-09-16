@@ -19,7 +19,7 @@ use jsonrpsee::{
 };
 use std::{sync::Arc, time::Duration};
 
-use automata_sgx_builder::types::SgxStatus;
+use automata_sgx_sdk::types::SgxStatus;
 use std::path::Path;
 
 pub static BUILD_TAG: Option<&str> = option_env!("BUILD_TAG");
@@ -41,8 +41,11 @@ struct Opt {
     force_with_context: bool,
 }
 
+
 pub async fn entrypoint() {
     let opt: Opt = Opt::parse();
+    println!("{}", automata_sgx_sdk::sgxlib::sgx_trts::version::VERSION_UINT);
+    println!("hello");
 
     let cfg = Config::read_file(&opt.cfg).unwrap();
 
