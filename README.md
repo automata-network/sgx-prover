@@ -9,7 +9,7 @@ Currently SGX prover supports to execute scroll/linea blocks in SGX enclave and 
 
 # Packages
 
-Check in [here](https://github.com/automata-network/sgx-prover/pkgs/container/sgx-prover) if you are looking for a docker image. It's built from [Dockerfile](avs/docker/Dockerfile).
+Check in [here](https://github.com/automata-network/sgx-prover/pkgs/container/sgx-prover) if you are looking for a docker image. It's built from [Dockerfile](docker/Dockerfile).
 
 # Build from source
 
