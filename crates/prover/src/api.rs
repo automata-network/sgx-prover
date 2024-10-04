@@ -79,14 +79,14 @@ impl ProverV1ApiServer for ProverApi {
         match result {
             Ok(quote) => Ok(quote.into()),
             Err(err) => {
-                let msg = format!("generate report failed: {}", err);
+                let msg = format!("generate report failed: {:?}", err);
                 return Err(self.err(14003, msg));
             }
         }
     }
 
     async fn get_poe(&self, tx_hash: B256) -> RpcResult<PoeResponse> {
-        self.prove_task_with_sample(tx_hash, self.sampling, TaskType::Scroll.u64())
+        self.prove_task_with_sample(tx_hash, None, self.sampling, TaskType::Scroll.u64())
             .await
     }
 }
@@ -139,8 +139,8 @@ impl ProverV2ApiServer for ProverApi {
         })
     }
 
-    async fn prove_task_without_context(&self, tx_hash: B256, ty: u64) -> RpcResult<PoeResponse> {
-        self.prove_task_with_sample(tx_hash, 0, ty).await
+    async fn prove_task_without_context(&self, task_data: Bytes, ty: u64) -> RpcResult<PoeResponse> {
+        self.prove_task_with_sample(B256::default(), Some(task_data), 0, ty).await
     }
 
     async fn generate_context(
@@ -232,6 +232,7 @@ impl ProverApi {
     async fn prove_task_with_sample(
         &self,
         tx_hash: B256,
+        task_data: Option<Bytes>,
         sampling: u64,
         ty: u64,
     ) -> RpcResult<PoeResponse> {
@@ -239,12 +240,20 @@ impl ProverApi {
         if ty != TaskType::Scroll {
             return Err(self.err(14010, format!("unsupport task {:?}", ty)));
         }
-        let Some(l1_el) = &self.l1_el else {
-            return Err(self.err(14011, "missing config for scroll_chain"));
+        let task_data = match task_data {
+            Some(task_data) => task_data,
+            None => {
+                let Some(l1_el) = &self.l1_el else {
+                    return Err(self.err(14011, "missing config for scroll_chain"));
+                };
+        
+                let tx = l1_el.get_transaction(tx_hash).await.unwrap();
+                tx.input
+            },
         };
+        let task_data: Bytes = task_data[4..].to_owned().into();
 
-        let tx = l1_el.get_transaction(tx_hash).await.unwrap();
-        let batch_task = BatchTask::from_calldata(&tx.input[4..]).unwrap();
+        let batch_task = BatchTask::from_calldata(&task_data).unwrap();
         if sampling > 0 {
             if batch_task.id() % sampling != 0 {
                 return Err(self.err(14444, "ratelimited, skip this, try next time"));
@@ -267,7 +276,7 @@ impl ProverApi {
 
         let poe = self
             .prove_task(ProveTaskParams {
-                batch: Some(Bytes::from(tx.input[4..].to_vec())),
+                batch: Some(task_data),
                 pob_hash: pob_list.hash,
                 start: None,
                 end: None,

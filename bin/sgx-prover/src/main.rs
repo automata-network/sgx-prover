@@ -8,6 +8,6 @@ automata_sgx_sdk::enclave! {
 }
 
 fn main() {
-    let result = Prover::new(true).unwrap().run_prover().unwrap();
+    let result = Prover::new().run_prover().unwrap();
     assert!(result.is_success());
 }

@@ -89,7 +89,7 @@ pub trait ProverV2Api {
     async fn prove_task(&self, arg: ProveTaskParams) -> RpcResult<PoeResponse>;
 
     #[method(name = "proveTaskWithoutContext")]
-    async fn prove_task_without_context(&self, tx_hash: B256, ty: u64) -> RpcResult<PoeResponse>;
+    async fn prove_task_without_context(&self, task_data: Bytes, ty: u64) -> RpcResult<PoeResponse>;
 
     #[method(name = "genContext")]
     async fn generate_context(

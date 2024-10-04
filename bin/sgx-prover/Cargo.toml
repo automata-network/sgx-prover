@@ -2,6 +2,7 @@
 name = "sgx-prover"
 version.workspace = true
 edition.workspace = true
+default-run = "sgx-prover"
 
 [features]
 tstd_app = ["automata-sgx-sdk/tstd_app"]
