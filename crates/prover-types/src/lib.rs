@@ -1,6 +1,3 @@
-mod pob;
-pub use pob::*;
-
 mod task_type;
 pub use task_type::*;
 
@@ -10,8 +7,7 @@ pub use string_interning::*;
 mod primitives;
 pub use primitives::*;
 
-mod poe;
-pub use poe::*;
-
 mod api;
 pub use api::*;
+
+pub use base::prover::{Pob, PobBlock, PobData, Poe, SuccinctPobList, keccak_encode};

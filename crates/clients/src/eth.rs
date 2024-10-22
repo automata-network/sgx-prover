@@ -21,13 +21,14 @@ use alloy::{
 };
 
 base::stack_error! {
+    #[derive(Debug)]
     name: EthError,
     stack_name: EthErrorStack,
     error: {},
     wrap: {
-        Signer(LocalSignerError ),
+        Signer(LocalSignerError),
         Url(url::ParseError),
-        Rpc ( RpcError<TransportErrorKind>),
+        Rpc(RpcError<TransportErrorKind>),
         Type(alloy::sol_types::Error),
     },
     stack: {

@@ -422,6 +422,7 @@ version = "0.7.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "867a5469d61480fea08c7333ffeca52d5b621f5ca2e44f271b117ec1fc9a0525"
 dependencies = [
+ "alloy-json-abi",
  "alloy-sol-macro-input",
  "const-hex",
  "heck 0.5.0",
@@ -440,11 +441,13 @@ version = "0.7.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2e482dc33a32b6fadbc0f599adea520bd3aaa585c141a80b404d0a3e3fa72528"
 dependencies = [
+ "alloy-json-abi",
  "const-hex",
  "dunce",
  "heck 0.5.0",
  "proc-macro2",
  "quote",
+ "serde_json",
  "syn 2.0.76",
  "syn-solidity",
 ]
@@ -465,6 +468,7 @@ version = "0.7.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a91ca40fa20793ae9c3841b83e74569d1cc9af29a2f5237314fd3452d51e38c7"
 dependencies = [
+ "alloy-json-abi",
  "alloy-primitives",
  "alloy-sol-macro",
  "const-hex",
@@ -788,7 +792,7 @@ version = "0.1.0"
 source = "git+https://github.com/automata-network/automata-sgx-sdk#86a40e22744d83cc42d306a8e886137440eb409c"
 dependencies = [
  "automata-sgx-sdk-sysroot",
- "base 1.0.0",
+ "base",
  "cc",
  "ctor",
  "serde",
@@ -821,26 +825,17 @@ dependencies = [
 
 [[package]]
 name = "base"
-version = "0.4.6"
+version = "1.0.0"
+source = "git+https://github.com/automata-network/base-rs#5e948ed560df269d60f68447a4c344261f6ca7f0"
 dependencies = [
  "alloy",
  "async-trait",
  "chrono",
- "env_logger",
- "log",
+ "libflate",
  "secp256k1",
  "serde",
- "serde_json",
  "tokio",
-]
-
-[[package]]
-name = "base"
-version = "1.0.0"
-source = "git+https://github.com/automata-network/base-rs#42b6607918d20d4fa5b2b4ea1309792607a4f88e"
-dependencies = [
- "chrono",
- "tokio",
+ "url",
 ]
 
 [[package]]
@@ -937,6 +932,9 @@ name = "bitflags"
 version = "2.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b048fb63fd8b5923fc5aa7b340d8e156aec7ec02f0c78fa8a6ddc2613f6f71de"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "bitvec"
@@ -946,6 +944,7 @@ checksum = "1bc2832c24239b0141d5674bb9174f9d68a8b5b3f2753311927c172ca46f7e9c"
 dependencies = [
  "funty",
  "radium",
+ "serde",
  "tap",
  "wyz",
 ]
@@ -957,6 +956,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3078c7629b62d3f0439517fa394996acacc5cbc91c5a20d8c658e77abd503a71"
 dependencies = [
  "generic-array",
+]
+
+[[package]]
+name = "bls12_381"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d7bc6d6292be3a19e6379786dac800f551e5865a5bb51ebbe3064ab80433f403"
+dependencies = [
+ "ff",
+ "group",
+ "pairing",
+ "rand_core 0.6.4",
+ "subtle",
 ]
 
 [[package]]
@@ -973,12 +985,13 @@ dependencies = [
 [[package]]
 name = "bn254"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/bn254#1773ed6c51f14652272056370cf135ff5d7a01c5"
+source = "git+https://github.com/scroll-tech/bn254.git?branch=master#db67681f5e9ae1736565a48ec294a6d0dacb4e0d"
 dependencies = [
  "ff",
  "getrandom",
  "rand 0.8.5",
  "rand_core 0.6.4",
+ "sp1-intrinsics",
  "subtle",
 ]
 
@@ -1169,7 +1182,7 @@ name = "clients"
 version = "0.4.6"
 dependencies = [
  "alloy",
- "base 0.4.6",
+ "base",
  "url",
 ]
 
@@ -2065,6 +2078,7 @@ checksum = "e5274423e17b7c9fc20b6e7e208532f9b19825d82dfd615708b70edd83df41f1"
 dependencies = [
  "ahash 0.8.11",
  "allocator-api2",
+ "serde",
 ]
 
 [[package]]
@@ -2643,6 +2657,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "kzg-rs"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cd9920cd4460ce3cbca19c62f3bb9a9611562478a4dc9d2c556f4a7d049c5b6b"
+dependencies = [
+ "bls12_381",
+ "glob",
+ "hex",
+ "once_cell",
+ "serde",
+ "serde_derive",
+ "serde_yaml",
+]
+
+[[package]]
 name = "lazy_static"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2708,7 +2737,7 @@ name = "linea-executor"
 version = "0.4.6"
 dependencies = [
  "alloy",
- "base 0.4.6",
+ "base",
  "linea-zktrie",
  "log",
  "revm 13.0.0 (git+https://github.com/automata-network/linea-revm?branch=linea-revm/v41)",
@@ -2743,7 +2772,7 @@ name = "linea-test"
 version = "0.4.6"
 dependencies = [
  "alloy",
- "base 0.4.6",
+ "base",
  "clap",
  "clients",
  "linea-shomei",
@@ -2759,7 +2788,7 @@ name = "linea-verifier"
 version = "0.4.6"
 dependencies = [
  "alloy",
- "base 0.4.6",
+ "base",
  "clients",
  "linea-executor",
  "linea-mimc",
@@ -2779,7 +2808,7 @@ version = "0.4.6"
 dependencies = [
  "alloy",
  "alloy-rlp",
- "base 0.4.6",
+ "base",
  "lazy_static",
  "linea-mimc",
  "log",
@@ -3069,6 +3098,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ff011a302c396a5197692431fc1948019154afc178baf7d8e37367442a4601cf"
 
 [[package]]
+name = "pairing"
+version = "0.23.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "81fec4625e73cf41ef4bb6846cafa6d44736525f442ba45e407c4a000a13996f"
+dependencies = [
+ "group",
+]
+
+[[package]]
 name = "parity-scale-codec"
 version = "3.6.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3216,10 +3254,11 @@ checksum = "d231b230927b5e4ad203db57bbcbee2802f6bce620b1e4a9024a07d94e2907ec"
 [[package]]
 name = "poseidon-bn254"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/poseidon-bn254?branch=master#a1174dac3d854bd91556b54274551326a94b11e6"
+source = "git+https://github.com/scroll-tech/poseidon-bn254?branch=master#a96ba028dd00987551451d8f4bd65b7ea5469a44"
 dependencies = [
  "bn254",
  "itertools 0.13.0",
+ "sp1-intrinsics",
 ]
 
 [[package]]
@@ -3348,7 +3387,7 @@ dependencies = [
  "alloy",
  "async-trait",
  "automata-sgx-sdk",
- "base 0.4.6",
+ "base",
  "clap",
  "clients",
  "env_logger",
@@ -3359,6 +3398,7 @@ dependencies = [
  "log",
  "prometheus",
  "prover-types",
+ "scroll-da-codec",
  "scroll-executor",
  "scroll-verifier",
  "serde",
@@ -3372,7 +3412,7 @@ name = "prover-types"
 version = "0.4.6"
 dependencies = [
  "alloy",
- "base 0.4.6",
+ "base",
  "libflate",
  "serde",
  "serde_json",
@@ -3758,11 +3798,13 @@ dependencies = [
  "auto_impl",
  "bitflags 2.6.0",
  "bitvec",
+ "c-kzg",
  "cfg-if",
  "dyn-clone",
  "enumn",
  "hashbrown 0.14.5",
  "hex",
+ "kzg-rs",
  "poseidon-bn254",
  "serde",
 ]
@@ -4130,10 +4172,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 
 [[package]]
-name = "scroll-executor"
-version = "0.4.6"
+name = "scroll-da-codec"
+version = "0.1.0"
+source = "git+https://github.com/automata-network/scroll-prover#66f5bc28c61ae205f0ff835ffd10f554db615e6f"
 dependencies = [
- "base 0.4.6",
+ "base",
+ "blst",
+ "c-kzg",
+ "encoder",
+ "hex",
+ "lazy_static",
+ "log",
+ "scroll-executor",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "scroll-executor"
+version = "0.1.0"
+source = "git+https://github.com/automata-network/scroll-prover#66f5bc28c61ae205f0ff835ffd10f554db615e6f"
+dependencies = [
+ "base",
  "eth-types",
  "mpt-zktrie",
  "revm 13.0.0 (git+https://github.com/automata-network/scroll-revm?branch=scroll-evm-executor/v41)",
@@ -4145,7 +4205,7 @@ dependencies = [
 name = "scroll-test"
 version = "0.4.6"
 dependencies = [
- "base 0.4.6",
+ "base",
  "clap",
  "clients",
  "env_logger",
@@ -4160,19 +4220,19 @@ dependencies = [
 
 [[package]]
 name = "scroll-verifier"
-version = "0.4.6"
+version = "0.1.0"
+source = "git+https://github.com/automata-network/scroll-prover#66f5bc28c61ae205f0ff835ffd10f554db615e6f"
 dependencies = [
  "alloy",
- "base 0.4.6",
+ "base",
  "blst",
  "c-kzg",
- "clients",
  "encoder",
  "hex",
  "lazy_static",
  "log",
- "prover-types",
  "rlp",
+ "scroll-da-codec",
  "scroll-executor",
  "scroll-zstd",
  "serde",
@@ -4375,6 +4435,19 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.76",
+]
+
+[[package]]
+name = "serde_yaml"
+version = "0.9.34+deprecated"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a8b1a1a2ebf674015cc02edccce75287f1a0130d394307b36743c2f5d504b47"
+dependencies = [
+ "indexmap 2.4.0",
+ "itoa",
+ "ryu",
+ "serde",
+ "unsafe-libyaml",
 ]
 
 [[package]]
@@ -4623,6 +4696,14 @@ dependencies = [
  "log",
  "rand 0.8.5",
  "sha1",
+]
+
+[[package]]
+name = "sp1-intrinsics"
+version = "0.0.0"
+source = "git+https://github.com/scroll-tech/sp1-intrinsics.git?branch=master#7e038e60db0b2e847f6d8f49e148ccac8c6fc394"
+dependencies = [
+ "cfg-if",
 ]
 
 [[package]]
@@ -5116,6 +5197,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "229730647fbc343e3a80e463c1db7f78f3855d3f3739bee0dda773c9a037c90a"
 
 [[package]]
+name = "unsafe-libyaml"
+version = "0.2.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "673aac59facbab8a9007c7f6108d11f63b603f7cabff99fabf650fea5c32b861"
+
+[[package]]
 name = "untrusted"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5521,7 +5608,7 @@ dependencies = [
 [[package]]
 name = "zktrie"
 version = "0.3.0"
-source = "git+https://github.com/scroll-tech/zktrie.git?branch=main#460b8c22af65b7809164548cba1e0253b6db5a70"
+source = "git+https://github.com/scroll-tech/zktrie.git?branch=main#0527b14b29abde8ba9fbaf34315d545cf32618a0"
 dependencies = [
  "gobuild",
  "zktrie_rust",
@@ -5530,10 +5617,11 @@ dependencies = [
 [[package]]
 name = "zktrie_rust"
 version = "0.3.0"
-source = "git+https://github.com/scroll-tech/zktrie.git?branch=main#460b8c22af65b7809164548cba1e0253b6db5a70"
+source = "git+https://github.com/scroll-tech/zktrie.git?branch=main#0527b14b29abde8ba9fbaf34315d545cf32618a0"
 dependencies = [
  "hex",
  "lazy_static",
+ "log",
  "num",
  "num-derive",
  "num-traits",

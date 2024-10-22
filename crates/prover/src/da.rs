@@ -1,5 +1,5 @@
-use base::Time;
 use core::time::Duration;
+use base::time::Time;
 use prover_types::B256;
 use serde::Deserialize;
 use serde::Serialize;

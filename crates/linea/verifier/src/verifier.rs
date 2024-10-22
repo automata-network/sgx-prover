@@ -1,4 +1,4 @@
-use base::{parallel, Alive};
+use base::{thread::parallel, trace::Alive};
 use clients::{Eth, EthError};
 use linea_executor::{CommitState, Context, ExecutionError, LineaEvmExecutor};
 use linea_revm::primitives::ExecutionResult;
@@ -106,6 +106,7 @@ impl LineaBatchVerifier {
 }
 
 base::stack_error! {
+    #[derive(Debug)]
     name: ValidateError,
     stack_name: ValidateErrorStack,
     error: {

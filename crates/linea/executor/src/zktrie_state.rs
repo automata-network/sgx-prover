@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use alloy::primitives::{keccak256, B256, U256};
-use base::{BufferBeEncode, BufferVec, BufferWriteBytes, PrimitivesConvert};
+use base::bytes::{BufferBeEncode, BufferVec, BufferWriteBytes};
+use base::eth::PrimitivesConvert;
 use linea_zktrie::{mimc_safe_code_hash, Database};
 use serde::{Deserialize, Serialize};
 

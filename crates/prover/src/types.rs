@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, time::Duration};
 
 use alloy::primitives::Bytes;
-use base::debug;
+use base::format::debug;
 use jsonrpsee::{core::RpcResult, proc_macros::rpc};
 use linea_shomei::ShomeiConfig;
 use prover_types::{PoeResponse, ProveTaskParams, SuccinctPobList, B256};

@@ -5,7 +5,7 @@ use std::{
 };
 
 use alloy::primitives::{Address, Bytes, U256};
-use base::PrimitivesConvert;
+use base::eth::PrimitivesConvert;
 use linea_executor::{
     account_key, storage_slot, AccountInfo, Bytecode, CommitState, ExecutionError, ZkStateAccount,
 };
@@ -268,6 +268,7 @@ impl DatabaseRef for ContextDB {
 }
 
 base::stack_error! {
+    #[derive(Debug)]
     name: DBError,
     stack_name: DBErrorStack,
     error: {},

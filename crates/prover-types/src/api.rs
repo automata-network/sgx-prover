@@ -22,7 +22,19 @@ impl ProveTaskParams {
             None => TaskType::Scroll,
         }
     }
+    pub fn batch(&self) -> Result<&[u8], ParamsError> {
+        self.batch
+            .as_ref()
+            .ok_or(ParamsError::MissingBatch)
+            .map(|n| &n[..])
+    }
 }
+
+#[derive(Debug)]
+pub enum ParamsError {
+    MissingBatch,
+}
+
 #[derive(Clone, Debug, Serialize)]
 pub struct PoeResponse {
     pub not_ready: bool,

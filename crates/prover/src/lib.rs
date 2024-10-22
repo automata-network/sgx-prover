@@ -11,7 +11,7 @@ pub use task_manager::*;
 mod metrics;
 pub use metrics::*;
 
-use base::Alive;
+use base::trace::Alive;
 use clients::Eth;
 use jsonrpsee::{
     server::{tower, ServerBuilder, TlsLayer},

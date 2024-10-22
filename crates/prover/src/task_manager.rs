@@ -1,8 +1,7 @@
-use std::{collections::{btree_map::Entry, BTreeMap}, time::Duration};
+use std::collections::{btree_map::Entry, BTreeMap};
 
-use base::Alive;
+use base::trace::Alive;
 use tokio::sync::Mutex;
-
 
 pub struct TaskManager<K, V, E>
 where
@@ -46,7 +45,6 @@ where
 
     pub async fn process_task(&self, task: K) -> Option<Result<V, E>> {
         let alive = Alive::new();
-        let alive = alive.fork_with_timeout(Duration::from_secs(120));
 
         while alive.is_alive() {
             match self.add_task(task.clone()).await {

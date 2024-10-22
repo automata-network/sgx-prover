@@ -8,7 +8,8 @@ use crate::{Collector, DaItemLockStatus, DaManager, Metadata, TaskManager, BUILD
 use alloy::primitives::Bytes;
 use async_trait::async_trait;
 use automata_sgx_sdk::dcap::dcap_quote;
-use base::{debug, Alive};
+use base::format::debug;
+use base::trace::Alive;
 use clients::Eth;
 use jsonrpsee::core::RpcResult;
 use jsonrpsee::types::{ErrorObject, ErrorObjectOwned};
@@ -17,7 +18,8 @@ use linea_verifier::LineaBatchVerifier;
 use prover_types::{
     keccak_encode, Pob, Poe, PoeResponse, ProveTaskParams, SuccinctPobList, TaskType, B256,
 };
-use scroll_verifier::{BatchTask, ScrollBatchVerifier};
+use scroll_da_codec::BatchTask;
+use scroll_verifier::ScrollBatchVerifier;
 
 const POB_EXPIRED_SECS: u64 = 120;
 
@@ -102,7 +104,10 @@ impl ProverV2ApiServer for ProverApi {
             .ok_or(self.err(14006, format!("pob_hash not found: {:?}", params.pob_hash)))?;
 
         let cache_key = match ty {
-            TaskType::Scroll => self.scroll.cache_key(&params).map_err(jsonrpc_err(14001))?,
+            TaskType::Scroll => self
+                .scroll
+                .cache_key(params.batch().map_err(jsonrpc_err(14001))?, params.pob_hash)
+                .map_err(jsonrpc_err(14001))?,
             TaskType::Linea => self.linea.cache_key(&params).map_err(jsonrpc_err(14001))?,
             TaskType::Other(_) => unreachable!(),
         };
@@ -112,7 +117,11 @@ impl ProverV2ApiServer for ProverApi {
             None => {
                 let start = Instant::now();
                 let result = match ty {
-                    TaskType::Scroll => self.scroll.prove(&pob_list, params).await.map_err(debug),
+                    TaskType::Scroll => self
+                        .scroll
+                        .prove(pob_list.as_slice(), params.batch().map_err(jsonrpc_err(14001))?)
+                        .await
+                        .map_err(debug),
                     TaskType::Linea => self.linea.prove(&pob_list, params).await.map_err(debug),
                     TaskType::Other(_) => unreachable!(),
                 };
@@ -139,8 +148,13 @@ impl ProverV2ApiServer for ProverApi {
         })
     }
 
-    async fn prove_task_without_context(&self, task_data: Bytes, ty: u64) -> RpcResult<PoeResponse> {
-        self.prove_task_with_sample(B256::default(), Some(task_data), 0, ty).await
+    async fn prove_task_without_context(
+        &self,
+        task_data: Bytes,
+        ty: u64,
+    ) -> RpcResult<PoeResponse> {
+        self.prove_task_with_sample(B256::default(), Some(task_data), 0, ty)
+            .await
     }
 
     async fn generate_context(
@@ -246,10 +260,10 @@ impl ProverApi {
                 let Some(l1_el) = &self.l1_el else {
                     return Err(self.err(14011, "missing config for scroll_chain"));
                 };
-        
+
                 let tx = l1_el.get_transaction(tx_hash).await.unwrap();
                 tx.input
-            },
+            }
         };
         let task_data: Bytes = task_data[4..].to_owned().into();
 
