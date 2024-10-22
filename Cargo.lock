@@ -1179,7 +1179,7 @@ checksum = "1462739cb27611015575c0c11df5df7601141071f07518d56fcc1be504cbec97"
 
 [[package]]
 name = "clients"
-version = "0.4.6"
+version = "0.5.0"
 dependencies = [
  "alloy",
  "base",
@@ -2734,7 +2734,7 @@ checksum = "4ec2a862134d2a7d32d7983ddcdd1c4923530833c9f2ea1a44fc5fa473989058"
 
 [[package]]
 name = "linea-executor"
-version = "0.4.6"
+version = "0.5.0"
 dependencies = [
  "alloy",
  "base",
@@ -2746,7 +2746,7 @@ dependencies = [
 
 [[package]]
 name = "linea-mimc"
-version = "0.4.6"
+version = "0.5.0"
 dependencies = [
  "ff_ce",
  "lazy_static",
@@ -2757,7 +2757,7 @@ dependencies = [
 
 [[package]]
 name = "linea-shomei"
-version = "0.4.6"
+version = "0.5.0"
 dependencies = [
  "alloy",
  "clients",
@@ -2769,7 +2769,7 @@ dependencies = [
 
 [[package]]
 name = "linea-test"
-version = "0.4.6"
+version = "0.5.0"
 dependencies = [
  "alloy",
  "base",
@@ -2785,7 +2785,7 @@ dependencies = [
 
 [[package]]
 name = "linea-verifier"
-version = "0.4.6"
+version = "0.5.0"
 dependencies = [
  "alloy",
  "base",
@@ -2804,7 +2804,7 @@ dependencies = [
 
 [[package]]
 name = "linea-zktrie"
-version = "0.4.6"
+version = "0.5.0"
 dependencies = [
  "alloy",
  "alloy-rlp",
@@ -3355,7 +3355,7 @@ dependencies = [
 
 [[package]]
 name = "prometheus"
-version = "0.4.6"
+version = "0.5.0"
 dependencies = [
  "alloy",
 ]
@@ -3382,7 +3382,7 @@ dependencies = [
 
 [[package]]
 name = "prover"
-version = "0.4.6"
+version = "0.5.0"
 dependencies = [
  "alloy",
  "async-trait",
@@ -3409,7 +3409,7 @@ dependencies = [
 
 [[package]]
 name = "prover-types"
-version = "0.4.6"
+version = "0.5.0"
 dependencies = [
  "alloy",
  "base",
@@ -4203,7 +4203,7 @@ dependencies = [
 
 [[package]]
 name = "scroll-test"
-version = "0.4.6"
+version = "0.5.0"
 dependencies = [
  "base",
  "clap",
@@ -4468,7 +4468,7 @@ dependencies = [
 
 [[package]]
 name = "sgx-prover"
-version = "0.4.6"
+version = "0.5.0"
 dependencies = [
  "automata-build-script",
  "automata-sgx-sdk",

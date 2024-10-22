@@ -4,7 +4,7 @@ members = ["bin/*", "crates/clients", "crates/prover", "crates/prover-types", "c
 
 [workspace.package]
 edition = "2021"
-version = "0.4.6"
+version = "0.5.0"
 authors = ["Automata Team"]
 homepage = "https://www.ata.network/"
 
