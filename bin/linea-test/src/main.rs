@@ -15,6 +15,8 @@ struct Opt {
     shomei_version: String,
     #[clap(long, default_value = "http://127.0.0.1:8545", env = "BESU")]
     besu: String,
+    #[clap(long, default_value = "60")]
+    timeout_secs: u64,
 
     #[clap(default_value = "0")]
     block: u64,
@@ -22,7 +24,7 @@ struct Opt {
 
 #[tokio::main]
 async fn main() {
-    base::init_log();
+    prover_types::init_log();
 
     let opt = Opt::parse();
     let mut eth = None;
@@ -62,6 +64,7 @@ async fn fetch_or_gen_block_trace(
     let cfg = linea_shomei::ShomeiConfig {
         endpoint: opt.shomei.clone(),
         version: opt.shomei_version.clone(),
+        timeout_secs: Some(opt.timeout_secs),
     };
     let client = linea_shomei::Client::new(cfg).unwrap();
     if eth.is_none() {

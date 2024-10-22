@@ -11,8 +11,8 @@ pub use task_manager::*;
 mod metrics;
 pub use metrics::*;
 
-use base::trace::Alive;
-use clients::Eth;
+use base::{eth::Keypair, trace::Alive};
+use base::eth::Eth;
 use jsonrpsee::{
     server::{tower, ServerBuilder, TlsLayer},
     Methods,
@@ -41,7 +41,6 @@ struct Opt {
     force_with_context: bool,
 }
 
-
 pub async fn entrypoint() {
     let opt: Opt = Opt::parse();
 
@@ -49,10 +48,20 @@ pub async fn entrypoint() {
 
     let alive = Alive::new();
 
-    let scroll =
-        ScrollBatchVerifier::new(cfg.scroll_endpoint.as_ref().map(|n| n.as_str())).unwrap();
+    let keypair = Keypair::new();
 
-    let linea = LineaBatchVerifier::new(cfg.linea_endpoint.as_ref().map(|n| n.as_str()), cfg.linea_shomei).unwrap();
+    let scroll = ScrollBatchVerifier::new(
+        cfg.scroll_endpoint.as_ref().map(|n| n.as_str()),
+        Some(Duration::from_secs(cfg.l2_timeout_secs)),
+    )
+    .unwrap();
+
+    let linea = LineaBatchVerifier::new(
+        cfg.linea_endpoint.as_ref().map(|n| n.as_str()),
+        Some(Duration::from_secs(cfg.l2_timeout_secs)),
+        cfg.linea_shomei,
+    )
+    .unwrap();
 
     let l1_el = cfg
         .scroll_chain
@@ -73,6 +82,7 @@ pub async fn entrypoint() {
         pobda_task_mgr: Arc::new(TaskManager::new(100)),
         pob_da: Arc::new(DaManager::new()),
         metrics: collector.clone(),
+        keypair,
     };
 
     run_jsonrpc(&cfg.server, opt.port, api.rpc(), collector).await

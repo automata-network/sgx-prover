@@ -12,7 +12,6 @@ linea-revm.workspace = true
 
 prover-types.workspace = true
 
-clients.workspace = true
 base.workspace = true
 
 serde.workspace = true

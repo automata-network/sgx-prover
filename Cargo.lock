@@ -826,7 +826,7 @@ dependencies = [
 [[package]]
 name = "base"
 version = "1.0.0"
-source = "git+https://github.com/automata-network/base-rs#5e948ed560df269d60f68447a4c344261f6ca7f0"
+source = "git+https://github.com/automata-network/base-rs#61c447af923494856195efc878118cda128680b8"
 dependencies = [
  "alloy",
  "async-trait",
@@ -1176,15 +1176,6 @@ name = "clap_lex"
 version = "0.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1462739cb27611015575c0c11df5df7601141071f07518d56fcc1be504cbec97"
-
-[[package]]
-name = "clients"
-version = "0.5.0"
-dependencies = [
- "alloy",
- "base",
- "url",
-]
 
 [[package]]
 name = "coins-bip32"
@@ -1542,7 +1533,7 @@ dependencies = [
 [[package]]
 name = "encoder"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/da-codec#9e32313056ac5535b9024ed2db97db73cba3bbc3"
+source = "git+https://github.com/scroll-tech/da-codec#8c5d2f0cd707153151a5154fef702204f6ca40b3"
 dependencies = [
  "zstd",
 ]
@@ -2760,7 +2751,7 @@ name = "linea-shomei"
 version = "0.5.0"
 dependencies = [
  "alloy",
- "clients",
+ "base",
  "linea-zktrie",
  "log",
  "serde",
@@ -2774,7 +2765,6 @@ dependencies = [
  "alloy",
  "base",
  "clap",
- "clients",
  "linea-shomei",
  "linea-verifier",
  "log",
@@ -2789,7 +2779,6 @@ version = "0.5.0"
 dependencies = [
  "alloy",
  "base",
- "clients",
  "linea-executor",
  "linea-mimc",
  "linea-shomei",
@@ -3389,7 +3378,6 @@ dependencies = [
  "automata-sgx-sdk",
  "base",
  "clap",
- "clients",
  "env_logger",
  "hex",
  "jsonrpsee",
@@ -3413,7 +3401,9 @@ version = "0.5.0"
 dependencies = [
  "alloy",
  "base",
+ "env_logger",
  "libflate",
+ "log",
  "serde",
  "serde_json",
 ]
@@ -4174,7 +4164,7 @@ checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 [[package]]
 name = "scroll-da-codec"
 version = "0.1.0"
-source = "git+https://github.com/automata-network/scroll-prover#66f5bc28c61ae205f0ff835ffd10f554db615e6f"
+source = "git+https://github.com/automata-network/scroll-prover#83efeadde5b2097bf2fc8211bc95ffa2378dff3a"
 dependencies = [
  "base",
  "blst",
@@ -4191,7 +4181,7 @@ dependencies = [
 [[package]]
 name = "scroll-executor"
 version = "0.1.0"
-source = "git+https://github.com/automata-network/scroll-prover#66f5bc28c61ae205f0ff835ffd10f554db615e6f"
+source = "git+https://github.com/automata-network/scroll-prover#83efeadde5b2097bf2fc8211bc95ffa2378dff3a"
 dependencies = [
  "base",
  "eth-types",
@@ -4207,7 +4197,6 @@ version = "0.5.0"
 dependencies = [
  "base",
  "clap",
- "clients",
  "env_logger",
  "hex",
  "log",
@@ -4221,7 +4210,7 @@ dependencies = [
 [[package]]
 name = "scroll-verifier"
 version = "0.1.0"
-source = "git+https://github.com/automata-network/scroll-prover#66f5bc28c61ae205f0ff835ffd10f554db615e6f"
+source = "git+https://github.com/automata-network/scroll-prover#83efeadde5b2097bf2fc8211bc95ffa2378dff3a"
 dependencies = [
  "alloy",
  "base",
@@ -4242,7 +4231,7 @@ dependencies = [
 [[package]]
 name = "scroll-zstd"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/da-codec#9e32313056ac5535b9024ed2db97db73cba3bbc3"
+source = "git+https://github.com/scroll-tech/da-codec#8c5d2f0cd707153151a5154fef702204f6ca40b3"
 dependencies = [
  "encoder",
 ]

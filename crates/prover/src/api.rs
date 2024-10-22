@@ -10,7 +10,7 @@ use async_trait::async_trait;
 use automata_sgx_sdk::dcap::dcap_quote;
 use base::format::debug;
 use base::trace::Alive;
-use clients::Eth;
+use base::eth::{Eth, Keypair};
 use jsonrpsee::core::RpcResult;
 use jsonrpsee::types::{ErrorObject, ErrorObjectOwned};
 use jsonrpsee::RpcModule;
@@ -33,6 +33,7 @@ pub struct ProverApi {
     pub pobda_task_mgr: Arc<TaskManager<(u64, u64, u64, B256), Poe, String>>,
     pub pob_da: Arc<DaManager<Vec<Pob>>>,
     pub metrics: Arc<Collector>,
+    pub keypair: Keypair,
 
     pub scroll: ScrollBatchVerifier,
     pub linea: LineaBatchVerifier,
@@ -63,10 +64,13 @@ impl ProverApi {
 impl ProverV1ApiServer for ProverApi {
     async fn generate_attestation_report(&self, req: Bytes) -> RpcResult<Bytes> {
         let mut data = [0_u8; 64];
-        if req.len() > 64 {
+        if req.len() > 32 {
             return Err(self.err(14002, "invalid report data"));
         }
-        data[64 - req.len()..].copy_from_slice(&req);
+        data[32 - req.len()..].copy_from_slice(&req);
+        data[12..32].copy_from_slice(self.keypair.address().as_slice());
+        
+        log::info!("report data: {:?}", data);
 
         let start = Instant::now();
 

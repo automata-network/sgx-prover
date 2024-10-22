@@ -10,4 +10,7 @@ pub use primitives::*;
 mod api;
 pub use api::*;
 
+mod log;
+pub use log::*;
+
 pub use base::prover::{Pob, PobBlock, PobData, Poe, SuccinctPobList, keccak_encode};

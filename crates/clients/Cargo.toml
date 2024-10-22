@@ -1,9 +1,0 @@
-[package]
-name = "clients"
-version.workspace = true
-edition.workspace = true
-
-[dependencies]
-base.workspace = true
-alloy = { workspace = true, features = ["signer-local", "rpc-types-eth", "sol-types", "providers", "std", "reqwest-rustls-tls", "json-rpc"] }
-url.workspace = true

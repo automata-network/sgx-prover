@@ -10,8 +10,7 @@ use alloy::{
     rlp::{encode_list, Encodable},
     rpc::types::{eth::Block, BlockTransactionsKind, TransactionReceipt},
 };
-use base::eth::{Keypair, PrimitivesConvert};
-use clients::{Eth, EthError};
+use base::eth::{Keypair, PrimitivesConvert, Eth, EthError};
 use linea_executor::{CommitState, Context, ExecutionError, SpecId, TxEnv};
 use linea_revm::db::CacheDB;
 use linea_shomei::{Client, MerkleAccountProof};

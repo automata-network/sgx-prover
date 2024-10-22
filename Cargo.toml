@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["bin/*", "crates/clients", "crates/prover", "crates/prover-types", "crates/prometheus", "crates/linea/*"]
+members = ["bin/*", "crates/prover", "crates/prover-types", "crates/prometheus", "crates/linea/*"]
 
 [workspace.package]
 edition = "2021"
@@ -9,7 +9,6 @@ authors = ["Automata Team"]
 homepage = "https://www.ata.network/"
 
 [workspace.dependencies]
-clients = { path = "crates/clients" }
 base = { git = "https://github.com/automata-network/base-rs", features = ["prover"] }
 prover-types = { path = "crates/prover-types" }
 prometheus = { path = "crates/prometheus" }
