@@ -1,4 +1,5 @@
 use alloy::primitives::{Bytes, B256};
+use base::prover::keccak_encode;
 use serde::{Deserialize, Serialize};
 
 use crate::{Poe, TaskType};
@@ -42,4 +43,15 @@ pub struct PoeResponse {
     pub start_block: u64,
     pub end_block: u64,
     pub poe: Option<Poe>,
+    pub poe_signature: Option<Bytes>,
+}
+
+pub fn poe_digest(poe: &Poe) -> B256 {
+    keccak_encode(|hash| {
+        hash(poe.batch_hash.as_slice());
+        hash(poe.state_hash.as_slice());
+        hash(poe.prev_state_root.as_slice());
+        hash(poe.new_state_root.as_slice());
+        hash(poe.withdrawal_root.as_slice());
+    })
 }

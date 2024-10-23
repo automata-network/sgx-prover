@@ -16,7 +16,7 @@ use jsonrpsee::types::{ErrorObject, ErrorObjectOwned};
 use jsonrpsee::RpcModule;
 use linea_verifier::LineaBatchVerifier;
 use prover_types::{
-    keccak_encode, Pob, Poe, PoeResponse, ProveTaskParams, SuccinctPobList, TaskType, B256,
+    keccak_encode, poe_digest, Pob, Poe, PoeResponse, ProveTaskParams, SuccinctPobList, TaskType, B256
 };
 use scroll_da_codec::BatchTask;
 use scroll_verifier::ScrollBatchVerifier;
@@ -64,10 +64,11 @@ impl ProverApi {
 impl ProverV1ApiServer for ProverApi {
     async fn generate_attestation_report(&self, req: Bytes) -> RpcResult<Bytes> {
         let mut data = [0_u8; 64];
-        if req.len() > 32 {
+        if req.len() > 64 {
             return Err(self.err(14002, "invalid report data"));
         }
-        data[32 - req.len()..].copy_from_slice(&req);
+        data[64 - req.len()..].copy_from_slice(&req);
+        data[0..12].copy_from_slice(&[0_u8; 12]);
         data[12..32].copy_from_slice(self.keypair.address().as_slice());
         
         log::info!("report data: {:?}", data);
@@ -143,12 +144,15 @@ impl ProverV2ApiServer for ProverApi {
         .map_err(jsonrpc_err(15001))?;
         self.metrics.counter_prove.lock().unwrap().inc([ty.name()]);
 
+        let sig = Keypair::sign_digest_ecdsa(&self.keypair.secret_key(), poe_digest(&poe).into());
+
         Ok(PoeResponse {
             not_ready: false,
             batch_id: cache_key.0,
             start_block: cache_key.1,
             end_block: cache_key.2,
             poe: Some(poe),
+            poe_signature: Some(sig.to_vec().into()),
         })
     }
 
