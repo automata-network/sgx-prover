@@ -5,7 +5,7 @@ use alloy::{
     primitives::{keccak256, Address, Bytes, U256},
     rlp::{encode_list, Encodable},
 };
-use base::Keypair;
+use base::eth::Keypair;
 use linea_executor::{Context, ExecutionError, SpecId, TxEnv};
 use linea_revm::db::CacheDB;
 use linea_zktrie::MemStore;

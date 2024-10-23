@@ -11,10 +11,10 @@ crate-type = ["staticlib"]
 tstd_enclave = ["automata-sgx-sdk/tstd_enclave"]
 
 [dependencies]
-clients.workspace = true
 prover-types.workspace = true
 scroll-verifier.workspace = true
 scroll-executor.workspace = true
+scroll-da-codec.workspace = true
 automata-sgx-sdk.workspace = true
 prometheus.workspace = true
 

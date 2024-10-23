@@ -10,8 +10,7 @@ use alloy::{
     rlp::{encode_list, Encodable},
     rpc::types::{eth::Block, BlockTransactionsKind, TransactionReceipt},
 };
-use base::{Keypair, PrimitivesConvert};
-use clients::{Eth, EthError};
+use base::eth::{Keypair, PrimitivesConvert, Eth, EthError};
 use linea_executor::{CommitState, Context, ExecutionError, SpecId, TxEnv};
 use linea_revm::db::CacheDB;
 use linea_shomei::{Client, MerkleAccountProof};
@@ -175,7 +174,11 @@ impl Context for BlockTraceContext {
     type DB = ContextDB;
 
     fn db(&self) -> Self::DB {
-        ContextDB::new(self.bc.zk_parent_state_root_hash, self.db.clone(), self.bc.block_hashes.clone())
+        ContextDB::new(
+            self.bc.zk_parent_state_root_hash,
+            self.db.clone(),
+            self.bc.block_hashes.clone(),
+        )
     }
 
     fn spec_id(&self) -> SpecId {
@@ -294,6 +297,7 @@ impl Context for BlockTraceContext {
 }
 
 base::stack_error! {
+    #[derive(Debug)]
     name: BlockTraceError,
     stack_name: BlockTraceErrorStack,
     error: {

@@ -1,4 +1,5 @@
 /target
 config
 /testdata/downloaded
+bin/sgx-prover/sgx/private.pem
 .DS_Store

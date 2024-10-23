@@ -22,6 +22,7 @@ mod utils;
 pub use utils::*;
 
 base::stack_error!(
+    #[derive(Clone, Debug)]
     name: Error,
     stack_name: ErrorStack,
     error: {
@@ -45,6 +46,7 @@ base::stack_error!(
         RootNodeNotFound(B256),
         RootNodeExpectToBeBranchNode(Arc<Node>),
     },
+    wrap: {},
     stack: {
         BuildNonInclusionProofLeft(prefix: Address, key: Bytes),
         BuildNonInclusionProofRight(prefix: Address, key: Bytes),

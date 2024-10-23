@@ -1,8 +1,8 @@
 use alloy::{eips::BlockId, primitives::{Address, BlockNumber, B256, U256}};
-use clients::{Eth, EthError};
+use base::eth::{Eth, EthError};
 use linea_zktrie::Trace;
 use serde::Deserialize;
-use std::collections::{BTreeMap, BTreeSet};
+use std::{collections::{BTreeMap, BTreeSet}, time::Duration};
 
 use crate::{
     MerkleAccountProof, RollupGetZkEVMStateMerkleProofV0Req, RollupGetZkEVMStateMerkleProofV0Resp,
@@ -18,11 +18,13 @@ pub struct Client {
 pub struct ShomeiConfig {
     pub endpoint: String,
     pub version: String,
+    pub timeout_secs: Option<u64>,
 }
 
 impl Client {
     pub fn new(cfg: ShomeiConfig) -> Result<Client, EthError> {
-        let client = Eth::dial(&cfg.endpoint, None)?;
+        let mut client = Eth::dial(&cfg.endpoint, None)?;
+        client.with_call_timeout(cfg.timeout_secs.map(Duration::from_secs));
         Ok(Client {
             client,
             version: cfg.version,

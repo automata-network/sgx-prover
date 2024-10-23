@@ -17,5 +17,4 @@ c-kzg.workspace = true
 hex.workspace = true
 blst.workspace = true
 base.workspace = true
-clients.workspace = true
 alloy.workspace = true

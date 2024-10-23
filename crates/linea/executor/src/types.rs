@@ -5,7 +5,7 @@ use alloy::{
     consensus::{Transaction, TxEip4844Variant, TxEnvelope},
     primitives::{Address, B256, U256},
 };
-use base::PrimitivesConvert;
+use base::eth::PrimitivesConvert;
 use linea_revm::{
     db::CacheDB,
     primitives::{AccessList, BlockEnv, EVMError},
@@ -16,6 +16,7 @@ pub use linea_revm::{
 };
 
 base::stack_error! {
+    #[derive(Clone, Debug)]
     name: ExecutionError,
     stack_name: ExecutionErrorStack,
     error: {

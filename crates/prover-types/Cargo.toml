@@ -10,3 +10,6 @@ base.workspace = true
 alloy = { workspace = true }
 libflate = "2.1.0"
 
+
+log.workspace = true
+env_logger.workspace = true

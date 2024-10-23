@@ -9,4 +9,4 @@ serde_json.workspace = true
 log.workspace = true
 linea-zktrie.workspace = true
 alloy.workspace = true
-clients.workspace = true
+base.workspace = true

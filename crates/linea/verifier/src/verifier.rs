@@ -1,5 +1,7 @@
-use base::{parallel, Alive};
-use clients::{Eth, EthError};
+use std::time::Duration;
+
+use base::eth::{Eth, EthError};
+use base::{thread::parallel, trace::Alive};
 use linea_executor::{CommitState, Context, ExecutionError, LineaEvmExecutor};
 use linea_revm::primitives::ExecutionResult;
 use linea_shomei::ShomeiConfig;
@@ -15,9 +17,17 @@ pub struct LineaBatchVerifier {
 }
 
 impl LineaBatchVerifier {
-    pub fn new(el: Option<&str>, shomei: Option<ShomeiConfig>) -> Result<Self, ValidateError> {
+    pub fn new(
+        el: Option<&str>,
+        timeout: Option<Duration>,
+        shomei: Option<ShomeiConfig>,
+    ) -> Result<Self, ValidateError> {
         let el = match el {
-            Some(el) => Some(Eth::dial(el, None)?),
+            Some(el) => {
+                let mut el = Eth::dial(el, None)?;
+                el.with_call_timeout(timeout);
+                Some(el)
+            }
             None => None,
         };
         let shomei = match shomei {
@@ -106,6 +116,7 @@ impl LineaBatchVerifier {
 }
 
 base::stack_error! {
+    #[derive(Debug)]
     name: ValidateError,
     stack_name: ValidateErrorStack,
     error: {
