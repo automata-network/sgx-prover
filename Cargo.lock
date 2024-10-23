@@ -826,7 +826,7 @@ dependencies = [
 [[package]]
 name = "base"
 version = "1.0.0"
-source = "git+https://github.com/automata-network/base-rs#61c447af923494856195efc878118cda128680b8"
+source = "git+https://github.com/automata-network/base-rs#d189ecc97ca5aa1572ab998c332e0b432067ec14"
 dependencies = [
  "alloy",
  "async-trait",

@@ -71,7 +71,7 @@ impl ProverV1ApiServer for ProverApi {
         data[0..12].copy_from_slice(&[0_u8; 12]);
         data[12..32].copy_from_slice(self.keypair.address().as_slice());
         
-        log::info!("report data: {:?}", data);
+        log::info!("report data: {:?}", Bytes::copy_from_slice(&data));
 
         let start = Instant::now();
 
@@ -237,7 +237,7 @@ impl DaApiServer for ProverApi {
         let pob_list = arg.unwrap();
         let pob_hash = keccak_encode(|hash| {
             for pob in &pob_list {
-                hash(pob.hash.as_slice());
+                hash(pob.pob_hash().as_slice());
             }
         });
         self.pob_da
