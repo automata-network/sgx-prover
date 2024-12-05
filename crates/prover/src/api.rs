@@ -186,15 +186,23 @@ impl ProverApi {
 
 #[async_trait]
 impl ProverV1ApiServer for ProverApi {
-    async fn generate_attestation_report(&self, req: Bytes) -> RpcResult<Bytes> {
+    async fn generate_attestation_report(&self, mut req: Bytes) -> RpcResult<Bytes> {
         let mut data = [0_u8; 64];
-        if req.len() > 32 {
-            return Err(self.err(14002, "invalid report data"));
+        const ZERO: [u8; 32] = [0_u8; 32];
+        if req.len() == 64 {
+            if ZERO.eq(&req[0..32]) {
+                req = req.slice(32..);
+            }
         }
-        data[32 - req.len()..].copy_from_slice(&req);
+
+        if req.len() > 32 {
+            return Err(self.err(14002, "invalid report data (too long)"));
+        }
+        data[64 - req.len()..].copy_from_slice(&req);
         data[12..32].copy_from_slice(self.keypair.address().as_slice());
 
-        log::info!("report data: {:?}", data);
+        
+        log::info!("report data: {:?}", Bytes::copy_from_slice(&data));
 
         let start = Instant::now();
 
