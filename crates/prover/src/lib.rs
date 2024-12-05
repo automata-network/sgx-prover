@@ -11,8 +11,8 @@ pub use task_manager::*;
 mod metrics;
 pub use metrics::*;
 
-use base::{eth::Keypair, trace::Alive};
 use base::eth::Eth;
+use base::{eth::Keypair, trace::Alive};
 use jsonrpsee::{
     server::{tower, ServerBuilder, TlsLayer},
     Methods,
@@ -82,6 +82,7 @@ pub async fn entrypoint() {
         pobda_task_mgr: Arc::new(TaskManager::new(100)),
         pob_da: Arc::new(DaManager::new()),
         metrics: collector.clone(),
+        request_timeout: Some(Duration::from_secs(300)),
         keypair,
     };
 

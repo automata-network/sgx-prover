@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
+use std::future::IntoFuture;
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use crate::types::{DaApiServer, ProverV1ApiServer, ProverV2ApiServer};
 use crate::{Collector, DaItemLockStatus, DaManager, Metadata, TaskManager, BUILD_TAG};
@@ -8,9 +9,10 @@ use crate::{Collector, DaItemLockStatus, DaManager, Metadata, TaskManager, BUILD
 use alloy::primitives::Bytes;
 use async_trait::async_trait;
 use automata_sgx_sdk::dcap::dcap_quote;
-use base::format::debug;
-use base::trace::Alive;
 use base::eth::{Eth, Keypair};
+use base::format::debug;
+use base::thread::wait_timeout;
+use base::trace::Alive;
 use jsonrpsee::core::RpcResult;
 use jsonrpsee::types::{ErrorObject, ErrorObjectOwned};
 use jsonrpsee::RpcModule;
@@ -34,6 +36,7 @@ pub struct ProverApi {
     pub pob_da: Arc<DaManager<Vec<Pob>>>,
     pub metrics: Arc<Collector>,
     pub keypair: Keypair,
+    pub request_timeout: Option<Duration>,
 
     pub scroll: ScrollBatchVerifier,
     pub linea: LineaBatchVerifier,
@@ -58,114 +61,22 @@ impl ProverApi {
     pub fn err<M: Into<String>>(&self, code: i32, msg: M) -> ErrorObjectOwned {
         ErrorObject::owned(code, msg, None::<()>)
     }
-}
 
-#[async_trait]
-impl ProverV1ApiServer for ProverApi {
-    async fn generate_attestation_report(&self, req: Bytes) -> RpcResult<Bytes> {
-        let mut data = [0_u8; 64];
-        if req.len() > 64 {
-            return Err(self.err(14002, "invalid report data"));
-        }
-        data[64 - req.len()..].copy_from_slice(&req);
-        data[0..12].copy_from_slice(&[0_u8; 12]);
-        data[12..32].copy_from_slice(self.keypair.address().as_slice());
-        
-        log::info!("report data: {:?}", Bytes::copy_from_slice(&data));
-
-        let start = Instant::now();
-
-        let result = dcap_quote(data);
-
-        self.metrics
-            .gen_attestation_report_ms
-            .lock()
-            .unwrap()
-            .set([], start.elapsed().as_millis() as f64);
-
-        match result {
-            Ok(quote) => Ok(quote.into()),
-            Err(err) => {
-                let msg = format!("generate report failed: {:?}", err);
-                return Err(self.err(14003, msg));
-            }
+    async fn wait<T, F>(&self, f: F) -> RpcResult<T>
+    where
+        F: IntoFuture<Output = Result<T, ErrorObjectOwned>>,
+    {
+        match wait_timeout(self.request_timeout, f).await {
+            Ok(n) => n,
+            Err(_) => Err(ErrorObject::owned(
+                14502,
+                format!("request timeout"),
+                None::<()>,
+            )),
         }
     }
 
-    async fn get_poe(&self, tx_hash: B256) -> RpcResult<PoeResponse> {
-        self.prove_task_with_sample(tx_hash, None, self.sampling, TaskType::Scroll.u64())
-            .await
-    }
-}
-
-#[async_trait]
-impl ProverV2ApiServer for ProverApi {
-    async fn prove_task(&self, params: ProveTaskParams) -> RpcResult<PoeResponse> {
-        let ty = TaskType::from_opu64(params.task_type);
-
-        let pob_list = self
-            .pob_da
-            .get(&params.pob_hash)
-            .ok_or(self.err(14006, format!("pob_hash not found: {:?}", params.pob_hash)))?;
-
-        let cache_key = match ty {
-            TaskType::Scroll => self
-                .scroll
-                .cache_key(params.batch().map_err(jsonrpc_err(14001))?, params.pob_hash)
-                .map_err(jsonrpc_err(14001))?,
-            TaskType::Linea => self.linea.cache_key(&params).map_err(jsonrpc_err(14001))?,
-            TaskType::Other(_) => unreachable!(),
-        };
-
-        let poe = match self.pobda_task_mgr.process_task(cache_key.clone()).await {
-            Some(poe) => poe,
-            None => {
-                let start = Instant::now();
-                let result = match ty {
-                    TaskType::Scroll => self
-                        .scroll
-                        .prove(pob_list.as_slice(), params.batch().map_err(jsonrpc_err(14001))?)
-                        .await
-                        .map_err(debug),
-                    TaskType::Linea => self.linea.prove(&pob_list, params).await.map_err(debug),
-                    TaskType::Other(_) => unreachable!(),
-                };
-                self.pobda_task_mgr
-                    .update_task(cache_key.clone(), result.clone())
-                    .await;
-                self.metrics
-                    .gauge_prove_ms
-                    .lock()
-                    .unwrap()
-                    .set([ty.name()], start.elapsed().as_millis() as _);
-                result
-            }
-        }
-        .map_err(jsonrpc_err(15001))?;
-        self.metrics.counter_prove.lock().unwrap().inc([ty.name()]);
-
-        let sig = Keypair::sign_digest_ecdsa(&self.keypair.secret_key(), poe_digest(&poe).into());
-
-        Ok(PoeResponse {
-            not_ready: false,
-            batch_id: cache_key.0,
-            start_block: cache_key.1,
-            end_block: cache_key.2,
-            poe: Some(poe),
-            poe_signature: Some(sig.to_vec().into()),
-        })
-    }
-
-    async fn prove_task_without_context(
-        &self,
-        task_data: Bytes,
-        ty: u64,
-    ) -> RpcResult<PoeResponse> {
-        self.prove_task_with_sample(B256::default(), Some(task_data), 0, ty)
-            .await
-    }
-
-    async fn generate_context(
+    async fn inner_generate_context(
         &self,
         start_block: u64,
         end_block: u64,
@@ -211,6 +122,128 @@ impl ProverV2ApiServer for ProverApi {
             .unwrap()
             .set([ty.name()], gen_ctx_time);
         Ok(pob_list)
+    }
+
+    async fn inner_prove_task(&self, params: ProveTaskParams) -> RpcResult<PoeResponse> {
+        let ty = TaskType::from_opu64(params.task_type);
+
+        let pob_list = self
+            .pob_da
+            .get(&params.pob_hash)
+            .ok_or(self.err(14006, format!("pob_hash not found: {:?}", params.pob_hash)))?;
+
+        let cache_key = match ty {
+            TaskType::Scroll => self
+                .scroll
+                .cache_key(params.batch().map_err(jsonrpc_err(14001))?, params.pob_hash)
+                .map_err(jsonrpc_err(14001))?,
+            TaskType::Linea => self.linea.cache_key(&params).map_err(jsonrpc_err(14001))?,
+            TaskType::Other(_) => unreachable!(),
+        };
+
+        let poe = match self.pobda_task_mgr.process_task(cache_key.clone()).await {
+            Some(poe) => poe,
+            None => {
+                let start = Instant::now();
+                let result = match ty {
+                    TaskType::Scroll => self
+                        .scroll
+                        .prove(
+                            pob_list.as_slice(),
+                            params.batch().map_err(jsonrpc_err(14001))?,
+                        )
+                        .await
+                        .map_err(debug),
+                    TaskType::Linea => self.linea.prove(&pob_list, params).await.map_err(debug),
+                    TaskType::Other(_) => unreachable!(),
+                };
+                self.pobda_task_mgr
+                    .update_task(cache_key.clone(), result.clone())
+                    .await;
+                self.metrics
+                    .gauge_prove_ms
+                    .lock()
+                    .unwrap()
+                    .set([ty.name()], start.elapsed().as_millis() as _);
+                result
+            }
+        }
+        .map_err(jsonrpc_err(15001))?;
+        self.metrics.counter_prove.lock().unwrap().inc([ty.name()]);
+
+        let sig = Keypair::sign_digest_ecdsa(&self.keypair.secret_key(), poe_digest(&poe).into());
+
+        Ok(PoeResponse {
+            not_ready: false,
+            batch_id: cache_key.0,
+            start_block: cache_key.1,
+            end_block: cache_key.2,
+            poe: Some(poe),
+            poe_signature: Some(sig.to_vec().into()),
+        })
+    }
+}
+
+#[async_trait]
+impl ProverV1ApiServer for ProverApi {
+    async fn generate_attestation_report(&self, req: Bytes) -> RpcResult<Bytes> {
+        let mut data = [0_u8; 64];
+        if req.len() > 32 {
+            return Err(self.err(14002, "invalid report data"));
+        }
+        data[32 - req.len()..].copy_from_slice(&req);
+        data[12..32].copy_from_slice(self.keypair.address().as_slice());
+
+        log::info!("report data: {:?}", data);
+
+        let start = Instant::now();
+
+        let result = dcap_quote(data);
+
+        self.metrics
+            .gen_attestation_report_ms
+            .lock()
+            .unwrap()
+            .set([], start.elapsed().as_millis() as f64);
+
+        match result {
+            Ok(quote) => Ok(quote.into()),
+            Err(err) => {
+                let msg = format!("generate report failed: {:?}", err);
+                return Err(self.err(14003, msg));
+            }
+        }
+    }
+
+    async fn get_poe(&self, tx_hash: B256) -> RpcResult<PoeResponse> {
+        self.wait(self.prove_task_with_sample(tx_hash, None, self.sampling, TaskType::Scroll.u64()))
+            .await
+    }
+}
+
+#[async_trait]
+impl ProverV2ApiServer for ProverApi {
+    async fn prove_task(&self, params: ProveTaskParams) -> RpcResult<PoeResponse> {
+        self.wait(self.inner_prove_task(params)).await
+    }
+
+    async fn prove_task_without_context(
+        &self,
+        task_data: Bytes,
+        ty: u64,
+    ) -> RpcResult<PoeResponse> {
+        self.wait(self.prove_task_with_sample(B256::default(), Some(task_data), 0, ty))
+            .await
+    }
+
+    async fn generate_context(
+        &self,
+        start_block: u64,
+        end_block: u64,
+        ty: u64,
+    ) -> RpcResult<SuccinctPobList> {
+        self.wait(self.inner_generate_context(start_block, end_block, ty))
+            .await
     }
 
     async fn metadata(&self) -> RpcResult<Metadata> {
@@ -284,7 +317,7 @@ impl ProverApi {
         println!("task: {:?}", batch_task);
 
         let pob_list = self
-            .generate_context(
+            .inner_generate_context(
                 batch_task.start().unwrap(),
                 batch_task.end().unwrap(),
                 ty.u64(),
@@ -297,7 +330,7 @@ impl ProverApi {
         );
 
         let poe = self
-            .prove_task(ProveTaskParams {
+            .inner_prove_task(ProveTaskParams {
                 batch: Some(task_data),
                 pob_hash: pob_list.hash,
                 start: None,

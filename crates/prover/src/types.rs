@@ -22,6 +22,8 @@ pub struct Config {
 
     #[serde(default = "default_l2_timeout_secs")]
     pub l2_timeout_secs: u64,
+    #[serde(default = "default_req_timeout_secs")]
+    pub req_timeout_secs: u64,
 }
 
 impl Config {
@@ -79,6 +81,10 @@ pub fn get_timeout(timeout_secs: u64) -> Option<Duration> {
     }
 }
 
+fn default_req_timeout_secs() -> u64 {
+    300
+}
+
 fn default_l2_timeout_secs() -> u64 {
     60
 }
@@ -89,7 +95,8 @@ pub trait ProverV2Api {
     async fn prove_task(&self, arg: ProveTaskParams) -> RpcResult<PoeResponse>;
 
     #[method(name = "proveTaskWithoutContext")]
-    async fn prove_task_without_context(&self, task_data: Bytes, ty: u64) -> RpcResult<PoeResponse>;
+    async fn prove_task_without_context(&self, task_data: Bytes, ty: u64)
+        -> RpcResult<PoeResponse>;
 
     #[method(name = "genContext")]
     async fn generate_context(

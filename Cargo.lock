@@ -826,14 +826,16 @@ dependencies = [
 [[package]]
 name = "base"
 version = "1.0.0"
-source = "git+https://github.com/automata-network/base-rs#d189ecc97ca5aa1572ab998c332e0b432067ec14"
+source = "git+https://github.com/automata-network/base-rs#83173dcf72ee6b97530627af3e7c38f676dc6a35"
 dependencies = [
  "alloy",
  "async-trait",
  "chrono",
  "libflate",
+ "log",
  "secp256k1",
  "serde",
+ "serde_json",
  "tokio",
  "url",
 ]
