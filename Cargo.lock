@@ -826,7 +826,7 @@ dependencies = [
 [[package]]
 name = "base"
 version = "1.0.0"
-source = "git+https://github.com/automata-network/base-rs#83173dcf72ee6b97530627af3e7c38f676dc6a35"
+source = "git+https://github.com/automata-network/base-rs#55541c61ab4f18aacb0ed9347524f89689765dae"
 dependencies = [
  "alloy",
  "async-trait",
@@ -987,7 +987,7 @@ dependencies = [
 [[package]]
 name = "bn254"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/bn254.git?branch=master#db67681f5e9ae1736565a48ec294a6d0dacb4e0d"
+source = "git+https://github.com/scroll-tech/bn254.git?branch=master#81e1dcc92ee9a2798b13b84b24de182e9c42256e"
 dependencies = [
  "ff",
  "getrandom",
@@ -1299,9 +1299,8 @@ dependencies = [
 
 [[package]]
 name = "cpufeatures"
-version = "0.2.13"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "51e852e6dc9a5bed1fae92dd2375037bf2b768725bf3be87811edee3249d09ad"
+version = "0.2.16"
+source = "git+https://github.com/automata-network/RustCrypto-utils-ass?branch=cpufeatures-v0.2.16#96c33a42c87e441bf7985b1231aa8bb43ec8b7ae"
 dependencies = [
  "libc",
 ]
@@ -1535,7 +1534,7 @@ dependencies = [
 [[package]]
 name = "encoder"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/da-codec#8c5d2f0cd707153151a5154fef702204f6ca40b3"
+source = "git+https://github.com/scroll-tech/da-codec#9852fa4e1be5a37ed5134d8dc9a5c1d13af4f2cb"
 dependencies = [
  "zstd",
 ]
@@ -2727,7 +2726,7 @@ checksum = "4ec2a862134d2a7d32d7983ddcdd1c4923530833c9f2ea1a44fc5fa473989058"
 
 [[package]]
 name = "linea-executor"
-version = "0.5.0"
+version = "0.5.5"
 dependencies = [
  "alloy",
  "base",
@@ -2739,7 +2738,7 @@ dependencies = [
 
 [[package]]
 name = "linea-mimc"
-version = "0.5.0"
+version = "0.5.5"
 dependencies = [
  "ff_ce",
  "lazy_static",
@@ -2750,7 +2749,7 @@ dependencies = [
 
 [[package]]
 name = "linea-shomei"
-version = "0.5.0"
+version = "0.5.5"
 dependencies = [
  "alloy",
  "base",
@@ -2762,7 +2761,7 @@ dependencies = [
 
 [[package]]
 name = "linea-test"
-version = "0.5.0"
+version = "0.5.5"
 dependencies = [
  "alloy",
  "base",
@@ -2777,7 +2776,7 @@ dependencies = [
 
 [[package]]
 name = "linea-verifier"
-version = "0.5.0"
+version = "0.5.5"
 dependencies = [
  "alloy",
  "base",
@@ -2795,7 +2794,7 @@ dependencies = [
 
 [[package]]
 name = "linea-zktrie"
-version = "0.5.0"
+version = "0.5.5"
 dependencies = [
  "alloy",
  "alloy-rlp",
@@ -3245,7 +3244,7 @@ checksum = "d231b230927b5e4ad203db57bbcbee2802f6bce620b1e4a9024a07d94e2907ec"
 [[package]]
 name = "poseidon-bn254"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/poseidon-bn254?branch=master#a96ba028dd00987551451d8f4bd65b7ea5469a44"
+source = "git+https://github.com/scroll-tech/poseidon-bn254?branch=master#254baa0e3e85c0975c16fe6f33042b1fa9ae0a44"
 dependencies = [
  "bn254",
  "itertools 0.13.0",
@@ -3346,7 +3345,7 @@ dependencies = [
 
 [[package]]
 name = "prometheus"
-version = "0.5.0"
+version = "0.5.5"
 dependencies = [
  "alloy",
 ]
@@ -3373,13 +3372,14 @@ dependencies = [
 
 [[package]]
 name = "prover"
-version = "0.5.0"
+version = "0.5.5"
 dependencies = [
  "alloy",
  "async-trait",
  "automata-sgx-sdk",
  "base",
  "clap",
+ "cpufeatures",
  "env_logger",
  "hex",
  "jsonrpsee",
@@ -3399,7 +3399,7 @@ dependencies = [
 
 [[package]]
 name = "prover-types"
-version = "0.5.0"
+version = "0.5.5"
 dependencies = [
  "alloy",
  "base",
@@ -4195,7 +4195,7 @@ dependencies = [
 
 [[package]]
 name = "scroll-test"
-version = "0.5.0"
+version = "0.5.5"
 dependencies = [
  "base",
  "clap",
@@ -4459,7 +4459,7 @@ dependencies = [
 
 [[package]]
 name = "sgx-prover"
-version = "0.5.0"
+version = "0.5.5"
 dependencies = [
  "automata-build-script",
  "automata-sgx-sdk",

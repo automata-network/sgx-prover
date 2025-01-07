@@ -31,5 +31,7 @@ async-trait.workspace = true
 base.workspace = true
 linea-verifier.workspace = true
 linea-shomei.workspace = true
+cpufeatures.workspace = true
+
 
 clap = { version = "4", features = ["derive"] }
