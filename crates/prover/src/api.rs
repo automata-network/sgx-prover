@@ -4,11 +4,10 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use crate::types::{DaApiServer, ProverV1ApiServer, ProverV2ApiServer};
-use crate::{Collector, DaItemLockStatus, DaManager, Metadata, TaskManager, BUILD_TAG};
+use crate::{AsyncDcapQuote, Collector, DaItemLockStatus, DaManager, Metadata, TaskManager, BUILD_TAG};
 
 use alloy::primitives::Bytes;
 use async_trait::async_trait;
-use automata_sgx_sdk::dcap::dcap_quote;
 use base::eth::{Eth, Keypair};
 use base::format::debug;
 use base::thread::wait_timeout;
@@ -37,6 +36,7 @@ pub struct ProverApi {
     pub metrics: Arc<Collector>,
     pub keypair: Keypair,
     pub request_timeout: Option<Duration>,
+    pub dcap_quote_generator: Arc<AsyncDcapQuote>,
 
     pub scroll: ScrollBatchVerifier,
     pub linea: LineaBatchVerifier,
@@ -206,7 +206,7 @@ impl ProverV1ApiServer for ProverApi {
 
         let start = Instant::now();
 
-        let result = dcap_quote(data);
+        let result = self.dcap_quote_generator.generate(data).await;
 
         self.metrics
             .gen_attestation_report_ms

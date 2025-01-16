@@ -10,6 +10,8 @@ mod task_manager;
 pub use task_manager::*;
 mod metrics;
 pub use metrics::*;
+mod dcap;
+pub use dcap::*;
 
 use base::eth::Eth;
 use base::{eth::Keypair, trace::Alive};
@@ -71,6 +73,8 @@ pub async fn entrypoint() {
 
     let collector = Arc::new(Collector::new("avs"));
 
+    let dcap_quote_generator = Arc::new(AsyncDcapQuote::new());
+
     let api = ProverApi {
         alive: alive.clone(),
         force_with_context: opt.force_with_context,
@@ -83,6 +87,8 @@ pub async fn entrypoint() {
         pob_da: Arc::new(DaManager::new()),
         metrics: collector.clone(),
         request_timeout: Some(Duration::from_secs(300)),
+        dcap_quote_generator,
+        
         keypair,
     };
 
