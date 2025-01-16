@@ -196,6 +196,7 @@ impl ProverV1ApiServer for ProverApi {
         }
 
         if req.len() > 32 {
+            log::info!("invalid report data: {:?}", Bytes::copy_from_slice(&req));
             return Err(self.err(14002, "invalid report data (too long)"));
         }
         data[64 - req.len()..].copy_from_slice(&req);
