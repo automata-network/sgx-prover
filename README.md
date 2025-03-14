@@ -1,11 +1,11 @@
 # SGX Prover
-[![Automata SGX SDK](https://img.shields.io/badge/Power%20By-Automata%20SGX%20SDK-orange.svg)](https://github.com/automata-network/automata-sgx-sdk)
+[![Automata SGX SDK](https://img.shields.io/badge/Powered%20By-Automata%20SGX%20SDK-orange.svg)](https://github.com/automata-network/automata-sgx-sdk)
 
 SGX Prover is a prover running SGX enclave, as a component of [multi-prover-avs](https://github.com/automata-network/multi-prover-avs).
 
-SGX Prover utilizing the [automata-sgx-sdk](https://github.com/automata-network/automata-sgx-sdk) to build the SGX app.
+SGX Prover utilizes the [automata-sgx-sdk](https://github.com/automata-network/automata-sgx-sdk) to build the SGX app.
 
-Currently SGX prover supports to execute scroll/linea blocks in SGX enclave and generate the PoE (proof of execution).
+Currently SGX prover supports executing scroll/linea blocks in SGX enclave and generate the PoE (proof of execution).
 
 # Packages
 
