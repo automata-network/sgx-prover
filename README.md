@@ -1,3 +1,13 @@
+<div align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/automata-network/automata-brand-kit/main/PNG/ATA_White%20Text%20with%20Color%20Logo.png">
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/automata-network/automata-brand-kit/main/PNG/ATA_Black%20Text%20with%20Color%20Logo.png">
+    <img src="https://raw.githubusercontent.com/automata-network/automata-brand-kit/main/PNG/ATA_White%20Text%20with%20Color%20Logo.png" width="50%">
+  </picture>
+</div>
+
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+
 # SGX Prover
 [![Automata SGX SDK](https://img.shields.io/badge/Powered%20By-Automata%20SGX%20SDK-orange.svg)](https://github.com/automata-network/automata-sgx-sdk)
 
@@ -6,6 +16,14 @@ SGX Prover is a prover running SGX enclave, as a component of [multi-prover-avs]
 SGX Prover utilizes the [automata-sgx-sdk](https://github.com/automata-network/automata-sgx-sdk) to build the SGX app.
 
 Currently SGX prover supports executing scroll/linea blocks in SGX enclave and generate the PoE (proof of execution).
+
+## 📑 Table of Contents <!-- omit in toc -->
+- [Packages](#packages)
+- [Build from source](#build-from-source)
+  - [System Dependencies](#system-dependencies)
+  - [Build](#build)
+- [Development](#development)
+- [Run](#run)
 
 # Packages
 
