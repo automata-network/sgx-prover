@@ -302,7 +302,7 @@ impl ProverApi {
     ) -> RpcResult<PoeResponse> {
         let ty = TaskType::from_u64(ty);
         if ty != TaskType::Scroll {
-            return Err(self.err(14010, format!("unsupport task {:?}", ty)));
+            return Err(self.err(14010, format!("unsupported task {:?}", ty)));
         }
         let task_data = match task_data {
             Some(task_data) => task_data,
