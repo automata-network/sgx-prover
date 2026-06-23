@@ -25,7 +25,7 @@
   <HeapMaxSize>0x40000000</HeapMaxSize>
   <TCSNum>33</TCSNum>
   <TCSPolicy>0</TCSPolicy>
-  <DisableDebug>0</DisableDebug>
+  <DisableDebug>1</DisableDebug>
   <MiscSelect>0</MiscSelect>
   <MiscMask>0xFFFFFFFF</MiscMask>
 </EnclaveConfiguration>
