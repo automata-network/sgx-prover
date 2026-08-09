@@ -54,10 +54,10 @@ where
             }
         }
 
-        let commited_state = ctx.commit_changes(self.db)?;
+        let committed_state = ctx.commit_changes(self.db)?;
 
         Ok(ExecutionResult {
-            new_state_root: commited_state.new_state_root,
+            new_state_root: committed_state.new_state_root,
         })
     }
 }
