@@ -43,11 +43,11 @@ impl Collector {
             ns,
             "prover",
             "gen_ctx",
-            "counter for generate pob",
+            "counter for generating pob",
             ["type"],
         );
         let counter_prove =
-            registry.create_counter(ns, "prover", "prove", "counter for generate poe", ["type"]);
+            registry.create_counter(ns, "prover", "prove", "counter for generating poe", ["type"]);
         let gauge_gen_ctx_ms = registry.create_gauge(
             ns,
             "prover",
@@ -56,7 +56,7 @@ impl Collector {
             ["type"],
         );
         let gauge_prove_ms =
-            registry.create_gauge(ns, "prover", "prove_ms", "gauge for generate poe", ["type"]);
+            registry.create_gauge(ns, "prover", "prove_ms", "gauge for generating poe", ["type"]);
         let pob_size = registry.create_gauge(ns, "prover", "pob_size", "the size of pob", ["type"]);
         let rpc_call_ms = registry.create_gauge(
             ns,
@@ -69,7 +69,7 @@ impl Collector {
             ns,
             "prover",
             "attestation_report_ms",
-            "gauge for generate attestation report",
+            "gauge for generating attestation report",
             [],
         );
         Self {
